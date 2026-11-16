@@ -545,7 +545,10 @@
       if (!PX || !PX.fx[name]) { console.warn('FX3D.pixel: PIXELFX 번들 또는 이펙트가 없어요', name); return null; }
       const mod = PX.fx[name], [w, h] = mod.meta.size, [ox, oy] = mod.meta.origin;
       const tags = (mod.meta.tags || []).concat(name.split('-'));
-      const mode = o.mode || (tags.some((t) => /beam|pillar|column|fountain|geyser|waterfall|fire|torch|tornado/.test(t)) ? 'upright' : 'billboard');
+      const tall = (t) => /beam|pillar|column|geyser|tornado|torch/.test(t);
+      const mode = o.mode || (tags.some((t) => tall(t) || /fountain|waterfall|fire|splash|water|ripple|crown/.test(t)) ? 'upright' : 'billboard');
+      // 위에서 보이는 윗면: 'tip' 긴 기둥은 꼭대기 끝만 | 'top' 물보라·불처럼 넓은 것은 위쪽 윤곽 전체
+      const capMode = o.cap || (tags.some(tall) ? 'tip' : 'top');
       const frame = PX.core.createFrame(w, h, -ox, -oy);
       const fx = PX.core.createFx(mod, Object.assign({ x: 0, y: 0, seed: (Math.random() * 9999) | 0 }, opts));
       const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -567,7 +570,7 @@
         const cap = new THREE.Mesh(new THREE.PlaneGeometry(D * px, D * px).rotateX(-Math.PI / 2), cmat);
         cap.position.set(p.x, p.y + 0.02 * this.unit, p.z); cap.renderOrder = 6;
         this.root.add(plane, cap);
-        Object.assign(e, { plane, cap, mat, cmat, ctex, cg, cimg, D, top: new Int32Array(w), topY: 0 });
+        Object.assign(e, { plane, cap, mat, cmat, ctex, cg, cimg, D, top: new Int32Array(w), topY: 0, capMode });
         e.objs.push(plane, cap); e.mats.push(mat, cmat, ctex, geo, cap.geometry);
       } else {
         const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
@@ -582,12 +585,16 @@
     /** upright 모드의 윗면 그리기: 위에서 보면 각 지점의 가장 높은 픽셀만 보여요 */
     _pixelCap(e) {
       const { w, h, ox, D, img, cimg } = e, src = img.data, dst = cimg.data;
-      // 열마다 가장 위의 불투명 픽셀 찾기
+      // 가장 높은 또렷한 픽셀의 줄 (옅은 빛무리는 건너뛰어요)
+      const solid = (x, y) => src[(y * w + x) * 4 + 3] > 170;
       let topRow = h;
+      for (let y = 0; y < h && topRow === h; y++) for (let x = 0; x < w; x++) if (solid(x, y)) { topRow = y; break; }
+      // 'tip' 은 꼭대기 근처 띠만, 'top' 은 이펙트 전체 높이에서 열마다 가장 위 픽셀
+      const band = e.capMode === 'tip' ? topRow + Math.max(5, Math.round((e.oy - topRow) * 0.12)) : h;
       for (let x = 0; x < w; x++) {
         let r = -1;
-        for (let y = 0; y < h; y++) if (src[(y * w + x) * 4 + 3] > 170) { r = y; break; } // 옅은 빛무리는 건너뛰고 또렷한 픽셀만
-        e.top[x] = r; if (r >= 0 && r < topRow) topRow = r;
+        for (let y = topRow; y < Math.min(h, band); y++) if (solid(x, y)) { r = y; break; }
+        e.top[x] = r;
       }
       const R = D / 2;
       for (let j = 0; j < D; j++) for (let i = 0; i < D; i++) {
@@ -641,7 +648,7 @@
             const cp = this.camera.position, dx = cp.x - e.pos.x, dz = cp.z - e.pos.z, dy = cp.y - (e.pos.y + e.topY * 0.5);
             e.plane.rotation.y = Math.atan2(dx, dz);
             const down = dy / Math.max(1e-6, Math.hypot(dx, dy, dz)); // 1 = 바로 위
-            const k = Math.min(1, Math.max(0, (down - 0.55) / 0.3));
+            const k = Math.min(1, Math.max(0, (down - 0.78) / 0.17)); // 약 51°부터 바뀌기 시작해 거의 바로 위(72°)에서 윗면만
             e.mat.opacity = 1 - k * k; e.cmat.opacity = Math.sqrt(k);
             e.plane.visible = e.mat.opacity > 0.02; e.cap.visible = e.cmat.opacity > 0.02;
             if (e.cap.visible) { this._pixelCap(e); e.cap.position.y = e.pos.y + Math.max(0.02 * this.unit, e.topY * 0.85); }

@@ -37,7 +37,7 @@ fx.update(dt, camera);           // every frame, after moving things
 | `text(p, "+120G", {color, size})` | pop-in floating text |
 | `ring`, `pillar`, `flash`, `crown` | building blocks |
 | `emit(p, {...})` | one particle: `vel, gravity, drag, wobble, floor, bounce, dieOnFloor, life, size→size2, sizeEase, pop, ramp (stepped over life) or color, alpha, fadeAt, shape (circle ring star spark puff square drop heart), rot, spin, stretch (motion trail), glow (additive), twinkle, rainbow, delay, fadeIn` |
-| `pixel(p, name, opts, {pixel, life, mode})` | a pixelfx effect in 3D (needs the PIXELFX bundle). `mode: 'billboard'` faces the camera (bursts); `'upright'` stands in the world, turning only around the vertical axis, and from above shows a top cap (each radius takes the highest solid pixel of that column, left and right blended) instead of the side view (beams, fountains, fire). Left out, beam/pillar/fountain/geyser/fire effects pick upright |
+| `pixel(p, name, opts, {pixel, life, mode})` | a pixelfx effect in 3D (needs the PIXELFX bundle). `mode: 'billboard'` faces the camera (bursts); `'upright'` stands in the world, turning only around the vertical axis; looking almost straight down (from about 51° to 72° it cross-fades) it shows a top cap instead of the side view. `cap: 'tip'` (default for tall beams/pillars/geysers) shows only the top end, the way you see the end of a beam from above; `cap: 'top'` (splashes, fountains, fire) shows the highest solid pixel of every column, turned around the axis. Left out, standing and water effects pick upright |
 
 Loops return a handle: `h.stop()`. A handle whose target Object3D is removed stops by itself.
 
