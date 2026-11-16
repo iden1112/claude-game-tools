@@ -1,0 +1,9 @@
+{
+  "name": "game-dev-kit",
+  "version": "0.1.0",
+  "description": "20 game development specialties in one plugin: Godot, Unity, Unreal, game architecture, input, save systems, localization, shaders, animation, audio, game UI, NPC AI, physics, procedural generation, level design, playtesting, performance, asset pipelines, multiplayer netcode and ethical monetization.",
+  "author": { "name": "HermeticOrmus (claude-code-game-development), bundled for the user" },
+  "repository": "https://github.com/HermeticOrmus/claude-code-game-development",
+  "license": "MIT",
+  "keywords": ["gamedev", "godot", "unity", "unreal", "game-design"]
+}

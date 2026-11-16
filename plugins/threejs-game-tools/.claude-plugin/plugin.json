@@ -1,0 +1,8 @@
+{
+  "name": "threejs-game-tools",
+  "version": "0.2.0",
+  "description": "3D browser game tools for Three.js (r128+): fx3d.js effects (splash, sparkle, rarity reveals, coins, confetti, explosions, fire, smoke, trails, floating text, pixelfx in 3D), character3d.js detailed characters and NPCs, models3d.js models in code (fish, trees, rocks, islands, water, grass, boats, houses), a no-GPU test stub and a demo template.",
+  "author": { "name": "Made with Claude for the user" },
+  "license": "MIT",
+  "keywords": ["threejs", "3d", "gamedev", "vfx", "low-poly"]
+}

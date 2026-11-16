@@ -1,0 +1,34 @@
+{
+  "name": "claude-game-tools",
+  "owner": {
+    "name": "iden1112"
+  },
+  "description": "게임 개발용 Claude 플러그인 모음",
+  "plugins": [
+    {
+      "name": "pixel-art-tools",
+      "source": "./plugins/pixel-art-tools",
+      "description": "Pixel art for games: pixelfx (244 ready-made effects), codixel (turn reference images into rigged, animated sprites), Pixel Art Studio (draw sprites pixel by pixel with Python) and pxl (pixel art scenes and sprites as code). All four bundled with their code, MIT licensed."
+    },
+    {
+      "name": "threejs-game-tools",
+      "source": "./plugins/threejs-game-tools",
+      "description": "3D browser game tools for Three.js (r128+): fx3d.js effects (splash, sparkle, rarity reveals, coins, confetti, explosions, fire, smoke, trails, floating text, pixelfx in 3D), character3d.js detailed characters and NPCs, models3d.js models in code (fish, trees, rocks, islands, water, grass, boats, houses), a no-GPU test stub and a demo template."
+    },
+    {
+      "name": "game-dev-kit",
+      "source": "./plugins/game-dev-kit",
+      "description": "20 game development specialties in one plugin: Godot, Unity, Unreal, game architecture, input, save systems, localization, shaders, animation, audio, game UI, NPC AI, physics, procedural generation, level design, playtesting, performance, asset pipelines, multiplayer netcode and ethical monetization."
+    },
+    {
+      "name": "unity-gamedev",
+      "source": "./plugins/unity-gamedev",
+      "description": "21 Unity game development skills for Claude Code covering Addressables, Behavior Designer, Cinemachine, GAS, NavMesh, VContainer, UniTask, Wwise, mobile optimization, and more"
+    },
+    {
+      "name": "mcp-for-blender",
+      "source": "./plugins/mcp-for-blender",
+      "description": "Connects Claude to Blender running on your computer to build and edit 3D scenes. Community open-source project, not affiliated with the Blender Foundation. Computer only: needs Blender, the addon and uv installed locally."
+    }
+  ]
+}

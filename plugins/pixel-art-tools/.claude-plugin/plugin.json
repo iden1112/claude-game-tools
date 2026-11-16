@@ -1,0 +1,8 @@
+{
+  "name": "pixel-art-tools",
+  "version": "0.1.0",
+  "description": "Pixel art for games: pixelfx (244 ready-made effects), codixel (turn reference images into rigged, animated sprites), Pixel Art Studio (draw sprites pixel by pixel with Python) and pxl (pixel art scenes and sprites as code). All four bundled with their code, MIT licensed.",
+  "author": { "name": "Bundled for the user from four MIT projects" },
+  "license": "MIT",
+  "keywords": ["pixel-art", "sprites", "vfx", "gamedev"]
+}

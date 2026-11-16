@@ -1,0 +1,22 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>lab</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style></head><body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>/*PIXELFX*/</script><script>/*FX3D*/</script><script>/*MODELS3D*/</script>
+<script>
+const W = innerWidth, H = innerHeight, M = MODELS3D;
+const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x9ad4ee);
+const cam = new THREE.PerspectiveCamera(45, W / H, 0.1, 200);
+scene.add(new THREE.HemisphereLight(0xe8f4ff, 0x6a7a50, 0.8));
+const sun = new THREE.DirectionalLight(0xfff0d8, 0.75); sun.position.set(5, 10, 6); scene.add(sun);
+const ground = new THREE.Mesh(new THREE.CircleGeometry(4, 32), M.material(0x9ac46a)); ground.rotation.x = -Math.PI / 2; ground.position.set(-2.2, 0.001, 0); scene.add(ground);
+const water = M.water({ size: 30, segments: 30, waves: 0.03, color: 0x3a9ad8 }); water.position.y = -0.02; scene.add(water);
+const man = M.humanoid({ shirt: 0xe05a3a, hat: 0xd8b860 }); man.position.set(-1.6, 0, 0); man.rotation.y = 0.9; scene.add(man);
+const fx = new FX3D(scene, {});
+let t = 0;
+function setCam(x, y, z, tx, ty, tz) { cam.position.set(x, y, z); cam.lookAt(tx, ty, tz); }
+setCam(1.2, 2.6, 6.2, 0, 0.9, 0);
+window.step = (n = 1) => { for (let i = 0; i < n; i++) { t += 1 / 60; M.updateAll(scene, t, 1 / 60); fx.update(1 / 60, cam); } renderer.render(scene, cam); return fx.count(); };
+window.LAB = { fx, scene, man, M, setCam, P: (x, y, z) => new THREE.Vector3(x, y, z) };
+step(1);
+</script></body></html>

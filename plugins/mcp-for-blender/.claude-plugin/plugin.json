@@ -1,0 +1,10 @@
+{
+  "name": "mcp-for-blender",
+  "version": "2.2.9",
+  "description": "Connects Claude to Blender running on your computer to build and edit 3D scenes. Community open-source project, not affiliated with the Blender Foundation. Computer only: needs Blender, the addon and uv installed locally.",
+  "author": { "name": "Siddharth Ahuja", "url": "https://mcp-for-blender.com" },
+  "homepage": "https://mcp-for-blender.com",
+  "repository": "https://github.com/ahujasid/mcp-for-blender",
+  "license": "MIT",
+  "keywords": ["blender", "3d", "modeling", "mcp"]
+}

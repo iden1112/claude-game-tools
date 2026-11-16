@@ -1,0 +1,13 @@
+{
+  "name": "unity-gamedev",
+  "description": "21 Unity game development skills for Claude Code covering Addressables, Behavior Designer, Cinemachine, GAS, NavMesh, VContainer, UniTask, Wwise, mobile optimization, and more",
+  "version": "1.0.0",
+  "author": {
+    "name": "TJ Boudreaux",
+    "url": "https://github.com/tjboudreaux"
+  },
+  "homepage": "https://github.com/tjboudreaux/cc-plugin-unity-gamedev",
+  "repository": "https://github.com/tjboudreaux/cc-plugin-unity-gamedev",
+  "license": "MIT",
+  "keywords": ["unity", "gamedev", "game-development", "c-sharp", "addressables", "vcontainer", "unitask", "wwise", "cinemachine", "behavior-designer"]
+}
