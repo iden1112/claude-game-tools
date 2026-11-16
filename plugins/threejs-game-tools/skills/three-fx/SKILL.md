@@ -37,7 +37,7 @@ fx.update(dt, camera);           // every frame, after moving things
 | `text(p, "+120G", {color, size})` | pop-in floating text |
 | `ring`, `pillar`, `flash`, `crown` | building blocks |
 | `emit(p, {...})` | one particle: `vel, gravity, drag, wobble, floor, bounce, dieOnFloor, life, size→size2, sizeEase, pop, ramp (stepped over life) or color, alpha, fadeAt, shape (circle ring star spark puff square drop heart), rot, spin, stretch (motion trail), glow (additive), twinkle, rainbow, delay, fadeIn` |
-| `pixel(p, name, opts, {pixel, life})` | a pixelfx effect on a camera-facing sprite (needs the PIXELFX bundle) |
+| `pixel(p, name, opts, {pixel, life, mode})` | a pixelfx effect in 3D (needs the PIXELFX bundle). `mode: 'billboard'` faces the camera (bursts); `'upright'` stands in the world, turning only around the vertical axis, and from above shows a top cap (each radius takes the highest solid pixel of that column, left and right blended) instead of the side view (beams, fountains, fire). Left out, beam/pillar/fountain/geyser/fire effects pick upright |
 
 Loops return a handle: `h.stop()`. A handle whose target Object3D is removed stops by itself.
 
@@ -50,6 +50,9 @@ Loops return a handle: `h.stop()`. A handle whose target Object3D is removed sto
 - Additive glow is nearly invisible over bright skies; keep important effects in toon mode and use glow only for accents on dark scenes.
 
 ## pixelfx in 3D
+
+A flat 2D effect must look right from every camera angle. Bursts are fine as billboards. Anything that stands (a beam, a fountain, a fire) must stay vertical in the world and, seen from above, show what you would see looking down on it, never its side view lying flat: that is what `mode: 'upright'` does. Check side, diagonal and top views on screen.
+
 
 The pixel-art-tools plugin's `pixelfx/bundle.mjs` makes a `PIXELFX` script. Load it before fx3d.js, then `fx.pixel(pos, 'collect-burst', { palette }, { pixel: 0.035 })`. `pixel` is the world size of one effect pixel; pick it so the effect is about as big as it should be next to the character. Pixel sprites look best in stylized or low-poly scenes.
 

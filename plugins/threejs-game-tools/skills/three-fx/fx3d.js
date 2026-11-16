@@ -530,25 +530,77 @@
     }
 
     // ================= pixelfx 연결 =================
-    /** pixelfx 이펙트를 카메라를 보는 판으로 3D 공간에 띄워요 (PIXELFX 번들 필요) */
+    /**
+     * pixelfx 이펙트를 3D 공간에 띄워요 (PIXELFX 번들 필요).
+     * o.mode
+     *   'billboard' : 항상 카메라를 보는 판. 터지는 것(반짝임, 펑, 색종이)에 좋아요
+     *   'upright'   : 땅에 똑바로 선 판(세로축으로만 돌아요) + 위에서 내려다볼 때 보이는 윗면.
+     *                 빛기둥·분수·불기둥처럼 서 있는 것. 옆에서는 기둥, 대각선에서는 비스듬히 선 기둥,
+     *                 위에서는 기둥의 단면(위에서 본 모양)만 보여요
+     *   생략하면 이펙트 태그를 보고 골라요 (beam, pillar, column, fountain, geyser, fire → upright)
+     * o.pixel: 이펙트 1픽셀의 월드 크기 (기본 0.03)
+     */
     pixel(pos, name, opts = {}, o = {}) {
       const THREE = T(), PX = pixelfxLib();
       if (!PX || !PX.fx[name]) { console.warn('FX3D.pixel: PIXELFX 번들 또는 이펙트가 없어요', name); return null; }
       const mod = PX.fx[name], [w, h] = mod.meta.size, [ox, oy] = mod.meta.origin;
+      const tags = (mod.meta.tags || []).concat(name.split('-'));
+      const mode = o.mode || (tags.some((t) => /beam|pillar|column|fountain|geyser|waterfall|fire|torch|tornado/.test(t)) ? 'upright' : 'billboard');
       const frame = PX.core.createFrame(w, h, -ox, -oy);
       const fx = PX.core.createFx(mod, Object.assign({ x: 0, y: 0, seed: (Math.random() * 9999) | 0 }, opts));
       const c = document.createElement('canvas'); c.width = w; c.height = h;
       const g = c.getContext('2d'), img = g.createImageData(w, h);
-      const tex = new THREE.CanvasTexture(c); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false;
-      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
-      const s = new THREE.Sprite(mat);
-      const px = (o.pixel || 0.03) * this.unit;
-      s.scale.set(w * px, h * px, 1); s.center.set(ox / w, 1 - oy / h);
-      const p = v3(pos); s.position.set(p.x, p.y, p.z); s.renderOrder = 6;
-      this.root.add(s);
-      const e = { s, fx, frame, g, img, tex, mat, life: o.life || Infinity, age: 0, stop() { fx.stop(); } };
+      const pixTex = (cv) => { const t = new THREE.CanvasTexture(cv); t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; return t; };
+      const tex = pixTex(c);
+      const px = (o.pixel || 0.03) * this.unit, p = v3(pos);
+      const e = { fx, frame, g, img, tex, mode, w, h, ox, oy, px, pos: p, life: o.life || Infinity, age: 0, stop() { fx.stop(); }, objs: [], mats: [tex] };
+      if (mode === 'upright') {
+        // 1) 서 있는 판: 원점(발밑)이 판의 (ox, oy) 에 오도록
+        const geo = new THREE.PlaneGeometry(w * px, h * px); geo.translate((w / 2 - ox) * px, (oy - h / 2) * px, 0);
+        const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+        const plane = new THREE.Mesh(geo, mat); plane.position.set(p.x, p.y, p.z); plane.renderOrder = 6;
+        // 2) 윗면: 위에서 내려다본 모습. 각 반지름마다 '가장 위에 있는 픽셀' 색을 돌려 그린 원판
+        const D = Math.max(8, Math.ceil(Math.max(ox, w - ox) * 2));
+        const cc = document.createElement('canvas'); cc.width = D; cc.height = D;
+        const cg = cc.getContext('2d'), cimg = cg.createImageData(D, D), ctex = pixTex(cc);
+        const cmat = new THREE.MeshBasicMaterial({ map: ctex, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+        const cap = new THREE.Mesh(new THREE.PlaneGeometry(D * px, D * px).rotateX(-Math.PI / 2), cmat);
+        cap.position.set(p.x, p.y + 0.02 * this.unit, p.z); cap.renderOrder = 6;
+        this.root.add(plane, cap);
+        Object.assign(e, { plane, cap, mat, cmat, ctex, cg, cimg, D, top: new Int32Array(w), topY: 0 });
+        e.objs.push(plane, cap); e.mats.push(mat, cmat, ctex, geo, cap.geometry);
+      } else {
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+        const s = new THREE.Sprite(mat);
+        s.scale.set(w * px, h * px, 1); s.center.set(ox / w, 1 - oy / h);
+        s.position.set(p.x, p.y, p.z); s.renderOrder = 6;
+        this.root.add(s); e.objs.push(s); e.mats.push(mat);
+      }
       this.pixels.push(e);
       return e;
+    }
+    /** upright 모드의 윗면 그리기: 위에서 보면 각 지점의 가장 높은 픽셀만 보여요 */
+    _pixelCap(e) {
+      const { w, h, ox, D, img, cimg } = e, src = img.data, dst = cimg.data;
+      // 열마다 가장 위의 불투명 픽셀 찾기
+      let topRow = h;
+      for (let x = 0; x < w; x++) {
+        let r = -1;
+        for (let y = 0; y < h; y++) if (src[(y * w + x) * 4 + 3] > 170) { r = y; break; } // 옅은 빛무리는 건너뛰고 또렷한 픽셀만
+        e.top[x] = r; if (r >= 0 && r < topRow) topRow = r;
+      }
+      const R = D / 2;
+      for (let j = 0; j < D; j++) for (let i = 0; i < D; i++) {
+        const dx = i + 0.5 - R, dy = j + 0.5 - R, rr = Math.sqrt(dx * dx + dy * dy);
+        // 반지름 rr 에 해당하는 왼쪽·오른쪽 열을 섞어요 (한쪽에서 빛을 받아 좌우가 달라도 이음매가 안 생기게)
+        const xr = Math.round(ox + rr - 0.5), xl = Math.round(ox - rr - 0.5), k = (j * D + i) * 4;
+        const okR = xr >= 0 && xr < w && e.top[xr] >= 0, okL = xl >= 0 && xl < w && e.top[xl] >= 0;
+        if (!okR && !okL) { dst[k + 3] = 0; continue; }
+        const sr = okR ? (e.top[xr] * w + xr) * 4 : -1, sl = okL ? (e.top[xl] * w + xl) * 4 : -1;
+        for (let c = 0; c < 4; c++) dst[k + c] = sr >= 0 && sl >= 0 ? (src[sr + c] + src[sl + c]) >> 1 : src[sr >= 0 ? sr + c : sl + c];
+      }
+      e.cg.putImageData(cimg, 0, 0); e.ctex.needsUpdate = true;
+      e.topY = topRow < h ? (e.oy - topRow) * e.px : 0;
     }
 
     // ================= 매 프레임 =================
@@ -582,8 +634,18 @@
           const e = this.pixels[i];
           e.age += dt; e.fx.update(dt);
           if (e.age > e.life) e.fx.stop();
-          if (e.fx.done()) { this.root.remove(e.s); e.tex.dispose(); e.mat.dispose(); this.pixels.splice(i, 1); continue; }
+          if (e.fx.done()) { e.objs.forEach((o) => this.root.remove(o)); e.mats.forEach((m) => m.dispose()); this.pixels.splice(i, 1); continue; }
           K.clearFrame(e.frame); e.fx.draw(e.frame); K.composite(e.frame, e.img.data, null); e.g.putImageData(e.img, 0, 0); e.tex.needsUpdate = true;
+          if (e.mode === 'upright' && this.camera) {
+            // 세로축으로만 카메라를 봐요. 내려다보는 각도가 클수록 판은 흐려지고 윗면이 나타나요
+            const cp = this.camera.position, dx = cp.x - e.pos.x, dz = cp.z - e.pos.z, dy = cp.y - (e.pos.y + e.topY * 0.5);
+            e.plane.rotation.y = Math.atan2(dx, dz);
+            const down = dy / Math.max(1e-6, Math.hypot(dx, dy, dz)); // 1 = 바로 위
+            const k = Math.min(1, Math.max(0, (down - 0.55) / 0.3));
+            e.mat.opacity = 1 - k * k; e.cmat.opacity = Math.sqrt(k);
+            e.plane.visible = e.mat.opacity > 0.02; e.cap.visible = e.cmat.opacity > 0.02;
+            if (e.cap.visible) { this._pixelCap(e); e.cap.position.y = e.pos.y + Math.max(0.02 * this.unit, e.topY * 0.85); }
+          }
         }
       }
       for (const k in this.batches) this.batches[k].update(dt, this.t);
@@ -593,7 +655,7 @@
       for (const k in this.batches) this.batches[k].ps.length = 0;
       for (const m of this.meshes) this.root.remove(m.obj);
       this.meshes.length = 0; this.sources.length = 0;
-      for (const e of this.pixels) this.root.remove(e.s);
+      for (const e of this.pixels) e.objs.forEach((o) => this.root.remove(o));
       this.pixels.length = 0;
     }
     dispose() {
