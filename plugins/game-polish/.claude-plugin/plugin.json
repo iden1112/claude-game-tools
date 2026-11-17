@@ -1,0 +1,8 @@
+{
+  "name": "game-polish",
+  "version": "0.1.0",
+  "description": "Polish for games: Game Assets Enhancer (style guide, individual sprite generation via fal.ai, multi-layer parallax, juice pass) and car-engine-sound (Web Audio engine sounds that follow RPM, synthesized or sampled).",
+  "author": { "name": "Bundled for iden1112 from Adam Lyttle (MIT) and buntine/CarEngines (CC0)" },
+  "license": "MIT AND CC0-1.0",
+  "keywords": ["gamedev", "sprites", "parallax", "audio", "engine-sound"]
+}

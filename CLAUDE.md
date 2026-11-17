@@ -8,6 +8,7 @@
 | `plugins/threejs-game-tools` | 3D 웹 게임(Three.js r128): 3D 이펙트(fx3d.js), 캐릭터·NPC(character3d.js), 저폴리 모델(models3d.js), 화면 확인 도구 |
 | `plugins/game-dev-kit` | 게임 개발 지식 20분야: 엔진, 세이브, 멀티플레이, NPC AI, UI, 레벨 디자인, 최적화 등 |
 | `plugins/unity-gamedev` | Unity C# 스킬 21개 |
+| `plugins/game-polish` | 그래픽 업그레이드(스타일 가이드·스프라이트·패럴랙스, 이미지 생성은 fal.ai 필요)와 자동차 엔진 소리 |
 | `plugins/mcp-for-blender` | Blender 연결 (컴퓨터 전용) |
 | `vendor/three-r128` | three.js r128 (MIT). 인터넷이 막힌 환경에서 3D 화면 확인용 |
 

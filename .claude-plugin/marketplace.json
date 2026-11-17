@@ -29,6 +29,11 @@
       "name": "mcp-for-blender",
       "source": "./plugins/mcp-for-blender",
       "description": "Connects Claude to Blender running on your computer to build and edit 3D scenes. Community open-source project, not affiliated with the Blender Foundation. Computer only: needs Blender, the addon and uv installed locally."
+    },
+    {
+      "name": "game-polish",
+      "source": "./plugins/game-polish",
+      "description": "Polish for games: Game Assets Enhancer (style guide, individual sprite generation via fal.ai, multi-layer parallax, juice pass) and car-engine-sound (Web Audio engine sounds that follow RPM, synthesized or sampled)."
     }
   ]
 }
