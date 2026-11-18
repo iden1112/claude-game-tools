@@ -84,10 +84,10 @@ const HUD = {
     // 조준선
     const scope = p.mode === 'gun' && w ? effScopeId(w) : null;
     const zoom = w ? effZoom(w) : 1;
-    const full = p.adsT > 0.85 && scope && zoom >= 3 && CAM.blend < 0.5;
+    const full = p.adsT > 0.85 && scope && zoom >= 2 && scope !== 'iron' && CAM.blend < 0.5;
     $('scope').style.display = full ? 'block' : 'none';
     if (full) { $('scope').className = 'sc-' + scope; }
-    const dotOn = p.adsT > 0.9 && (scope === 'reddot' || scope === 'holo' || scope === '2x') && CAM.blend < 0.5;
+    const dotOn = p.adsT > 0.9 && (scope === 'reddot' || scope === 'holo') && CAM.blend < 0.5;
     $('ret').style.display = dotOn ? 'block' : 'none'; if (dotOn) $('ret').className = 'r-' + scope;
     const showCross = !(p.adsT > 0.5 && CAM.blend < 0.5) && !p.dead && p.mode === 'gun' && !(p.sprint && Math.hypot(p.vel.x, p.vel.z) > 3);
     $('cross').style.display = showCross ? 'block' : 'none';

@@ -233,7 +233,8 @@ function buildGunModel(id, att) {
   if (att.scope || w.cat !== 'SR') g.add(M(BX(0.022, 0.008, R * 0.9), GUNMAT.dark, 0, 0.064, -R * 0.45 + 0.08));
   // 개머리판
   const stockZ = st.bullpup ? 0.08 + 0.02 : 0.08;
-  if (id !== 'sawed' && id !== 'mp5k' && id !== 'uzi') {
+  const CUSTOM_STOCK = ['m416', 'ace32', 'beryl', 'scar', 'g36c', 'm16', 'mk47', 'ump', 'vector', 'tommy', 'bizon', 'js9', 'mk14', 'vss', 'mk12', 'dragunov', 'kar98k', 'mosin', 'm24', 's1897', 's12k', 'o12', 'm249', 'dp28', 'mg3', 'aug', 'p90', 'famas', 'qbz', 'qbu', 'groza', 'dbs', 'awm', 'lynx'];
+  if (id !== 'sawed' && id !== 'mp5k' && id !== 'uzi' && !CUSTOM_STOCK.includes(id)) {
     const sl = big ? 0.27 : st.bullpup ? 0.1 : 0.22;
     const smat = st.furn ? furn : GUNMAT.dark;
     g.add(M(BX(0.04, big ? 0.075 : 0.06, sl), smat, 0, big ? -0.005 : 0.0, stockZ + sl / 2));
@@ -258,7 +259,7 @@ function buildGunModel(id, att) {
     case 'tube': mag = M(CY(0.012, 0.012, B * 0.8, 8), GUNMAT.steel, 0, 0.012, recF - B * 0.4, Math.PI / 2); break;
     case 'dbl': g.add(M(CY(0.012, 0.012, B, 8), GUNMAT.steel, 0, 0.012, recF - B / 2, Math.PI / 2)); break;
   }
-  if (mag) { g.add(mag); info.magMesh = mag; info.magHome = mag.position.clone(); }
+  if (mag) { g.add(mag); info.magMesh = mag; info.magHome = mag.position.clone(); g.userData.mag = mag; }
   // 펌프/볼트
   if (st.mag === 'tube') g.add(M(BX(0.04, 0.035, 0.11), furn, 0, 0.012, recF - 0.12));
   if (w.bolt || id === 'win94') g.add(M(CY(0.007, 0.007, 0.06, 6), GUNMAT.steel, 0.04, 0.045, -0.02, 0, 0, Math.PI / 2));
@@ -298,10 +299,79 @@ function buildGunModel(id, att) {
   }
   if (w.integrated) { addScope(g, '4x', 0.11, -0.05, info); g.add(M(CY(0.024, 0.024, B, 10), GUNMAT.black, 0, 0.035, recF - B / 2, Math.PI / 2)); }
   else if (att.scope && att.scope !== 'iron') addScope(g, att.scope, 0.0, -0.06, info);
+  gunExtras(g, id, { body, furn, R, B, recF, hgL, att, scoped: !!(att.scope && att.scope !== 'iron') });
   info.eject.position.set(0.03, 0.05, -0.05);
   g.add(info.muzzle, info.eject);
   return info;
 }
+
+// ================= 총마다 다른 생김새 =================
+const GX = {
+  wood2: new THREE.MeshStandardMaterial({ color: 0x8a5a2e, roughness: 0.6 }),
+  woodDark: new THREE.MeshStandardMaterial({ color: 0x5a3519, roughness: 0.65 }),
+  poly: new THREE.MeshStandardMaterial({ color: 0x2b2d30, roughness: 0.85 }),
+  tanDark: new THREE.MeshStandardMaterial({ color: 0x8f7a56, roughness: 0.75 }),
+  green: new THREE.MeshStandardMaterial({ color: 0x3f4f36, roughness: 0.7 }),
+  sand: new THREE.MeshStandardMaterial({ color: 0xc9b48a, roughness: 0.8 }),
+  clearMag: new THREE.MeshStandardMaterial({ color: 0x6b7a5a, roughness: 0.3, transparent: true, opacity: 0.75 }),
+  silver: new THREE.MeshStandardMaterial({ color: 0xa9adb3, roughness: 0.3, metalness: 0.9 }),
+};
+function gunExtras(g, id, o) {
+  const { body, furn, R, B, recF, hgL, att, scoped } = o;
+  const add = (m) => { g.add(m); return m; };
+  const ribs = (mat, z0, len, y = 0.025) => { for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) add(M(BX(0.006, 0.006, len), mat, sx * 0.026, y - 0.015 + k * 0.014, z0 - len / 2)); };
+  const gasTube = (len) => add(M(CY(0.008, 0.008, len, 8), GUNMAT.steel, 0, 0.058, recF - len / 2, Math.PI / 2));
+  const tubeStock = (mat, len = 0.2) => { add(M(CY(0.014, 0.014, len, 10), GUNMAT.dark, 0, 0.02, 0.08 + len / 2, Math.PI / 2)); add(M(BX(0.036, 0.075, 0.07), mat, 0, 0.0, 0.08 + len - 0.02)); };
+  const skelStock = (mat, len = 0.22, h = 0.08) => { add(M(BX(0.012, 0.012, len), mat, 0, 0.03, 0.08 + len / 2)); add(M(BX(0.012, 0.012, len * 0.9), mat, 0, 0.03 - h, 0.08 + len * 0.45, 0.25)); add(M(BX(0.02, h + 0.02, 0.018), mat, 0, 0.03 - h / 2, 0.08 + len)); };
+  const fins = (n, r, z0, len) => { for (let k = 0; k < n; k++) add(M(CY(r, r, 0.006, 10), GUNMAT.dark, 0, 0.035, z0 - (k + 0.5) * len / n, Math.PI / 2)); };
+  const jacket = (r, z0, len, mat = GUNMAT.dark) => { add(M(CY(r, r, len, 12, true), mat, 0, 0.035, z0 - len / 2, Math.PI / 2)); for (let k = 0; k < 5; k++) add(M(new THREE.TorusGeometry(r, 0.003, 4, 12), mat, 0, 0.035, z0 - (k + 0.5) * len / 5)); };
+  const bipod = (z) => { for (const sx of [-1, 1]) add(M(CY(0.005, 0.005, 0.2, 6), GUNMAT.dark, sx * 0.02, -0.07, z, 0, 0, sx * 0.3)); };
+  switch (id) {
+    case 'm416': ribs(GUNMAT.dark, recF, hgL * 0.95); tubeStock(GUNMAT.black, 0.17); add(M(BX(0.03, 0.03, 0.04), GUNMAT.black, 0, -0.03, -0.1)); break;
+    case 'akm': gasTube(0.22); add(M(BX(0.03, 0.06, 0.05), GUNMAT.wood, 0, -0.05, 0.03, -0.3)); add(M(BX(0.052, 0.012, R * 0.7), GUNMAT.steel, 0, 0.062, -R * 0.25 + 0.08)); break;
+    case 'beryl': gasTube(0.2); ribs(GUNMAT.dark, recF, hgL * 0.9); add(M(BX(0.03, 0.03, 0.2), GX.poly, 0, -0.005, 0.18)); break;
+    case 'ace32': gasTube(0.2); skelStock(GX.poly, 0.2, 0.06); break;
+    case 'scar': add(M(BX(0.046, 0.035, R * 0.75), GUNMAT.black, 0, -0.012, -R * 0.4 + 0.08)); add(M(BX(0.05, 0.08, 0.2), GUNMAT.tan, 0, 0.0, 0.2)); add(M(BX(0.052, 0.02, 0.1), GUNMAT.black, 0, 0.045, 0.2)); ribs(GX.tanDark, recF, hgL * 0.8); break;
+    case 'aug': add(M(CY(0.045, 0.04, 0.3, 14), GUNMAT.olive, 0, 0.0, 0.05, Math.PI / 2)); add(M(BX(0.028, 0.09, 0.04), GUNMAT.olive, 0, -0.06, recF + 0.05, 0.3)); break;
+    case 'groza': add(M(BX(0.05, 0.05, 0.26), GX.poly, 0, -0.005, 0.07)); add(M(BX(0.04, 0.03, 0.08), GUNMAT.wood, 0, -0.045, recF + 0.02)); break;
+    case 'qbz': add(M(BX(0.048, 0.07, 0.3), GUNMAT.olive, 0, -0.005, 0.05)); add(M(BX(0.012, 0.06, 0.1), GUNMAT.olive, 0, -0.055, -0.06)); break;
+    case 'g36c': skelStock(GX.poly, 0.2, 0.07); if (g.children) g.traverse(m => { if (m.isMesh && m === g.userData.mag) m.material = GX.clearMag; }); break;
+    case 'm16': add(M(CY(0.024, 0.024, hgL, 12), GUNMAT.black, 0, 0.025, recF - hgL / 2, Math.PI / 2)); add(M(new THREE.ConeGeometry(0.015, 0.05, 4), GUNMAT.black, 0, 0.05, recF - B * 0.85)); add(M(BX(0.04, 0.07, 0.24), GUNMAT.black, 0, 0.0, 0.2)); break;
+    case 'mk47': add(M(BX(0.056, 0.07, 0.12), GUNMAT.black, 0, 0.02, -0.02)); tubeStock(GX.poly, 0.15); break;
+    case 'famas': add(M(BX(0.05, 0.075, 0.34), GX.poly, 0, 0.0, 0.03)); bipod(recF - 0.02); break;
+    case 'ump': add(M(BX(0.052, 0.085, R * 0.8), GUNMAT.black, 0, 0.005, -R * 0.35 + 0.08)); skelStock(GX.poly, 0.18, 0.06); break;
+    case 'vector': add(M(BX(0.05, 0.11, 0.16), GX.poly, 0, -0.04, -0.07, -0.5)); add(M(BX(0.045, 0.04, 0.2), GUNMAT.dark, 0, 0.03, -0.05)); tubeStock(GX.poly, 0.12); break;
+    case 'uzi': add(M(BX(0.05, 0.075, 0.24), GUNMAT.dark, 0, 0.025, -0.04)); add(M(BX(0.012, 0.012, 0.2), GUNMAT.steel, 0, 0.0, 0.14)); break;
+    case 'tommy': fins(6, 0.02, recF, 0.12); add(M(BX(0.03, 0.08, 0.05), GUNMAT.wood, 0, -0.05, recF - 0.05, -0.15)); add(M(BX(0.045, 0.09, 0.26), GUNMAT.wood, 0, -0.015, 0.21)); break;
+    case 'bizon': gasTube(0.12); skelStock(GUNMAT.steel, 0.2, 0.05); break;
+    case 'mp5k': add(M(BX(0.028, 0.08, 0.035), GX.poly, 0, -0.05, recF + 0.02, 0.1)); add(M(CY(0.025, 0.025, 0.12, 10), GUNMAT.black, 0, 0.03, -0.12, Math.PI / 2)); break;
+    case 'p90': add(M(BX(0.06, 0.12, 0.42), GX.poly, 0, -0.02, -0.04)); add(M(new THREE.TorusGeometry(0.03, 0.01, 6, 12), GX.poly, 0, -0.07, 0.04, 0, Math.PI / 2)); break;
+    case 'js9': add(M(BX(0.05, 0.07, 0.2), GX.poly, 0, 0.01, -0.03)); skelStock(GUNMAT.black, 0.16, 0.05); break;
+    case 'sks': add(M(BX(0.05, 0.05, B * 0.85), GUNMAT.wood, 0, 0.005, recF - B * 0.42)); add(M(CY(0.005, 0.005, 0.25, 6), GUNMAT.steel, 0, -0.012, recF - 0.18, Math.PI / 2)); break;
+    case 'slr': add(M(BX(0.05, 0.05, 0.2), GUNMAT.wood, 0, 0.0, recF - 0.1)); add(M(BX(0.048, 0.02, 0.15), GUNMAT.black, 0, 0.05, -0.1)); break;
+    case 'mini14': add(M(BX(0.052, 0.04, R * 0.8), GX.silver, 0, 0.035, -R * 0.35 + 0.08)); add(M(BX(0.05, 0.05, B * 0.7), GUNMAT.wood, 0, 0.0, recF - B * 0.3)); break;
+    case 'mk14': ribs(GUNMAT.black, recF + 0.05, 0.3); add(M(CY(0.016, 0.016, 0.24, 10), GUNMAT.black, 0, 0.02, 0.2, Math.PI / 2)); add(M(BX(0.04, 0.09, 0.06), GX.poly, 0, -0.005, 0.32)); add(M(BX(0.05, 0.07, 0.06), GX.poly, 0, -0.06, 0.06)); break;
+    case 'qbu': add(M(BX(0.05, 0.07, 0.36), GUNMAT.olive, 0, 0.0, 0.03)); bipod(recF - 0.15); break;
+    case 'vss': skelStock(GUNMAT.wood, 0.24, 0.08); break;
+    case 'mk12': add(M(CY(0.022, 0.022, 0.32, 10), GX.tanDark, 0, 0.025, recF - 0.16, Math.PI / 2)); tubeStock(GX.tanDark, 0.18); bipod(recF - 0.25); break;
+    case 'dragunov': skelStock(GUNMAT.wood, 0.28, 0.1); add(M(BX(0.045, 0.045, 0.22), GUNMAT.wood, 0, 0.01, recF - 0.11)); break;
+    case 'kar98k': add(M(BX(0.045, 0.05, B * 0.95), GX.wood2, 0, 0.005, recF - B * 0.47)); add(M(BX(0.046, 0.1, 0.1), GX.wood2, 0, -0.05, 0.06, -0.4)); add(M(new THREE.SphereGeometry(0.012, 8, 6), GUNMAT.steel, 0.05, 0.045, -0.02)); break;
+    case 'mosin': add(M(BX(0.045, 0.05, B * 1.02), GX.woodDark, 0, 0.005, recF - B * 0.5)); add(M(BX(0.046, 0.09, 0.1), GX.woodDark, 0, -0.04, 0.06, -0.35)); add(M(new THREE.SphereGeometry(0.012, 8, 6), GUNMAT.steel, 0.05, 0.04, 0.0)); break;
+    case 'm24': add(M(BX(0.05, 0.06, B * 0.85), GUNMAT.olive, 0, 0.0, recF - B * 0.42)); add(M(BX(0.05, 0.11, 0.1), GUNMAT.olive, 0, -0.05, 0.08, -0.35)); break;
+    case 'awm': add(M(BX(0.06, 0.08, 0.5), GX.green, 0, 0.0, 0.0)); add(M(new THREE.TorusGeometry(0.035, 0.012, 6, 12), GX.green, 0, -0.03, 0.12, 0, Math.PI / 2)); if (!att.muzzle) add(M(BX(0.05, 0.03, 0.07), GUNMAT.black, 0, 0.035, recF - B - 0.03)); break;
+    case 'win94': add(M(new THREE.TorusGeometry(0.035, 0.006, 6, 14), GUNMAT.steel, 0, -0.06, 0.04, 0, Math.PI / 2)); add(M(CY(0.01, 0.01, B * 0.8, 8), GUNMAT.steel, 0, 0.012, recF - B * 0.4, Math.PI / 2)); add(M(BX(0.044, 0.04, 0.16), GX.wood2, 0, 0.005, recF - 0.08)); break;
+    case 'lynx': add(M(BX(0.07, 0.1, 0.5), GX.poly, 0, 0.0, 0.0)); add(M(BX(0.07, 0.05, 0.1), GUNMAT.black, 0, 0.035, recF - B - 0.05)); bipod(recF - 0.2); break;
+    case 's1897': add(M(BX(0.008, 0.03, 0.01), GUNMAT.steel, 0, 0.07, 0.06, 0.4)); add(M(BX(0.045, 0.1, 0.24), GX.wood2, 0, -0.02, 0.2)); break;
+    case 's686': case 'sawed': add(M(CY(0.012, 0.012, B, 8), GUNMAT.steel, 0.013, 0.04, recF - B / 2, Math.PI / 2)); add(M(CY(0.012, 0.012, B, 8), GUNMAT.steel, -0.013, 0.04, recF - B / 2, Math.PI / 2)); add(M(BX(0.045, 0.035, B * 0.5), GX.wood2, 0, 0.01, recF - B * 0.25)); break;
+    case 's12k': gasTube(0.18); add(M(BX(0.05, 0.06, 0.24), GX.poly, 0, -0.01, 0.2)); break;
+    case 'dbs': add(M(BX(0.055, 0.08, 0.36), GX.poly, 0, 0.0, 0.03)); add(M(CY(0.012, 0.012, 0.3, 8), GUNMAT.steel, 0.016, -0.02, recF - 0.05, Math.PI / 2)); add(M(CY(0.012, 0.012, 0.3, 8), GUNMAT.steel, -0.016, -0.02, recF - 0.05, Math.PI / 2)); break;
+    case 'o12': add(M(BX(0.05, 0.06, 0.12), GX.poly, 0, -0.01, -0.08)); tubeStock(GX.poly, 0.16); break;
+    case 'm249': add(M(BX(0.05, 0.04, 0.2), GUNMAT.dark, 0, 0.055, recF - 0.1)); add(M(BX(0.045, 0.07, 0.22), GUNMAT.black, 0, -0.005, 0.2)); break;
+    case 'dp28': jacket(0.024, recF, B * 0.8, GUNMAT.dark); add(M(BX(0.045, 0.08, 0.25), GX.wood2, 0, -0.01, 0.2)); bipod(recF - B * 0.7); break;
+    case 'mg3': jacket(0.026, recF, B * 0.85, GUNMAT.black); add(M(BX(0.045, 0.08, 0.24), GX.poly, 0, -0.01, 0.2)); break;
+  }
+}
+
 function addScope(g, scope, yOff, zc, info, small) {
   const base = small ? 0.072 : 0.07;
   const s = new THREE.Group(); g.add(s);

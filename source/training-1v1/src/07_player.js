@@ -242,7 +242,7 @@ const smooth01 = (t) => t * t * (3 - 2 * t);
 function updateViewmodel(dt, hsp) {
   const p = PLAYER;
   VM.cam.position.copy(camera.position); VM.cam.quaternion.copy(camera.quaternion);
-  const scoped = p.mode === 'gun' && p.w && effZoom(p.w) >= 3 && p.adsT > 0.85;
+  const scoped = p.mode === 'gun' && p.w && effZoom(p.w) >= 2 && p.adsT > 0.85;
   VM.root.visible = CAM.blend < 0.3 && !p.dead && !scoped;
   if (!VM.gun) return;
   const ads = smooth01(p.adsT);
