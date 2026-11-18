@@ -1008,7 +1008,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 23; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 24; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -2225,7 +2225,7 @@ const WEAPON_TABLE = [
   ['m24', 'M24', 'SR', '7.62mm', 75, 790, 1.80, 5, 7, 3.4, 'S', 2.4, 0.6, 8, 'mxs'],
   ['awm', 'AWM', 'SR', '.300 Magnum', 105, 945, 1.85, 5, 7, 4.0, 'S', 3.0, 0.7, 8, 'mxs'],
   ['mosin', 'Mosin Nagant', 'SR', '7.62mm', 79, 870, 1.90, 5, 5, 4.0, 'S', 2.5, 0.6, 8, 'mxs'],
-  ['win94', 'Win94', 'SR', '.45 ACP', 66, 760, 0.60, 8, 8, 4.0, 'S', 2.2, 0.6, 2, 'm'],
+  ['win94', 'Win94', 'SR', '.45 ACP', 66, 760, 1.30, 8, 8, 4.0, 'S', 2.2, 0.6, 2, 'm'],
   ['lynx', 'Lynx AMR', 'SR', '.50 BMG', 118, 1000, 1.80, 5, 5, 4.5, 'S', 4.0, 0.8, 8, ''],
   ['s1897', 'S1897', 'SG', '12 Gauge', 26, 360, 0.75, 5, 5, 3.0, 'S', 3.5, 0.8, 1, 'm'],
   ['s686', 'S686', 'SG', '12 Gauge', 26, 370, 0.20, 2, 2, 2.2, 'S', 3.5, 0.8, 0, 'm'],
@@ -2259,7 +2259,7 @@ const CAT_INFO = {
 const WEAPONS = {};
 for (const r of WEAPON_TABLE) {
   const [id, name, cat, ammo, dmg, vel, interval, mag, ext, reload, modes, rv, rh, scopeMax, slots] = r;
-  WEAPONS[id] = { id, name, cat, ammo, dmg, vel, interval, mag, ext, reload, modes, rv, rh, scopeMax, slots, pellets: cat === 'SG' ? (id === 'o12' ? 8 : 9) : 1, bolt: cat === 'SR' && id !== 'win94' && interval > 1, integrated: id === 'vss' };
+  WEAPONS[id] = { id, name, cat, ammo, dmg, vel, interval, mag, ext, reload, modes, rv, rh, scopeMax, slots, pellets: cat === 'SG' ? (id === 'o12' ? 8 : 9) : 1, bolt: cat === 'SR' && interval > 1, integrated: id === 'vss' };
 }
 
 // ================= 파츠 =================
