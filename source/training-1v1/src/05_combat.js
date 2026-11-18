@@ -162,18 +162,26 @@ function updateFX(dt) {
     if (s.t <= 0) s.m.visible = false;
   }
   // 연막
+  // (가벼운 방식: 연막 하나 = 판 16장 + 재질 1개. 카메라가 연막 안에 들어가면 가까운 판은 숨기고 화면을 회색으로 덮어요)
+  let inside = 0;
   for (let i = WORLD.smokes.length - 1; i >= 0; i--) {
     const s = WORLD.smokes[i]; s.age += dt;
     s.radius = s.age < 3 ? s.age / 3 * 7 : s.age > s.life - 5 ? Math.max(0, (s.life - s.age) / 5 * 7) : 7;
+    const k = clamp(s.radius / 7, 0, 1);
+    const fade = s.age > s.life - 5 ? clamp((s.life - s.age) / 5, 0, 1) : 1;
+    s.mat.opacity = 0.82 * k * fade;
+    const cd = camera.position.distanceTo(s.pos);
+    if (s.radius > 1) inside = Math.max(inside, clamp(1 - (cd - s.radius * 0.45) / (s.radius * 0.55), 0, 1) * fade);
     for (const p of s.puffs) {
-      const k = clamp(s.radius / 7, 0, 1);
       p.sprite.position.copy(s.pos).addScaledVector(p.off, k);
       p.sprite.position.y = Math.max(p.sprite.position.y, 0.6 + p.off.y * 0.2);
-      p.sprite.material.opacity = 0.75 * k * (s.age > s.life - 5 ? clamp((s.life - s.age) / 5, 0, 1) : 1);
-      p.sprite.material.rotation += dt * p.spin;
+      // 카메라 바로 앞의 큰 판은 그리지 않기 (화면 전체를 여러 번 덧칠하는 게 랙의 원인)
+      p.sprite.visible = camera.position.distanceToSquared(p.sprite.position) > 9;
     }
-    if (s.age > s.life) { for (const p of s.puffs) { scene.remove(p.sprite); p.sprite.material.dispose(); } WORLD.smokes.splice(i, 1); }
+    if (s.age > s.life) { for (const p of s.puffs) scene.remove(p.sprite); s.mat.dispose(); WORLD.smokes.splice(i, 1); }
   }
+  const sf = document.getElementById('smokefog');
+  if (sf) { const v = (inside * 0.92).toFixed(2); if (sf.dataset.v !== v) { sf.style.opacity = v; sf.dataset.v = v; } }
 }
 
 // ================= 수류탄 물리 =================
@@ -257,14 +265,14 @@ function explodeGrenade(type, pos, owner, fromNet) {
     if (cd < 30) G.shake = Math.max(G.shake, (1 - cd / 30) * 1.2);
   } else if (type === 'smoke') {
     AU.smoke(pos);
-    const s = { pos: pos.clone(), radius: 0, age: 0, life: 28, puffs: [] };
+    const mat = new THREE.SpriteMaterial({ map: TEX.smokeBig, color: 0xd6d6d4, transparent: true, opacity: 0, depthWrite: false, fog: true });
+    const s = { pos: pos.clone(), radius: 0, age: 0, life: 28, puffs: [], mat };
     s.pos.y = Math.max(1.2, pos.y + 1.2);
-    for (let k = 0; k < 46; k++) {
-      const m = new THREE.SpriteMaterial({ map: TEX.smoke, color: new THREE.Color().setHSL(0, 0, rand(0.78, 0.92)), transparent: true, opacity: 0, depthWrite: false, fog: true });
-      const sp = new THREE.Sprite(m); const sc = rand(5, 8); sp.scale.set(sc, sc, 1);
-      const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 5.2;
-      s.puffs.push({ sprite: sp, off: new V3(Math.cos(a) * r, rand(-1, 2.6), Math.sin(a) * r), spin: rand(-0.1, 0.1) });
-      scene.add(sp);
+    for (let k = 0; k < 16; k++) {
+      const sp = new THREE.Sprite(mat); const sc = rand(7, 10); sp.scale.set(sc, sc, 1);
+      const a = k / 16 * Math.PI * 2 + rand(-0.3, 0.3), r = 1.2 + Math.sqrt(Math.random()) * 4.2;
+      s.puffs.push({ sprite: sp, off: new V3(Math.cos(a) * r, rand(-0.8, 2.4), Math.sin(a) * r) });
+      sp.renderOrder = 2; scene.add(sp);
     }
     WORLD.smokes.push(s);
   } else if (type === 'flash') {

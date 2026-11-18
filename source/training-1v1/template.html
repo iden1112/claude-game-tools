@@ -81,6 +81,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:"Pr
 #premenu kbd{background:#ffd24a;color:#111;padding:1px 6px;border-radius:3px;font-weight:800;margin:0 3px}
 #hurt{position:absolute;inset:0;opacity:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(160,0,0,.55) 100%)}
 #flash{position:absolute;inset:0;background:#fff;opacity:0}
+#smokefog{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(205,205,202,.93),rgba(185,185,182,.98));opacity:0}
 #help{position:absolute;left:18px;top:14px;max-width:340px;font-size:11px;color:rgba(255,255,255,.65);line-height:1.6;background:rgba(0,0,0,.3);padding:6px 10px;border-radius:3px}
 #help b{color:#ffd24a}
 /* 메뉴 화면 */
@@ -184,6 +185,7 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
 <body>
 <div id="game"></div>
 <div id="hud">
+  <div id="smokefog"></div>
   <div id="score"><span class="nm" id="sc-pn">나</span><div class="t" id="sc-p">0</div><div class="mid"><b id="sc-round">라운드 1</b><span id="sc-time">0:00</span><br>7점 선승<div id="sc-alive"></div></div><div class="t" id="sc-b">0</div><span class="nm" id="sc-bn">봇</span></div>
   <div id="compassWrap"><canvas id="compass" width="460" height="30"></canvas><div id="heading">0</div></div>
   <div id="premenu"><kbd>~</kbd> 총 바꾸기 (풀파츠) · 시작하면 바꿀 수 없어요</div>

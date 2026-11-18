@@ -81,6 +81,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:"Pr
 #premenu kbd{background:#ffd24a;color:#111;padding:1px 6px;border-radius:3px;font-weight:800;margin:0 3px}
 #hurt{position:absolute;inset:0;opacity:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(160,0,0,.55) 100%)}
 #flash{position:absolute;inset:0;background:#fff;opacity:0}
+#smokefog{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(205,205,202,.93),rgba(185,185,182,.98));opacity:0}
 #help{position:absolute;left:18px;top:14px;max-width:340px;font-size:11px;color:rgba(255,255,255,.65);line-height:1.6;background:rgba(0,0,0,.3);padding:6px 10px;border-radius:3px}
 #help b{color:#ffd24a}
 /* 메뉴 화면 */
@@ -184,6 +185,7 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
 <body>
 <div id="game"></div>
 <div id="hud">
+  <div id="smokefog"></div>
   <div id="score"><span class="nm" id="sc-pn">나</span><div class="t" id="sc-p">0</div><div class="mid"><b id="sc-round">라운드 1</b><span id="sc-time">0:00</span><br>7점 선승<div id="sc-alive"></div></div><div class="t" id="sc-b">0</div><span class="nm" id="sc-bn">봇</span></div>
   <div id="compassWrap"><canvas id="compass" width="460" height="30"></canvas><div id="heading">0</div></div>
   <div id="premenu"><kbd>~</kbd> 총 바꾸기 (풀파츠) · 시작하면 바꿀 수 없어요</div>
@@ -1000,7 +1002,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 11; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 12; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -1193,6 +1195,13 @@ TEX.flash = canvasTex(128, 128, (g, w, h) => {
   }
   const gr = g.createRadialGradient(0, 0, 0, 0, 0, 26); gr.addColorStop(0, 'rgba(255,255,240,1)'); gr.addColorStop(1, 'rgba(255,180,60,0)');
   g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 26, 0, Math.PI * 2); g.fill();
+});
+TEX.smokeBig = canvasTex(128, 128, (g, w, h) => { // 더 진한 연막 덩어리 (판 수를 줄여도 꽉 차 보이게)
+  for (let i = 0; i < 22; i++) {
+    const x = rand(30, 98), y = rand(30, 98), r = rand(22, 40);
+    const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,0.65)'); gr.addColorStop(0.6, 'rgba(240,240,240,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  }
 });
 TEX.smoke = canvasTex(128, 128, (g, w, h) => {
   for (let i = 0; i < 14; i++) {
@@ -2545,18 +2554,26 @@ function updateFX(dt) {
     if (s.t <= 0) s.m.visible = false;
   }
   // 연막
+  // (가벼운 방식: 연막 하나 = 판 16장 + 재질 1개. 카메라가 연막 안에 들어가면 가까운 판은 숨기고 화면을 회색으로 덮어요)
+  let inside = 0;
   for (let i = WORLD.smokes.length - 1; i >= 0; i--) {
     const s = WORLD.smokes[i]; s.age += dt;
     s.radius = s.age < 3 ? s.age / 3 * 7 : s.age > s.life - 5 ? Math.max(0, (s.life - s.age) / 5 * 7) : 7;
+    const k = clamp(s.radius / 7, 0, 1);
+    const fade = s.age > s.life - 5 ? clamp((s.life - s.age) / 5, 0, 1) : 1;
+    s.mat.opacity = 0.82 * k * fade;
+    const cd = camera.position.distanceTo(s.pos);
+    if (s.radius > 1) inside = Math.max(inside, clamp(1 - (cd - s.radius * 0.45) / (s.radius * 0.55), 0, 1) * fade);
     for (const p of s.puffs) {
-      const k = clamp(s.radius / 7, 0, 1);
       p.sprite.position.copy(s.pos).addScaledVector(p.off, k);
       p.sprite.position.y = Math.max(p.sprite.position.y, 0.6 + p.off.y * 0.2);
-      p.sprite.material.opacity = 0.75 * k * (s.age > s.life - 5 ? clamp((s.life - s.age) / 5, 0, 1) : 1);
-      p.sprite.material.rotation += dt * p.spin;
+      // 카메라 바로 앞의 큰 판은 그리지 않기 (화면 전체를 여러 번 덧칠하는 게 랙의 원인)
+      p.sprite.visible = camera.position.distanceToSquared(p.sprite.position) > 9;
     }
-    if (s.age > s.life) { for (const p of s.puffs) { scene.remove(p.sprite); p.sprite.material.dispose(); } WORLD.smokes.splice(i, 1); }
+    if (s.age > s.life) { for (const p of s.puffs) scene.remove(p.sprite); s.mat.dispose(); WORLD.smokes.splice(i, 1); }
   }
+  const sf = document.getElementById('smokefog');
+  if (sf) { const v = (inside * 0.92).toFixed(2); if (sf.dataset.v !== v) { sf.style.opacity = v; sf.dataset.v = v; } }
 }
 
 // ================= 수류탄 물리 =================
@@ -2640,14 +2657,14 @@ function explodeGrenade(type, pos, owner, fromNet) {
     if (cd < 30) G.shake = Math.max(G.shake, (1 - cd / 30) * 1.2);
   } else if (type === 'smoke') {
     AU.smoke(pos);
-    const s = { pos: pos.clone(), radius: 0, age: 0, life: 28, puffs: [] };
+    const mat = new THREE.SpriteMaterial({ map: TEX.smokeBig, color: 0xd6d6d4, transparent: true, opacity: 0, depthWrite: false, fog: true });
+    const s = { pos: pos.clone(), radius: 0, age: 0, life: 28, puffs: [], mat };
     s.pos.y = Math.max(1.2, pos.y + 1.2);
-    for (let k = 0; k < 46; k++) {
-      const m = new THREE.SpriteMaterial({ map: TEX.smoke, color: new THREE.Color().setHSL(0, 0, rand(0.78, 0.92)), transparent: true, opacity: 0, depthWrite: false, fog: true });
-      const sp = new THREE.Sprite(m); const sc = rand(5, 8); sp.scale.set(sc, sc, 1);
-      const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 5.2;
-      s.puffs.push({ sprite: sp, off: new V3(Math.cos(a) * r, rand(-1, 2.6), Math.sin(a) * r), spin: rand(-0.1, 0.1) });
-      scene.add(sp);
+    for (let k = 0; k < 16; k++) {
+      const sp = new THREE.Sprite(mat); const sc = rand(7, 10); sp.scale.set(sc, sc, 1);
+      const a = k / 16 * Math.PI * 2 + rand(-0.3, 0.3), r = 1.2 + Math.sqrt(Math.random()) * 4.2;
+      s.puffs.push({ sprite: sp, off: new V3(Math.cos(a) * r, rand(-0.8, 2.4), Math.sin(a) * r) });
+      sp.renderOrder = 2; scene.add(sp);
     }
     WORLD.smokes.push(s);
   } else if (type === 'flash') {

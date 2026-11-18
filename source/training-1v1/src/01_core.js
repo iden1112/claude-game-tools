@@ -1,5 +1,5 @@
 'use strict';
-const GAME_BUILD = 11; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 12; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -192,6 +192,13 @@ TEX.flash = canvasTex(128, 128, (g, w, h) => {
   }
   const gr = g.createRadialGradient(0, 0, 0, 0, 0, 26); gr.addColorStop(0, 'rgba(255,255,240,1)'); gr.addColorStop(1, 'rgba(255,180,60,0)');
   g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 26, 0, Math.PI * 2); g.fill();
+});
+TEX.smokeBig = canvasTex(128, 128, (g, w, h) => { // 더 진한 연막 덩어리 (판 수를 줄여도 꽉 차 보이게)
+  for (let i = 0; i < 22; i++) {
+    const x = rand(30, 98), y = rand(30, 98), r = rand(22, 40);
+    const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,0.65)'); gr.addColorStop(0.6, 'rgba(240,240,240,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  }
 });
 TEX.smoke = canvasTex(128, 128, (g, w, h) => {
   for (let i = 0; i < 14; i++) {
