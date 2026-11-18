@@ -243,7 +243,11 @@ function updateViewmodel(dt, hsp) {
   const p = PLAYER;
   VM.cam.position.copy(camera.position); VM.cam.quaternion.copy(camera.quaternion);
   const scoped = p.mode === 'gun' && p.w && effZoom(p.w) >= 2 && p.adsT > 0.85;
-  VM.root.visible = CAM.blend < 0.3 && !p.dead && !scoped;
+  // 2배율: 조준경 화면 안 아래쪽에 총 앞부분이 보이게 (조준경 통은 숨김)
+  const show2x = scoped && p.mode === 'gun' && effZoom(p.w) < 3;
+  VM.root.visible = CAM.blend < 0.3 && !p.dead && (!scoped || show2x);
+  if (VM.info && VM.info.scopeBody) VM.info.scopeBody.visible = !show2x;
+  VM.show2x = show2x;
   if (!VM.gun) return;
   const ads = smooth01(p.adsT);
   // 손떨림 (마우스 따라 늦게)
@@ -262,7 +266,7 @@ function updateViewmodel(dt, hsp) {
   const info = VM.info, cat = p.w.stats.cat;
   const hip = cat === 'HG' ? new V3(0.15, -0.15, -0.38) : new V3(0.16, -0.16, -0.36);
   const adsZ = cat === 'HG' ? -0.32 : (p.w.att.scope && p.w.att.scope !== 'iron' ? -0.2 : -0.22);
-  const adsP = new V3(0, -info.sightY, adsZ);
+  const adsP = VM.show2x ? new V3(0, -info.sightY - 0.05, -0.34) : new V3(0, -info.sightY, adsZ);
   const shP = cat === 'HG' ? new V3(0.07, -0.13, -0.34) : new V3(0.075, -0.125, -0.3);
   hip.lerp(shP, smooth01(p.shoulderT || 0));
   const pos = hip.lerp(adsP, ads);

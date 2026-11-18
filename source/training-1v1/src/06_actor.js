@@ -294,10 +294,13 @@ class Actor {
     if ((this.isPlayer || this.netBot) && NET.active) netSend({ t: 'shot', id: def.id, o: origin.toArray().map(v => +v.toFixed(3)), d: dirs }, '*', this.isPlayer ? NET.id : this.netId);
     if (this.isPlayer && G.mode === 'range') { RANGE.shots++; if (RANGE.game) RANGE.game.shots++; }
     // 반동
-    const ramp = 0.8 + Math.min(this.shots, 10) * 0.065;
-    const vk = st.rv * sst.recoil * (this.adsT > 0.5 ? 1 : 1.25) * ramp * rand(0.85, 1.15);
+    const ramp = 0.8 + Math.min(this.shots, 14) * 0.075;
+    // 높은 배율로 연사할수록 반동이 더 세게 (3배 1.3, 4배 1.45, 6배 1.75, 8배 2.0)
+    const zm = this.adsT > 0.5 ? effZoom(this.w) : 1;
+    const hiZ = zm >= 3 && this.shots >= 2 && !def.bolt ? 1 + (zm - 2) * 0.15 + (zm >= 3 ? 0.15 : 0) : 1;
+    const vk = st.rv * 1.35 * sst.recoil * (this.adsT > 0.5 ? 1 : 1.25) * ramp * hiZ * rand(0.85, 1.15);
     const drift = (def.id.charCodeAt(0) % 3 - 1) * 0.25;
-    const hk = st.rh * sst.recoil * (rand(-1, 1) + drift) * (this.shots < 3 ? 0.6 : 1);
+    const hk = st.rh * 1.3 * sst.recoil * Math.sqrt(hiZ) * (rand(-1, 1) + drift) * (this.shots < 3 ? 0.6 : 1);
     this.applyRecoil(vk * DEG, hk * DEG);
     // 소리 + 화염
     const muz = this.muzzleWorld(new V3());
