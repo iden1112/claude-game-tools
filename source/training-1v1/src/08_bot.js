@@ -1,9 +1,10 @@
 // ================= AI 상대 =================
 const BOT_DIFF = [
-  { name: '쉬움', react: 0.7, err: 3.4, turn: 3.2, comp: 0.35, head: 0.08, burst: [3, 5], pause: [0.45, 0.8] },
-  { name: '보통', react: 0.45, err: 2.1, turn: 5.0, comp: 0.62, head: 0.18, burst: [4, 7], pause: [0.3, 0.55] },
-  { name: '어려움', react: 0.3, err: 1.2, turn: 7.5, comp: 0.8, head: 0.3, burst: [5, 9], pause: [0.2, 0.4] },
-  { name: '프로', react: 0.2, err: 0.65, turn: 10, comp: 0.92, head: 0.42, burst: [6, 12], pause: [0.12, 0.3] },
+  // head: 머리를 노리는 확률(만날 때마다), err: 조준이 흔들리는 정도(도), floor: 오래 조준해도 남는 흔들림
+  { name: '쉬움', react: 0.85, err: 4.6, floor: 0.6, turn: 2.8, comp: 0.3, head: 0.02, burst: [3, 5], pause: [0.5, 0.9] },
+  { name: '보통', react: 0.6, err: 3.2, floor: 0.5, turn: 4.2, comp: 0.5, head: 0.06, burst: [3, 6], pause: [0.35, 0.65] },
+  { name: '어려움', react: 0.4, err: 2.0, floor: 0.4, turn: 6.0, comp: 0.7, head: 0.14, burst: [4, 8], pause: [0.25, 0.45] },
+  { name: '프로', react: 0.25, err: 1.1, floor: 0.32, turn: 9, comp: 0.85, head: 0.28, burst: [6, 10], pause: [0.15, 0.3] },
 ];
 const BOT_POOLS = {
   primary: ['m416', 'm416', 'akm', 'beryl', 'scar', 'aug', 'ace32', 'mk47', 'ump', 'vector', 'mini14', 'sks', 'kar98k', 'm24', 'slr', 'g36c', 'qbz', 'groza', 'm249'],
@@ -19,7 +20,7 @@ function makeBot(name) {
     origin.copy(b.eyePos);
     dir.set(0, 0, -1).applyAxisAngle(_v3.set(1, 0, 0), b.pitch).applyAxisAngle(_v3.set(0, 1, 0), b.yaw);
   };
-  b.applyRecoil = (v, h) => { const c = BOT_DIFF[SETTINGS.difficulty].comp; b.pitch += v * (1 - c); b.yaw -= h * (1 - c); };
+  b.applyRecoil = (v, h) => { const c = BOT_DIFF[SETTINGS.difficulty].comp; b.pitch += v * (1 - c) * rand(-0.4, 1); b.yaw -= h * (1 - c) + rand(-1, 1) * v * (1 - c) * 0.5; };
   b.hearShot = (shooter, supp) => {
     const d = shooter.pos.distanceTo(b.pos);
     if (d < (supp ? 22 : 160)) { b.ai.heard = shooter.pos.clone(); b.ai.heardT = G.time; }
@@ -64,7 +65,7 @@ function botWeaponFor(dist, b = BOT) {
 function botTargetPoint(out, b = BOT) {
   const ai = b.ai, p = ai.target;
   if (ai.aimHead) out.copy(p.hitbox.head.c);
-  else out.copy(p.hitbox.pelvis).lerp(p.hitbox.chestTop, 0.6);
+  else out.copy(p.hitbox.pelvis).lerp(p.hitbox.chestTop, 0.4); // 가슴 아래쪽 (반동으로 머리까지 잘 안 올라가게)
   return out;
 }
 function botCanSee(b = BOT) {
@@ -172,7 +173,12 @@ function botUpdate(dt, b = BOT) {
     const vel = b.w ? b.w.stats.def.vel : 800; const tt = dist / vel;
     tp.addScaledVector(p.vel, tt * 0.9); tp.y += 0.5 * GRAV * tt * tt;
     const dx = tp.x - b.eyePos.x, dy = tp.y - b.eyePos.y, dz = tp.z - b.eyePos.z;
-    const shrink = 0.25 + 0.75 * Math.exp(-ai.trackT * 1.6);
+    ai.errT -= dt;
+    if (ai.errT <= 0) { // 조준이 계속 조금씩 흔들려요 (사람처럼)
+      ai.errT = rand(0.25, 0.5); const e = D.err * (p.stance === 'prone' ? 1.3 : 1);
+      ai.errY = lerp(ai.errY, rand(-e, e) * DEG, 0.6); ai.errP = lerp(ai.errP, rand(-e, e) * 0.6 * DEG, 0.6);
+    }
+    const shrink = D.floor + (1 - D.floor) * Math.exp(-ai.trackT * 1.4);
     const moveErr = 1 + Math.hypot(p.vel.x, p.vel.z) * 0.12;
     wantYaw = Math.atan2(-dx, -dz) + ai.errY * shrink * moveErr;
     wantPitch = Math.atan2(dy, Math.hypot(dx, dz)) + ai.errP * shrink * moveErr;

@@ -178,9 +178,9 @@ const GUN_STYLE = {
   kar98k: { body: 'black', furn: 'wood', rec: 0.42, bar: 0.5, mag: 'none' }, m24: { body: 'olive', rec: 0.42, bar: 0.5, mag: 'none' },
   awm: { body: 'olive', rec: 0.44, bar: 0.56, mag: 'box' }, mosin: { body: 'black', furn: 'wood', rec: 0.42, bar: 0.55, mag: 'none' },
   win94: { body: 'steel', furn: 'wood', rec: 0.36, bar: 0.42, mag: 'none' }, lynx: { body: 'dark', rec: 0.5, bar: 0.6, mag: 'box' },
-  s1897: { body: 'black', furn: 'wood', rec: 0.36, bar: 0.42, mag: 'tube' }, s686: { body: 'steel', furn: 'wood', rec: 0.3, bar: 0.45, mag: 'dbl' },
-  s12k: { body: 'black', rec: 0.36, bar: 0.3, mag: 'box' }, dbs: { body: 'black', rec: 0.34, bar: 0.32, mag: 'tube', bullpup: true },
-  o12: { body: 'black', rec: 0.36, bar: 0.3, mag: 'box' }, sawed: { body: 'steel', furn: 'wood', rec: 0.22, bar: 0.2, mag: 'dbl' },
+  s1897: { body: 'black', furn: 'wood', rec: 0.36, bar: 0.46, mag: 'tube' }, s686: { body: 'steel', furn: 'wood', rec: 0.26, bar: 0.5, mag: 'none' },
+  s12k: { body: 'black', rec: 0.38, bar: 0.32, mag: 'none' }, dbs: { body: 'black', rec: 0.34, bar: 0.34, mag: 'none', bullpup: true },
+  o12: { body: 'black', rec: 0.42, bar: 0.3, mag: 'none' }, sawed: { body: 'steel', furn: 'wood', rec: 0.2, bar: 0.24, mag: 'none' },
   m249: { body: 'black', rec: 0.42, bar: 0.4, mag: 'boxbig' }, dp28: { body: 'black', furn: 'wood', rec: 0.4, bar: 0.45, mag: 'pan' },
   mg3: { body: 'black', rec: 0.44, bar: 0.4, mag: 'boxbig' },
 };
@@ -432,11 +432,39 @@ function gunExtras(g, id, o) {
     case 'awm': add(M(BX(0.06, 0.08, 0.5), GX.green, 0, 0.0, 0.0)); add(M(new THREE.TorusGeometry(0.035, 0.012, 6, 12), GX.green, 0, -0.03, 0.12, 0, Math.PI / 2)); if (!att.muzzle) add(M(BX(0.05, 0.03, 0.07), GUNMAT.black, 0, 0.035, recF - B - 0.03)); break;
     case 'win94': add(M(new THREE.TorusGeometry(0.035, 0.006, 6, 14), GUNMAT.steel, 0, -0.06, 0.04, 0, Math.PI / 2)); add(M(CY(0.01, 0.01, B * 0.8, 8), GUNMAT.steel, 0, 0.012, recF - B * 0.4, Math.PI / 2)); add(M(BX(0.044, 0.04, 0.16), GX.wood2, 0, 0.005, recF - 0.08)); break;
     case 'lynx': add(M(BX(0.07, 0.1, 0.5), GX.poly, 0, 0.0, 0.0)); add(M(BX(0.07, 0.05, 0.1), GUNMAT.black, 0, 0.035, recF - B - 0.05)); bipod(recF - 0.2); break;
-    case 's1897': add(M(BX(0.008, 0.03, 0.01), GUNMAT.steel, 0, 0.07, 0.06, 0.4)); add(M(BX(0.045, 0.1, 0.24), GX.wood2, 0, -0.02, 0.2)); break;
-    case 's686': case 'sawed': add(M(CY(0.012, 0.012, B, 8), GUNMAT.steel, 0.013, 0.04, recF - B / 2, Math.PI / 2)); add(M(CY(0.012, 0.012, B, 8), GUNMAT.steel, -0.013, 0.04, recF - B / 2, Math.PI / 2)); add(M(BX(0.045, 0.035, B * 0.5), GX.wood2, 0, 0.01, recF - B * 0.25)); break;
-    case 's12k': gasTube(0.18); add(M(BX(0.05, 0.06, 0.24), GX.poly, 0, -0.01, 0.2)); break;
-    case 'dbs': add(M(BX(0.055, 0.08, 0.36), GX.poly, 0, 0.0, 0.03)); add(M(CY(0.012, 0.012, 0.3, 8), GUNMAT.steel, 0.016, -0.02, recF - 0.05, Math.PI / 2)); add(M(CY(0.012, 0.012, 0.3, 8), GUNMAT.steel, -0.016, -0.02, recF - 0.05, Math.PI / 2)); break;
-    case 'o12': add(M(BX(0.05, 0.06, 0.12), GX.poly, 0, -0.01, -0.08)); tubeStock(GX.poly, 0.16); break;
+    case 's1897': // 펌프식: 나무 개머리 + 나무 펌프 + 바깥으로 나온 공이치기
+      add(M(BX(0.008, 0.03, 0.012), GUNMAT.steel, 0, 0.07, 0.06, 0.4)); add(M(BX(0.045, 0.1, 0.26), GX.wood2, 0, -0.025, 0.21, 0.08));
+      add(M(BX(0.05, 0.042, 0.13), GX.wood2, 0, 0.008, recF - 0.16)); for (let k = 0; k < 4; k++) add(M(BX(0.052, 0.004, 0.006), GX.woodDark, 0, 0.03, recF - 0.11 - k * 0.025)); break;
+    case 's686': { // 상하 2연발: 총열 두 개가 위아래로, 나무 손잡이와 개머리
+      for (const y of [0.03, 0.058]) add(M(CY(0.012, 0.012, B, 10), GUNMAT.steel, 0, y, recF - B / 2, Math.PI / 2));
+      add(M(BX(0.012, 0.006, B), GUNMAT.dark, 0, 0.072, recF - B / 2));
+      add(M(BX(0.046, 0.04, B * 0.42), GX.wood2, 0, 0.012, recF - B * 0.22));
+      add(M(BX(0.05, 0.075, 0.1), GUNMAT.steel, 0, 0.03, 0.02)); // 은색 몸통
+      add(M(BX(0.045, 0.06, 0.1), GX.wood2, 0, -0.03, 0.1, -0.35)); add(M(BX(0.045, 0.09, 0.24), GX.wood2, 0, -0.03, 0.24, 0.12));
+      break;
+    }
+    case 'sawed': { // 짧은 수평 2연발 + 나무 권총 손잡이
+      for (const x of [-0.013, 0.013]) add(M(CY(0.013, 0.013, B, 10), GUNMAT.steel, x, 0.04, recF - B / 2, Math.PI / 2));
+      add(M(BX(0.05, 0.03, B * 0.6), GX.wood2, 0, 0.018, recF - B * 0.3)); add(M(BX(0.04, 0.11, 0.05), GX.wood2, 0, -0.05, 0.07, -0.5));
+      break;
+    }
+    case 's12k': // AK처럼 생긴 반자동: 큰 탄창, 덮개, 접이식 개머리
+      gasTube(0.2); add(M(BX(0.054, 0.014, R * 0.75), GUNMAT.steel, 0, 0.062, -R * 0.25 + 0.08));
+      { const mg = M(BX(0.045, 0.15, 0.085), GUNMAT.black, 0, -0.09, -0.07, 0.18); add(mg); g.userData.mag = mg; }
+      skelStock(GUNMAT.black, 0.22, 0.07); add(M(BX(0.05, 0.05, 0.16), GX.poly, 0, 0.022, recF - 0.08)); break;
+    case 'dbs': // 불펍: 총열 위에 튜브 탄창 두 개, 손잡이 위쪽 운반 손잡이
+      add(M(BX(0.058, 0.085, 0.38), GX.poly, 0, 0.0, 0.04));
+      for (const x of [-0.016, 0.016]) add(M(CY(0.013, 0.013, 0.42, 10), GUNMAT.dark, x, 0.07, recF + 0.02, Math.PI / 2));
+      add(M(BX(0.05, 0.035, 0.12), GX.poly, 0, 0.0, recF - 0.12)); add(M(BX(0.02, 0.03, 0.18), GUNMAT.black, 0, 0.1, -0.02)); break;
+    case 'o12': { // 오리진-12: 큰 원통형 드럼 탄창, 긴 위 레일, 굵은 총구 제동기, 접이 개머리
+      const drum = M(CY(0.088, 0.088, 0.075, 22), GUNMAT.black, 0, -0.105, -0.06, 0, 0, Math.PI / 2); add(drum); g.userData.mag = drum;
+      add(M(CY(0.03, 0.03, 0.08, 12), GUNMAT.dark, 0, -0.105, -0.06, 0, 0, Math.PI / 2));
+      add(M(BX(0.058, 0.08, R * 0.9), GX.poly, 0, 0.02, -R * 0.4 + 0.08));
+      add(M(BX(0.024, 0.01, R * 1.25), GUNMAT.dark, 0, 0.066, -R * 0.55 + 0.08));
+      ribs(GUNMAT.dark, recF, 0.2, 0.03);
+      add(M(BX(0.05, 0.05, 0.08), GUNMAT.black, 0, 0.035, recF - B - 0.04)); for (let k = 0; k < 3; k++) add(M(BX(0.052, 0.008, 0.012), GUNMAT.dark, 0, 0.035 + (k - 1) * 0.016, recF - B - 0.04));
+      tubeStock(GX.poly, 0.18); break;
+    }
     case 'm249': add(M(BX(0.05, 0.04, 0.2), GUNMAT.dark, 0, 0.055, recF - 0.1)); add(M(BX(0.045, 0.07, 0.22), GUNMAT.black, 0, -0.005, 0.2)); break;
     case 'dp28': jacket(0.024, recF, B * 0.8, GUNMAT.dark); add(M(BX(0.045, 0.08, 0.25), GX.wood2, 0, -0.01, 0.2)); bipod(recF - B * 0.7); break;
     case 'mg3': jacket(0.026, recF, B * 0.85, GUNMAT.black); add(M(BX(0.045, 0.08, 0.24), GX.poly, 0, -0.01, 0.2)); break;
