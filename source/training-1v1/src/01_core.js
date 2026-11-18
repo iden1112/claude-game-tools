@@ -1,5 +1,5 @@
 'use strict';
-const GAME_BUILD = 24; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 27; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -273,7 +273,7 @@ const MAT = {
 
 // ================= 소리 (WebAudio 합성) =================
 const AU = (() => {
-  let ctx = null, master = null, noiseBuf = null, grit = null, gritBus = null, lastTail = 0;
+  let ctx = null, master = null, noiseBuf = null, grit = null, gritBus = null, lastTail = 0, muffle = null, postBus = null, ringG = null;
   const voiceEnds = [];
   function voices(t) { while (voiceEnds.length && voiceEnds[0] < t) voiceEnds.shift(); return voiceEnds.length; }
   function addVoice(end, n) { for (let i = 0; i < n; i++) voiceEnds.push(end); voiceEnds.sort((a, b) => a - b); }
@@ -285,7 +285,9 @@ const AU = (() => {
     grit = ctx.createWaveShaper(); const cv = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; cv[i] = Math.tanh(x * 3.2); } grit.curve = cv; grit.oversample = '2x';
     // 마지막 안전장치: 소리가 아무리 겹쳐도 찢어지지 않게 막는 리미터
     const lim = ctx.createDynamicsCompressor(); lim.threshold.value = -3; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.1;
-    master.disconnect(); master.connect(comp); comp.connect(lim); lim.connect(ctx.destination);
+    // 이명용 먹먹함 필터: 평소엔 다 통과, 폭발·섬광 맞으면 잠깐 소리가 뭉개져요
+    muffle = ctx.createBiquadFilter(); muffle.type = 'lowpass'; muffle.frequency.value = 20000; muffle.Q.value = 0.7;
+    master.disconnect(); master.connect(muffle); muffle.connect(comp); comp.connect(lim); lim.connect(ctx.destination); postBus = comp;
     // 묵직한 쿵 소리용 공용 일그러뜨리기 통로 (총 쏠 때마다 새로 만들지 않음)
     gritBus = ctx.createGain(); gritBus.gain.value = 0.8; gritBus.connect(grit); grit.connect(master);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
@@ -354,6 +356,36 @@ const AU = (() => {
     LMG: { crack: 1.05, body: 1350, boom: 95, punch: 0.08, sub: 0.4, tail: 1.5, mech: 0.4, drive: 2.8 },
     HG: { crack: 0.85, body: 1900, boom: 125, punch: 0.05, sub: 0.1, tail: 1.0, mech: 0.3, drive: 2.2 },
   };
+  // 총마다 다른 소리 (배그 느낌 기준): 5.56mm는 날카롭고 가볍게, 7.62mm는 낮고 묵직하게,
+  // 9mm 기관단총은 가볍고 빠르게, .45는 둔하게, 저격총은 크게 '쾅' + 긴 메아리, 산탄총은 넓게 '퍽'
+  const SND_W = {
+    m416: { crack: 1.0, body: 1700, boom: 115, punch: 0.06, sub: 0.15 }, scar: { crack: 0.85, body: 1500, boom: 108, punch: 0.065, sub: 0.15, tail: 1.1, vol: 0.85 },
+    aug: { crack: 1.05, body: 1750, boom: 118, punch: 0.06, sub: 0.15 }, g36c: { body: 1650, boom: 112, punch: 0.06, sub: 0.15 }, qbz: { body: 1600, boom: 110, punch: 0.062, sub: 0.15 },
+    m16: { crack: 1.1, body: 1850, boom: 122, punch: 0.055, sub: 0.12 }, famas: { crack: 1.0, body: 1950, boom: 126, punch: 0.05, sub: 0.1 },
+    akm: { crack: 1.1, body: 1150, boom: 86, punch: 0.088, sub: 0.5, drive: 3.0, vol: 1.08 }, beryl: { crack: 1.1, body: 1200, boom: 90, punch: 0.082, sub: 0.45, drive: 3.0, vol: 1.05 },
+    groza: { body: 1250, boom: 94, punch: 0.075, sub: 0.38 }, mk47: { crack: 1.2, body: 1100, boom: 84, punch: 0.09, sub: 0.5, vol: 1.08 }, ace32: { body: 1180, boom: 90, punch: 0.08, sub: 0.42 },
+    ump: { crack: 0.55, body: 1300, boom: 100, punch: 0.06, sub: 0.2 }, tommy: { crack: 0.5, body: 1150, boom: 90, punch: 0.07, sub: 0.28 },
+    vector: { crack: 0.7, body: 2300, boom: 150, punch: 0.04, vol: 0.9 }, uzi: { crack: 0.6, body: 2450, boom: 160, punch: 0.035, vol: 0.85 }, mp5k: { body: 2100, boom: 140, punch: 0.042 },
+    bizon: { body: 2000, boom: 135, punch: 0.045, vol: 0.85 }, p90: { crack: 1.0, body: 2500, boom: 150, punch: 0.04 }, js9: { body: 2150, boom: 140, punch: 0.042 },
+    sks: { crack: 1.2, body: 1150, boom: 80, punch: 0.1, sub: 0.6 }, slr: { crack: 1.25, body: 1050, boom: 76, punch: 0.11, sub: 0.7 }, mk14: { crack: 1.3, body: 1050, boom: 74, punch: 0.11, sub: 0.72 },
+    dragunov: { crack: 1.3, body: 1000, boom: 72, punch: 0.12, sub: 0.75 }, mini14: { crack: 1.25, body: 1600, boom: 105, punch: 0.07, sub: 0.62, tail: 1.6 }, qbu: { crack: 1.2, body: 1550, boom: 100, punch: 0.072, sub: 0.62 },
+    mk12: { crack: 1.25, body: 1500, boom: 98, punch: 0.075, sub: 0.62 },
+    kar98k: { crack: 1.35, body: 950, boom: 62, punch: 0.16, sub: 1.0, tail: 3.0 }, mosin: { crack: 1.3, body: 900, boom: 60, punch: 0.17, sub: 1.05, tail: 3.0 },
+    m24: { crack: 1.45, body: 1100, boom: 66, punch: 0.14, sub: 0.9, tail: 2.9 }, awm: { crack: 1.6, body: 850, boom: 52, punch: 0.2, sub: 1.3, tail: 3.4, drive: 3.8, vol: 1.12 },
+    lynx: { crack: 1.7, body: 700, boom: 45, punch: 0.25, sub: 1.6, tail: 3.6, drive: 4.0, vol: 1.2 }, win94: { crack: 0.8, body: 1000, boom: 76, punch: 0.12, sub: 0.7, tail: 2.2 },
+    s686: { body: 750, boom: 62, punch: 0.16, sub: 0.95 }, s1897: { body: 700, boom: 58, punch: 0.17, sub: 0.95 }, s12k: { body: 850, boom: 68, punch: 0.13, sub: 0.8 },
+    dbs: { body: 780, boom: 64, punch: 0.15, sub: 0.9 }, o12: { body: 900, boom: 70, punch: 0.13, sub: 0.8 }, sawed: { body: 650, boom: 55, punch: 0.18, sub: 1.0, vol: 1.08 },
+    m249: { body: 1600, boom: 110, punch: 0.065, sub: 0.25 }, dp28: { crack: 1.1, body: 1050, boom: 82, punch: 0.09, sub: 0.55 }, mg3: { crack: 1.15, body: 1250, boom: 90, punch: 0.07, sub: 0.45 },
+    p92: { crack: 0.75, body: 2000, boom: 140, punch: 0.045 }, p18c: { crack: 0.7, body: 2200, boom: 150, punch: 0.04, vol: 0.9 }, p1911: { crack: 0.6, body: 1500, boom: 110, punch: 0.06, sub: 0.2 },
+    r45: { crack: 0.7, body: 1300, boom: 100, punch: 0.07, sub: 0.3 }, r1895: { crack: 0.8, body: 1200, boom: 95, punch: 0.075, sub: 0.35 },
+    deagle: { crack: 1.1, body: 1000, boom: 80, punch: 0.1, sub: 0.6, tail: 1.6, vol: 1.1 }, skorpion: { crack: 0.6, body: 2400, boom: 160, punch: 0.035, vol: 0.85 },
+  };
+  const _pending = {};
+  function prepGun(id, cat) { // 이 총 소리를 미리 만들어 둬요 (처음 쏠 때 멈추지 않게 조금 뒤에)
+    if (!ctx || !SND_W[id] || BUF[id] || _pending[id] || !SND[cat]) return;
+    _pending[id] = 1;
+    setTimeout(() => { try { const p = Object.assign({}, SND[cat], SND_W[id]); const a = makeGunSound(p, false); BUF[id] = [a, { dry: makeGunSound(p, false, true).dry, tail: a.tail }]; } catch (e) {} }, 30 + Math.random() * 200);
+  }
   function makeGunSound(p, suppressed, noTail) {
     const sr = ctx.sampleRate, n = Math.floor(sr * 0.45), x = new Float32Array(n);
     const ex = (t, tau) => Math.exp(-t / tau);
@@ -435,7 +467,8 @@ const AU = (() => {
     init, setVol,
     get ctx() { return ctx; },
     get _buf() { return BUF; },
-    shot(pos, cat, suppressed, local) {
+    prep(id, cat) { prepGun(id, cat); },
+    shot(pos, cat, suppressed, local, id) {
       if (!ctx) return; const s = spatial(local ? null : pos), t = ctx.currentTime, p = P[cat] || P.AR;
       // 동시에 나는 소리가 너무 많으면 줄이기 (소리 깨짐·끊김 방지)
       const busy = voices(t);
@@ -451,11 +484,13 @@ const AU = (() => {
         noise(out, T0 + 0.005, 0.25, 'bandpass', 380, 3, 0.4 * s.vol, 0.004);
         addVoice(T0 + 0.25, 4); return;
       }
-      const bk = BUF[(SND[cat] ? cat : 'AR') + (suppressed ? '_s' : '')];
+      if (id && !suppressed && SND_W[id] && !BUF[id]) prepGun(id, cat);
+      const bk = (!suppressed && id && BUF[id]) || BUF[(SND[cat] ? cat : 'AR') + (suppressed ? '_s' : '')];
+      const gv = (!suppressed && id && SND_W[id] && SND_W[id].vol) || 1;
       if (bk) {
         const b = pick(bk), rate = rand(0.95, 1.05) * (suppressed ? 1 : 1);
         // 멀리서 쏘면 앞소리는 작아지고 메아리 비율이 커져요
-        playBuf(out, b.dry, T0, (suppressed ? (SND[cat] && SND[cat].sub >= 0.6 ? 0.68 : 0.5) : 0.8) * V, rate);
+        playBuf(out, b.dry, T0, gv * (suppressed ? (SND[cat] && SND[cat].sub >= 0.6 ? 0.68 : 0.5) : 0.8) * V, rate);
         let n = 1, tailEnd = T0 + b.dry.duration;
         if (!lite && (T0 - lastTail > (cat === 'SR' || cat === 'SG' || cat === 'DMR' ? 0 : 0.11) || suppressed)) {
           lastTail = T0;
@@ -487,6 +522,11 @@ const AU = (() => {
         noise(out, T0 + 0.03, p.tail, 'lowpass', 520, 0.5, (0.18 + Math.min(0.35, s.dist / 200)) * V, 0.02); n++;
       }
       addVoice(T0 + Math.max(p.len, p.bLen), n);
+    },
+    punch(hit, pos) { // 주먹: 휙 + (맞으면) 퍽
+      if (!ctx) return; const s = spatial(pos || null); if (s.dist > 40) return; const out = chain(s), t = ctx.currentTime;
+      noise(out, t, 0.12, 'bandpass', 900, 0.8, 0.35 * s.vol, 0.03);
+      if (hit) { noise(out, t + 0.06, 0.08, 'lowpass', 500, 1, 0.9 * s.vol); tone(out, t + 0.06, 0.09, 130, 60, 0.6 * s.vol); }
     },
     crack(pos) { // 총알이 옆을 스치는 소리
       if (!ctx) return; const s = spatial(pos), out = chain({ ...s, vol: 1, lp: 18000 });
@@ -528,7 +568,20 @@ const AU = (() => {
     bounce(pos) { if (!ctx) return; const s = spatial(pos); if (s.dist > 40) return; const out = chain(s); tone(out, ctx.currentTime, 0.06, 900, 500, 0.3 * s.vol, 'triangle'); },
     smoke(pos) { if (!ctx) return; const s = spatial(pos), out = chain(s); noise(out, ctx.currentTime, 3.0, 'bandpass', 2400, 0.4, 0.5 * s.vol + 0.05, 0.2); },
     flash(pos) { if (!ctx) return; const s = spatial(pos), out = chain(s); noise(out, ctx.currentTime, 0.4, 'highpass', 1200, 0.5, 1.2 * s.vol + 0.1); },
-    ring(sec) { if (!ctx) return; const out = chain(spatial(null)); tone(out, ctx.currentTime, sec, 4200, 4100, 0.12); },
+    ring(sec) { this.deafen(sec, 0.6); },
+    deafen(sec, k = 1) { // 이명: 삐~ 소리 + 주변 소리가 먹먹해졌다가 천천히 돌아와요 (배그처럼)
+      if (!ctx || !muffle) return; const t = ctx.currentTime; k = clamp(k, 0, 1); sec = clamp(sec, 1, 9);
+      const f = muffle.frequency; f.cancelScheduledValues(t); f.setValueAtTime(Math.min(f.value, 20000), t);
+      f.exponentialRampToValueAtTime(lerp(1400, 280, k), t + 0.05); f.setValueAtTime(lerp(1400, 280, k), t + sec * 0.35);
+      f.exponentialRampToValueAtTime(20000, t + sec);
+      if (ringG) { try { ringG.gain.cancelScheduledValues(t); ringG.gain.setTargetAtTime(0.0001, t, 0.05); } catch (e) {} }
+      const o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(); ringG = g;
+      o.type = 'sine'; o.frequency.value = 3900 + Math.random() * 300; o2.type = 'sine'; o2.frequency.value = o.frequency.value * 1.004;
+      const v = (0.05 + 0.1 * k) * SETTINGS.volume;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.04); g.gain.setValueAtTime(v, t + sec * 0.3);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + sec);
+      o.connect(g); o2.connect(g); g.connect(postBus || master); o.start(t); o2.start(t); o.stop(t + sec + 0.1); o2.stop(t + sec + 0.1);
+    },
     beep(f = 880, d = 0.12, v = 0.25) { if (!ctx) return; const out = chain(spatial(null)); tone(out, ctx.currentTime, d, f, f, v, 'sine'); },
     empty() { this.click(0.25, 1500); },
   };

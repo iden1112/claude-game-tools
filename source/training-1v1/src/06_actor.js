@@ -1,7 +1,7 @@
 // ================= 캐릭터 (플레이어와 봇이 같이 씀) =================
 const STANCE = {
-  stand: { h: 1.8, eye: 1.62, speed: 4.7, sprint: 6.3, recoil: 1.0, spread: 1.0 },
-  crouch: { h: 1.25, eye: 1.12, speed: 2.6, sprint: 4.2, recoil: 0.8, spread: 0.8 },
+  stand: { h: 1.8, eye: 1.62, speed: 4.7, sprint: 6.0, recoil: 1.0, spread: 1.0 },
+  crouch: { h: 1.25, eye: 1.12, speed: 2.6, sprint: 4.0, recoil: 0.8, spread: 0.8 },
   prone: { h: 0.6, eye: 0.38, speed: 1.15, sprint: 1.15, recoil: 0.55, spread: 0.6 },
 };
 const MAX_HP = 200;
@@ -42,6 +42,7 @@ class Actor {
   setLoadout(list) {
     this.weapons = list.map(({ id, att }) => {
       const stats = weaponStats(id, att);
+      AU.prep(id, WEAPONS[id].cat);
       const model = buildGunModel(id, att);
       return { id, att, stats, mag: stats.mag, reserve: stats.mag * 6, model: model.group, info: model, fireMode: WEAPONS[id].modes.includes('A') ? 'A' : WEAPONS[id].modes[0] };
     });
@@ -72,6 +73,29 @@ class Actor {
     this.soldier.setGun(buildGrenadeModel(type)); this.soldier.setArms('HG');
     if (this.onEquip) this.onEquip();
   }
+  holster() { // X: 총 넣고 맨손
+    if (this.pin || this.dead) return;
+    if (this.mode === 'fist') { this.equip(this.cur); return; }
+    this.mode = 'fist'; this.ads = false; this.reloadT = 0; this.burst = 0; this.boltT = 0; this.switchT = 0.3; this.punchCD = 0;
+    this.soldier.setGun(null); this.soldier.setArms('HG');
+    if (this.onEquip) this.onEquip();
+  }
+  punch() {
+    this.punchCD = 0.55; this.punchT = 0.28; this.punchSide = !this.punchSide;
+    const o = new V3(), d = new V3(); this.getAim(o, d);
+    const e = o.clone().addScaledVector(d, 1.7);
+    let best = null, bp = null, bs = 9;
+    for (const a of ACTORS) {
+      if (a === this || a.dead || (G.mode === 'mp' && a.team !== undefined && a.team === this.team)) continue;
+      if (a.pos.distanceTo(this.pos) > 3) continue;
+      const h = segHitSoldier(o, e, a.hitbox) || segHitSoldier(o.clone().add(new V3(0, -0.25, 0)), e.clone().add(new V3(0, -0.25, 0)), a.hitbox);
+      if (h && h.s < bs) { bs = h.s; best = a; bp = h.part; }
+    }
+    if (best && raycastWorld(o, d, bs * 1.7)) best = null; // 벽 너머는 안 맞음
+    if (this.isPlayer) AU.punch(!!best);
+    if ((this.isPlayer || this.netBot) && NET.active) netSend({ t: 'punch' }, '*', this.isPlayer ? NET.id : this.netId);
+    if (best) bulletHit({ owner: this, st: FIST_ST, dmg: 18, dist: 1 }, best, bp, o.clone().addScaledVector(d, bs * 1.7), d.clone());
+  }
   get height() { return this.stance === 'prone' ? 0.6 : this.stance === 'crouch' ? 1.25 : 1.8; }
   canStand(h) { return ceilingAt(this.pos.x, this.pos.z, RADIUS * 0.8, this.pos.y + 0.3) - this.pos.y > h; }
   setStance(s) {
@@ -93,6 +117,7 @@ class Actor {
     // 원하는 속도
     let sp = this.sprint ? st.sprint : st.speed;
     if (this.mode === 'gun' && this.w) sp *= CAT_INFO[this.w.stats.cat].move;
+    else if (this.mode === 'fist') sp *= this.sprint ? 1.13 : 1.06; // 맨손이 제일 빨라요
     if (this.ads && !this.sprint) sp *= this.stance === 'prone' ? 0.0 : 0.6;
     else if (this.shoulderT > 0.5) sp *= 0.8;
     if (this.stanceLock > 0 && this.stance === 'prone') sp *= 0.2;
@@ -251,6 +276,11 @@ class Actor {
     }
     if (this.sinceShot > 0.25) this.shots = 0;
     if (this.mode === 'throw') { this.updateThrow(dt); return; }
+    if (this.mode === 'fist') { // 맨손 공격
+      this.punchCD = Math.max(0, (this.punchCD || 0) - dt); this.punchT = Math.max(0, (this.punchT || 0) - dt);
+      if ((this.triggerEdge || this.trigger) && this.punchCD <= 0 && this.switchT <= 0 && !this.vault && !this.dead) this.punch();
+      this.triggerEdge = false; return;
+    }
     if (!w) return;
     // 사격
     const fm = w.fireMode;
@@ -304,7 +334,7 @@ class Actor {
     this.applyRecoil(vk * DEG, hk * DEG);
     // 소리 + 화염
     const muz = this.muzzleWorld(new V3());
-    AU.shot(muz, def.cat, st.suppressed, this.isPlayer);
+    AU.shot(muz, def.cat, st.suppressed, this.isPlayer, def.id);
     if (def.cat !== 'XB') muzzleFlash(muz, dir, def.cat === 'SR' || def.cat === 'SG' || def.cat === 'LMG', st.flashHidden);
     else if (w.mag <= 0) { this.cooldown = 0.35; setTimeout(() => { if (this.w === w && w.mag <= 0) this.startReload(); }, 350); } // 석궁: 쏘면 바로 다시 장전
     if (this.onFire) this.onFire(st);

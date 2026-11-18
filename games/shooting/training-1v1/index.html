@@ -22,6 +22,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:"Pr
 #cross{position:absolute;left:50%;top:50%}
 #cross i{position:absolute;background:#fff;box-shadow:0 0 2px rgba(0,0,0,.9)}
 #ch-t,#ch-b{width:2px;height:10px;left:0}#ch-l,#ch-r{height:2px;width:10px;top:0}
+#sgc{position:absolute;left:50%;top:50%;display:none;pointer-events:none}
+#sgc .r{position:absolute;border-radius:50%;border:2px solid rgba(70,255,120,.85);box-shadow:0 0 4px rgba(40,220,90,.7),inset 0 0 3px rgba(40,220,90,.5)}
+#sgc .d{position:absolute;border-radius:50%;border:2px dotted rgba(70,255,120,.55)}
+#sgc .c{position:absolute;width:3px;height:3px;margin:-1.5px;border-radius:50%;background:rgba(90,255,140,.95);box-shadow:0 0 3px #2be06a}
 #dot{position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;background:#fff;border-radius:50%;box-shadow:0 0 2px #000}
 #hit{position:absolute;left:50%;top:50%;width:0;height:0;opacity:0;transition:opacity .08s}
 #hit i{position:absolute;width:2px;height:11px;background:#fff;left:-1px;top:-5px;box-shadow:0 0 2px #000}
@@ -196,6 +200,7 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
   <div id="premenu"><kbd>~</kbd> 총 바꾸기 (풀파츠) · 시작하면 바꿀 수 없어요</div>
   <canvas id="dmgdir" width="300" height="300"></canvas>
   <div id="cross"><i id="ch-t"></i><i id="ch-b"></i><i id="ch-l"></i><i id="ch-r"></i></div>
+  <div id="sgc"><div class="d" id="sgc-d"></div><div class="r" id="sgc-r"></div><div class="c"></div></div>
   <div id="dot"></div>
   <div id="ret"></div>
   <div id="scope"><div class="ring"></div><div class="glass"></div>
@@ -216,7 +221,7 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
     <div id="hpbar"><div id="hplag"></div><div id="hpfill"></div></div>
   </div>
   <div id="weapon"><div id="w-name">M416</div><div id="w-ammo">30</div><div id="w-mode">연사</div><div id="slots"></div></div>
-  <div id="help"><b>V</b> 1/3인칭 · <b>Alt</b> 둘러보기 · <b>Q/E</b> 기울이기 · <b>C</b> 앉기 · <b>Z</b> 엎드리기 · <b>Space</b> 점프/넘기 · <b>B</b> 사격모드 · <b>G</b> 수류탄</div>
+  <div id="help"><b>V</b> 1/3인칭 · <b>Alt</b> 둘러보기 · <b>Q/E</b> 기울이기 · <b>C</b> 앉기 · <b>Z</b> 엎드리기 · <b>Space</b> 점프/넘기 · <b>B</b> 사격모드 · <b>G</b> 수류탄 · <b>X</b> 맨손</div>
 </div>
 
 <div id="start" class="overlay">
@@ -1008,7 +1013,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 24; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 27; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -1282,7 +1287,7 @@ const MAT = {
 
 // ================= 소리 (WebAudio 합성) =================
 const AU = (() => {
-  let ctx = null, master = null, noiseBuf = null, grit = null, gritBus = null, lastTail = 0;
+  let ctx = null, master = null, noiseBuf = null, grit = null, gritBus = null, lastTail = 0, muffle = null, postBus = null, ringG = null;
   const voiceEnds = [];
   function voices(t) { while (voiceEnds.length && voiceEnds[0] < t) voiceEnds.shift(); return voiceEnds.length; }
   function addVoice(end, n) { for (let i = 0; i < n; i++) voiceEnds.push(end); voiceEnds.sort((a, b) => a - b); }
@@ -1294,7 +1299,9 @@ const AU = (() => {
     grit = ctx.createWaveShaper(); const cv = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; cv[i] = Math.tanh(x * 3.2); } grit.curve = cv; grit.oversample = '2x';
     // 마지막 안전장치: 소리가 아무리 겹쳐도 찢어지지 않게 막는 리미터
     const lim = ctx.createDynamicsCompressor(); lim.threshold.value = -3; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.1;
-    master.disconnect(); master.connect(comp); comp.connect(lim); lim.connect(ctx.destination);
+    // 이명용 먹먹함 필터: 평소엔 다 통과, 폭발·섬광 맞으면 잠깐 소리가 뭉개져요
+    muffle = ctx.createBiquadFilter(); muffle.type = 'lowpass'; muffle.frequency.value = 20000; muffle.Q.value = 0.7;
+    master.disconnect(); master.connect(muffle); muffle.connect(comp); comp.connect(lim); lim.connect(ctx.destination); postBus = comp;
     // 묵직한 쿵 소리용 공용 일그러뜨리기 통로 (총 쏠 때마다 새로 만들지 않음)
     gritBus = ctx.createGain(); gritBus.gain.value = 0.8; gritBus.connect(grit); grit.connect(master);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
@@ -1363,6 +1370,36 @@ const AU = (() => {
     LMG: { crack: 1.05, body: 1350, boom: 95, punch: 0.08, sub: 0.4, tail: 1.5, mech: 0.4, drive: 2.8 },
     HG: { crack: 0.85, body: 1900, boom: 125, punch: 0.05, sub: 0.1, tail: 1.0, mech: 0.3, drive: 2.2 },
   };
+  // 총마다 다른 소리 (배그 느낌 기준): 5.56mm는 날카롭고 가볍게, 7.62mm는 낮고 묵직하게,
+  // 9mm 기관단총은 가볍고 빠르게, .45는 둔하게, 저격총은 크게 '쾅' + 긴 메아리, 산탄총은 넓게 '퍽'
+  const SND_W = {
+    m416: { crack: 1.0, body: 1700, boom: 115, punch: 0.06, sub: 0.15 }, scar: { crack: 0.85, body: 1500, boom: 108, punch: 0.065, sub: 0.15, tail: 1.1, vol: 0.85 },
+    aug: { crack: 1.05, body: 1750, boom: 118, punch: 0.06, sub: 0.15 }, g36c: { body: 1650, boom: 112, punch: 0.06, sub: 0.15 }, qbz: { body: 1600, boom: 110, punch: 0.062, sub: 0.15 },
+    m16: { crack: 1.1, body: 1850, boom: 122, punch: 0.055, sub: 0.12 }, famas: { crack: 1.0, body: 1950, boom: 126, punch: 0.05, sub: 0.1 },
+    akm: { crack: 1.1, body: 1150, boom: 86, punch: 0.088, sub: 0.5, drive: 3.0, vol: 1.08 }, beryl: { crack: 1.1, body: 1200, boom: 90, punch: 0.082, sub: 0.45, drive: 3.0, vol: 1.05 },
+    groza: { body: 1250, boom: 94, punch: 0.075, sub: 0.38 }, mk47: { crack: 1.2, body: 1100, boom: 84, punch: 0.09, sub: 0.5, vol: 1.08 }, ace32: { body: 1180, boom: 90, punch: 0.08, sub: 0.42 },
+    ump: { crack: 0.55, body: 1300, boom: 100, punch: 0.06, sub: 0.2 }, tommy: { crack: 0.5, body: 1150, boom: 90, punch: 0.07, sub: 0.28 },
+    vector: { crack: 0.7, body: 2300, boom: 150, punch: 0.04, vol: 0.9 }, uzi: { crack: 0.6, body: 2450, boom: 160, punch: 0.035, vol: 0.85 }, mp5k: { body: 2100, boom: 140, punch: 0.042 },
+    bizon: { body: 2000, boom: 135, punch: 0.045, vol: 0.85 }, p90: { crack: 1.0, body: 2500, boom: 150, punch: 0.04 }, js9: { body: 2150, boom: 140, punch: 0.042 },
+    sks: { crack: 1.2, body: 1150, boom: 80, punch: 0.1, sub: 0.6 }, slr: { crack: 1.25, body: 1050, boom: 76, punch: 0.11, sub: 0.7 }, mk14: { crack: 1.3, body: 1050, boom: 74, punch: 0.11, sub: 0.72 },
+    dragunov: { crack: 1.3, body: 1000, boom: 72, punch: 0.12, sub: 0.75 }, mini14: { crack: 1.25, body: 1600, boom: 105, punch: 0.07, sub: 0.62, tail: 1.6 }, qbu: { crack: 1.2, body: 1550, boom: 100, punch: 0.072, sub: 0.62 },
+    mk12: { crack: 1.25, body: 1500, boom: 98, punch: 0.075, sub: 0.62 },
+    kar98k: { crack: 1.35, body: 950, boom: 62, punch: 0.16, sub: 1.0, tail: 3.0 }, mosin: { crack: 1.3, body: 900, boom: 60, punch: 0.17, sub: 1.05, tail: 3.0 },
+    m24: { crack: 1.45, body: 1100, boom: 66, punch: 0.14, sub: 0.9, tail: 2.9 }, awm: { crack: 1.6, body: 850, boom: 52, punch: 0.2, sub: 1.3, tail: 3.4, drive: 3.8, vol: 1.12 },
+    lynx: { crack: 1.7, body: 700, boom: 45, punch: 0.25, sub: 1.6, tail: 3.6, drive: 4.0, vol: 1.2 }, win94: { crack: 0.8, body: 1000, boom: 76, punch: 0.12, sub: 0.7, tail: 2.2 },
+    s686: { body: 750, boom: 62, punch: 0.16, sub: 0.95 }, s1897: { body: 700, boom: 58, punch: 0.17, sub: 0.95 }, s12k: { body: 850, boom: 68, punch: 0.13, sub: 0.8 },
+    dbs: { body: 780, boom: 64, punch: 0.15, sub: 0.9 }, o12: { body: 900, boom: 70, punch: 0.13, sub: 0.8 }, sawed: { body: 650, boom: 55, punch: 0.18, sub: 1.0, vol: 1.08 },
+    m249: { body: 1600, boom: 110, punch: 0.065, sub: 0.25 }, dp28: { crack: 1.1, body: 1050, boom: 82, punch: 0.09, sub: 0.55 }, mg3: { crack: 1.15, body: 1250, boom: 90, punch: 0.07, sub: 0.45 },
+    p92: { crack: 0.75, body: 2000, boom: 140, punch: 0.045 }, p18c: { crack: 0.7, body: 2200, boom: 150, punch: 0.04, vol: 0.9 }, p1911: { crack: 0.6, body: 1500, boom: 110, punch: 0.06, sub: 0.2 },
+    r45: { crack: 0.7, body: 1300, boom: 100, punch: 0.07, sub: 0.3 }, r1895: { crack: 0.8, body: 1200, boom: 95, punch: 0.075, sub: 0.35 },
+    deagle: { crack: 1.1, body: 1000, boom: 80, punch: 0.1, sub: 0.6, tail: 1.6, vol: 1.1 }, skorpion: { crack: 0.6, body: 2400, boom: 160, punch: 0.035, vol: 0.85 },
+  };
+  const _pending = {};
+  function prepGun(id, cat) { // 이 총 소리를 미리 만들어 둬요 (처음 쏠 때 멈추지 않게 조금 뒤에)
+    if (!ctx || !SND_W[id] || BUF[id] || _pending[id] || !SND[cat]) return;
+    _pending[id] = 1;
+    setTimeout(() => { try { const p = Object.assign({}, SND[cat], SND_W[id]); const a = makeGunSound(p, false); BUF[id] = [a, { dry: makeGunSound(p, false, true).dry, tail: a.tail }]; } catch (e) {} }, 30 + Math.random() * 200);
+  }
   function makeGunSound(p, suppressed, noTail) {
     const sr = ctx.sampleRate, n = Math.floor(sr * 0.45), x = new Float32Array(n);
     const ex = (t, tau) => Math.exp(-t / tau);
@@ -1444,7 +1481,8 @@ const AU = (() => {
     init, setVol,
     get ctx() { return ctx; },
     get _buf() { return BUF; },
-    shot(pos, cat, suppressed, local) {
+    prep(id, cat) { prepGun(id, cat); },
+    shot(pos, cat, suppressed, local, id) {
       if (!ctx) return; const s = spatial(local ? null : pos), t = ctx.currentTime, p = P[cat] || P.AR;
       // 동시에 나는 소리가 너무 많으면 줄이기 (소리 깨짐·끊김 방지)
       const busy = voices(t);
@@ -1460,11 +1498,13 @@ const AU = (() => {
         noise(out, T0 + 0.005, 0.25, 'bandpass', 380, 3, 0.4 * s.vol, 0.004);
         addVoice(T0 + 0.25, 4); return;
       }
-      const bk = BUF[(SND[cat] ? cat : 'AR') + (suppressed ? '_s' : '')];
+      if (id && !suppressed && SND_W[id] && !BUF[id]) prepGun(id, cat);
+      const bk = (!suppressed && id && BUF[id]) || BUF[(SND[cat] ? cat : 'AR') + (suppressed ? '_s' : '')];
+      const gv = (!suppressed && id && SND_W[id] && SND_W[id].vol) || 1;
       if (bk) {
         const b = pick(bk), rate = rand(0.95, 1.05) * (suppressed ? 1 : 1);
         // 멀리서 쏘면 앞소리는 작아지고 메아리 비율이 커져요
-        playBuf(out, b.dry, T0, (suppressed ? (SND[cat] && SND[cat].sub >= 0.6 ? 0.68 : 0.5) : 0.8) * V, rate);
+        playBuf(out, b.dry, T0, gv * (suppressed ? (SND[cat] && SND[cat].sub >= 0.6 ? 0.68 : 0.5) : 0.8) * V, rate);
         let n = 1, tailEnd = T0 + b.dry.duration;
         if (!lite && (T0 - lastTail > (cat === 'SR' || cat === 'SG' || cat === 'DMR' ? 0 : 0.11) || suppressed)) {
           lastTail = T0;
@@ -1496,6 +1536,11 @@ const AU = (() => {
         noise(out, T0 + 0.03, p.tail, 'lowpass', 520, 0.5, (0.18 + Math.min(0.35, s.dist / 200)) * V, 0.02); n++;
       }
       addVoice(T0 + Math.max(p.len, p.bLen), n);
+    },
+    punch(hit, pos) { // 주먹: 휙 + (맞으면) 퍽
+      if (!ctx) return; const s = spatial(pos || null); if (s.dist > 40) return; const out = chain(s), t = ctx.currentTime;
+      noise(out, t, 0.12, 'bandpass', 900, 0.8, 0.35 * s.vol, 0.03);
+      if (hit) { noise(out, t + 0.06, 0.08, 'lowpass', 500, 1, 0.9 * s.vol); tone(out, t + 0.06, 0.09, 130, 60, 0.6 * s.vol); }
     },
     crack(pos) { // 총알이 옆을 스치는 소리
       if (!ctx) return; const s = spatial(pos), out = chain({ ...s, vol: 1, lp: 18000 });
@@ -1537,7 +1582,20 @@ const AU = (() => {
     bounce(pos) { if (!ctx) return; const s = spatial(pos); if (s.dist > 40) return; const out = chain(s); tone(out, ctx.currentTime, 0.06, 900, 500, 0.3 * s.vol, 'triangle'); },
     smoke(pos) { if (!ctx) return; const s = spatial(pos), out = chain(s); noise(out, ctx.currentTime, 3.0, 'bandpass', 2400, 0.4, 0.5 * s.vol + 0.05, 0.2); },
     flash(pos) { if (!ctx) return; const s = spatial(pos), out = chain(s); noise(out, ctx.currentTime, 0.4, 'highpass', 1200, 0.5, 1.2 * s.vol + 0.1); },
-    ring(sec) { if (!ctx) return; const out = chain(spatial(null)); tone(out, ctx.currentTime, sec, 4200, 4100, 0.12); },
+    ring(sec) { this.deafen(sec, 0.6); },
+    deafen(sec, k = 1) { // 이명: 삐~ 소리 + 주변 소리가 먹먹해졌다가 천천히 돌아와요 (배그처럼)
+      if (!ctx || !muffle) return; const t = ctx.currentTime; k = clamp(k, 0, 1); sec = clamp(sec, 1, 9);
+      const f = muffle.frequency; f.cancelScheduledValues(t); f.setValueAtTime(Math.min(f.value, 20000), t);
+      f.exponentialRampToValueAtTime(lerp(1400, 280, k), t + 0.05); f.setValueAtTime(lerp(1400, 280, k), t + sec * 0.35);
+      f.exponentialRampToValueAtTime(20000, t + sec);
+      if (ringG) { try { ringG.gain.cancelScheduledValues(t); ringG.gain.setTargetAtTime(0.0001, t, 0.05); } catch (e) {} }
+      const o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(); ringG = g;
+      o.type = 'sine'; o.frequency.value = 3900 + Math.random() * 300; o2.type = 'sine'; o2.frequency.value = o.frequency.value * 1.004;
+      const v = (0.05 + 0.1 * k) * SETTINGS.volume;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.04); g.gain.setValueAtTime(v, t + sec * 0.3);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + sec);
+      o.connect(g); o2.connect(g); g.connect(postBus || master); o.start(t); o2.start(t); o.stop(t + sec + 0.1); o2.stop(t + sec + 0.1);
+    },
     beep(f = 880, d = 0.12, v = 0.25) { if (!ctx) return; const out = chain(spatial(null)); tone(out, ctx.currentTime, d, f, f, v, 'sine'); },
     empty() { this.click(0.25, 1500); },
   };
@@ -2190,23 +2248,24 @@ function findPath(fx, fz, tx, tz) {
 }
 
 // ================= 총기 데이터 =================
+// 피해량·부위 배율은 배그(PUBG PC) 값 기준
 // [id, 이름, 분류, 탄, 피해, 탄속(m/s), 발사간격(s), 탄창, 대용량탄창, 재장전(s), 사격모드, 수직반동(도), 수평반동, 최대조준경, 파츠칸]
 // 파츠칸: m=총구 g=손잡이 x=탄창 s=개머리판
 const WEAPON_TABLE = [
-  ['m416', 'M416', 'AR', '5.56mm', 41, 880, 0.0857, 30, 40, 2.1, 'SA', 0.42, 0.20, 7, 'mgxs'],
+  ['m416', 'M416', 'AR', '5.56mm', 40, 880, 0.0857, 30, 40, 2.1, 'SA', 0.42, 0.20, 7, 'mgxs'],
   ['akm', 'AKM', 'AR', '7.62mm', 47, 715, 0.100, 30, 40, 2.7, 'SA', 0.74, 0.30, 7, 'mx'],
   ['beryl', 'Beryl M762', 'AR', '7.62mm', 44, 715, 0.086, 30, 40, 2.9, 'SBA', 0.84, 0.38, 7, 'mgx'],
-  ['scar', 'SCAR-L', 'AR', '5.56mm', 41, 870, 0.096, 30, 40, 2.2, 'SA', 0.45, 0.22, 7, 'mgx'],
+  ['scar', 'SCAR-L', 'AR', '5.56mm', 42, 870, 0.096, 30, 40, 2.2, 'SA', 0.45, 0.22, 7, 'mgx'],
   ['aug', 'AUG', 'AR', '5.56mm', 41, 940, 0.0857, 30, 40, 3.0, 'SA', 0.40, 0.21, 7, 'mgx'],
   ['groza', 'Groza', 'AR', '7.62mm', 47, 715, 0.080, 30, 40, 3.0, 'SA', 0.62, 0.30, 5, 'mx'],
-  ['qbz', 'QBZ95', 'AR', '5.56mm', 41, 870, 0.092, 30, 40, 2.8, 'SA', 0.45, 0.22, 7, 'mgx'],
+  ['qbz', 'QBZ95', 'AR', '5.56mm', 42, 870, 0.092, 30, 40, 2.8, 'SA', 0.45, 0.22, 7, 'mgx'],
   ['g36c', 'G36C', 'AR', '5.56mm', 41, 870, 0.086, 30, 40, 2.5, 'SA', 0.44, 0.22, 5, 'mgx'],
   ['m16', 'M16A4', 'AR', '5.56mm', 43, 900, 0.075, 30, 40, 2.3, 'SB', 0.48, 0.20, 7, 'mx'],
   ['mk47', 'Mk47 Mutant', 'AR', '7.62mm', 49, 780, 0.100, 20, 30, 2.7, 'SB', 0.70, 0.30, 7, 'mgx'],
   ['ace32', 'ACE32', 'AR', '7.62mm', 43, 715, 0.088, 30, 40, 2.6, 'SA', 0.60, 0.26, 7, 'mgxs'],
   ['famas', 'FAMAS', 'AR', '5.56mm', 39, 925, 0.0667, 25, 35, 2.8, 'SBA', 0.50, 0.26, 7, 'mx'],
   ['ump', 'UMP45', 'SMG', '.45 ACP', 41, 360, 0.092, 25, 35, 2.4, 'SBA', 0.32, 0.15, 5, 'mgx'],
-  ['vector', 'Vector', 'SMG', '9mm', 33, 380, 0.055, 19, 33, 1.9, 'SBA', 0.42, 0.20, 3, 'mgxs'],
+  ['vector', 'Vector', 'SMG', '9mm', 31, 380, 0.055, 19, 33, 1.9, 'SBA', 0.42, 0.20, 3, 'mgxs'],
   ['uzi', 'Micro UZI', 'SMG', '9mm', 26, 350, 0.048, 25, 35, 2.2, 'SA', 0.30, 0.18, 1, 'mxs'],
   ['tommy', 'Tommy Gun', 'SMG', '.45 ACP', 40, 280, 0.086, 30, 50, 3.0, 'SA', 0.38, 0.20, 0, 'mgx'],
   ['bizon', 'PP-19 Bizon', 'SMG', '9mm', 35, 408, 0.086, 53, 53, 3.2, 'SA', 0.30, 0.15, 5, 'm'],
@@ -2214,7 +2273,7 @@ const WEAPON_TABLE = [
   ['p90', 'P90', 'SMG', '5.7mm', 35, 715, 0.060, 50, 50, 2.5, 'SA', 0.28, 0.15, 5, ''],
   ['js9', 'JS9', 'SMG', '9mm', 34, 400, 0.067, 30, 40, 2.4, 'SA', 0.28, 0.14, 5, 'mgx'],
   ['sks', 'SKS', 'DMR', '7.62mm', 53, 800, 0.090, 10, 20, 2.9, 'S', 1.30, 0.50, 8, 'mgxs'],
-  ['slr', 'SLR', 'DMR', '7.62mm', 58, 840, 0.100, 10, 20, 2.9, 'S', 1.60, 0.60, 8, 'mxs'],
+  ['slr', 'SLR', 'DMR', '7.62mm', 56, 840, 0.100, 10, 20, 2.9, 'S', 1.60, 0.60, 8, 'mxs'],
   ['mini14', 'Mini14', 'DMR', '5.56mm', 48, 990, 0.100, 20, 30, 2.6, 'S', 0.90, 0.35, 8, 'mxs'],
   ['mk14', 'Mk14 EBR', 'DMR', '7.62mm', 61, 853, 0.090, 10, 20, 3.0, 'SA', 1.60, 0.60, 8, 'mxs'],
   ['qbu', 'QBU', 'DMR', '5.56mm', 48, 945, 0.100, 10, 20, 2.6, 'S', 0.90, 0.35, 8, 'mx'],
@@ -2232,31 +2291,34 @@ const WEAPON_TABLE = [
   ['s12k', 'S12K', 'SG', '12 Gauge', 24, 350, 0.25, 5, 8, 2.6, 'S', 3.0, 0.8, 2, 'mx'],
   ['dbs', 'DBS', 'SG', '12 Gauge', 26, 400, 0.30, 14, 14, 4.5, 'S', 3.2, 0.8, 2, ''],
   ['o12', 'O12', 'SG', '12 Gauge', 30, 350, 0.20, 5, 8, 2.6, 'SA', 3.0, 0.8, 2, 'mx'],
-  ['sawed', 'Sawed-off', 'SG', '12 Gauge', 20, 340, 0.20, 2, 2, 2.0, 'S', 3.5, 0.8, 0, ''],
-  ['m249', 'M249', 'LMG', '5.56mm', 40, 915, 0.075, 75, 150, 6.5, 'A', 0.48, 0.22, 7, ''],
-  ['dp28', 'DP-28', 'LMG', '7.62mm', 51, 715, 0.109, 47, 47, 4.5, 'A', 0.60, 0.25, 7, ''],
-  ['mg3', 'MG3', 'LMG', '7.62mm', 40, 820, 0.060, 75, 75, 6.5, 'A', 0.60, 0.28, 7, ''],
+  ['sawed', 'Sawed-off', 'SG', '12 Gauge', 21, 340, 0.20, 2, 2, 2.0, 'S', 3.5, 0.8, 0, ''],
+  ['m249', 'M249', 'LMG', '5.56mm', 41, 915, 0.075, 75, 150, 6.5, 'A', 0.48, 0.22, 7, ''],
+  ['dp28', 'DP-28', 'LMG', '7.62mm', 52, 715, 0.109, 47, 47, 4.5, 'A', 0.60, 0.25, 7, ''],
+  ['mg3', 'MG3', 'LMG', '7.62mm', 42, 820, 0.060, 75, 75, 6.5, 'A', 0.60, 0.28, 7, ''],
   ['crossbow', '석궁', 'XB', '볼트', 105, 100, 0.3, 1, 1, 3.4, 'S', 1.0, 0.25, 5, ''],
-  ['p92', 'P92', 'HG', '9mm', 35, 380, 0.135, 15, 20, 2.0, 'S', 0.9, 0.4, 2, 'mx'],
-  ['p1911', 'P1911', 'HG', '.45 ACP', 41, 250, 0.110, 7, 12, 2.1, 'S', 1.1, 0.5, 2, 'mx'],
+  ['p92', 'P92', 'HG', '9mm', 34, 380, 0.135, 15, 20, 2.0, 'S', 0.9, 0.4, 2, 'mx'],
+  ['p1911', 'P1911', 'HG', '.45 ACP', 42, 250, 0.110, 7, 12, 2.1, 'S', 1.1, 0.5, 2, 'mx'],
   ['p18c', 'P18C', 'HG', '9mm', 23, 375, 0.060, 17, 25, 2.0, 'SA', 0.7, 0.4, 2, 'mx'],
-  ['r1895', 'R1895', 'HG', '7.62mm', 62, 330, 0.40, 7, 7, 3.0, 'S', 1.6, 0.6, 2, 'm'],
+  ['r1895', 'R1895', 'HG', '7.62mm', 64, 330, 0.40, 7, 7, 3.0, 'S', 1.6, 0.6, 2, 'm'],
   ['r45', 'R45', 'HG', '.45 ACP', 65, 330, 0.25, 6, 6, 2.2, 'S', 1.6, 0.6, 2, ''],
   ['deagle', 'Desert Eagle', 'HG', '.50 AE', 62, 420, 0.20, 7, 10, 2.2, 'S', 2.2, 0.7, 2, 'x'],
   ['skorpion', 'Skorpion', 'HG', '9mm', 22, 300, 0.070, 20, 40, 2.6, 'SA', 0.45, 0.25, 2, 'gxs'],
 ];
 const CAT_NAME = { AR: '돌격소총', SMG: '기관단총', DMR: '지정사수소총', SR: '저격소총', SG: '산탄총', LMG: '경기관총', HG: '권총', XB: '석궁' };
 const CAT_INFO = {
-  AR: { head: 2.35, limb: 0.9, hip: 2.2, ads: 0.06, adsTime: 0.22, move: 0.97, falloff: [120, 400, 0.75] },
-  SMG: { head: 2.1, limb: 1.05, hip: 1.5, ads: 0.10, adsTime: 0.17, move: 1.0, falloff: [40, 150, 0.6] },
-  DMR: { head: 2.35, limb: 0.95, hip: 2.6, ads: 0.02, adsTime: 0.28, move: 0.95, falloff: [200, 600, 0.8] },
-  SR: { head: 6.0, limb: 1.0, hip: 3.5, ads: 0.0, adsTime: 0.32, move: 0.94, falloff: [300, 800, 0.85] },
-  SG: { head: 1.5, limb: 0.9, hip: 3.6, ads: 2.6, adsTime: 0.22, move: 0.97, falloff: [7, 30, 0.08] },
-  LMG: { head: 2.3, limb: 0.9, hip: 3.0, ads: 0.10, adsTime: 0.35, move: 0.9, falloff: [120, 400, 0.75] },
-  HG: { head: 2.1, limb: 1.0, hip: 1.6, ads: 0.15, adsTime: 0.15, move: 1.03, falloff: [30, 120, 0.6] },
-  XB: { head: 2.6, limb: 1.0, hip: 2.4, ads: 0.0, adsTime: 0.26, move: 0.98, falloff: [500, 900, 1] },
+  AR: { body: 1.0, head: 2.35, limb: 0.9, hip: 2.2, ads: 0.06, adsTime: 0.22, move: 0.97, falloff: [120, 400, 0.75] },
+  SMG: { body: 1.05, head: 2.1, limb: 1.3, hip: 1.5, ads: 0.10, adsTime: 0.17, move: 1.0, falloff: [40, 150, 0.6] },
+  DMR: { body: 1.05, head: 2.35, limb: 0.95, hip: 2.6, ads: 0.02, adsTime: 0.28, move: 0.95, falloff: [200, 600, 0.8] },
+  SR: { body: 1.3, head: 6.0, limb: 0.95, hip: 3.5, ads: 0.0, adsTime: 0.32, move: 0.94, falloff: [300, 800, 0.85] },
+  SG: { body: 0.9, head: 1.5, limb: 1.05, hip: 3.6, ads: 2.6, adsTime: 0.22, move: 0.97, falloff: [7, 30, 0.08] },
+  LMG: { body: 1.05, head: 2.3, limb: 0.9, hip: 3.0, ads: 0.10, adsTime: 0.35, move: 0.9, falloff: [120, 400, 0.75] },
+  HG: { body: 1.0, head: 2.1, limb: 1.0, hip: 1.6, ads: 0.15, adsTime: 0.15, move: 1.08, falloff: [30, 120, 0.6] },
+  XB: { body: 1.4, head: 2.3, limb: 1.2, hip: 2.4, ads: 0.0, adsTime: 0.26, move: 0.98, falloff: [500, 900, 1] },
 };
 const WEAPONS = {};
+// 맨손 (배그 주먹 피해 18)
+CAT_INFO.FIST = { body: 1.0, head: 2.0, limb: 0.8, hip: 0, ads: 0, adsTime: 0.2, move: 1.1, falloff: [100, 200, 1] };
+const FIST_ST = { def: { id: 'fist', name: '맨손', cat: 'FIST', dmg: 18, vel: 0 }, cat: 'FIST' };
 for (const r of WEAPON_TABLE) {
   const [id, name, cat, ammo, dmg, vel, interval, mag, ext, reload, modes, rv, rh, scopeMax, slots] = r;
   WEAPONS[id] = { id, name, cat, ammo, dmg, vel, interval, mag, ext, reload, modes, rv, rh, scopeMax, slots, pellets: cat === 'SG' ? (id === 'o12' ? 8 : 9) : 1, bolt: cat === 'SR' && interval > 1, integrated: id === 'vss' };
@@ -2481,7 +2543,12 @@ function buildGunModel(id, att) {
   if (att.grip === 'laser') { g.add(M(BX(0.026, 0.03, 0.05), GUNMAT.dark, 0, -0.012, gz)); g.add(M(CY(0.004, 0.004, 0.01, 6), new THREE.MeshBasicMaterial({ color: 0xff2020 }), 0, -0.012, gz - 0.03, Math.PI / 2)); }
   // 아이언사이트 (조준경이 없을 때)
   const sightY = 0.083;
-  if (!att.scope || att.scope === 'iron' || w.integrated) {
+  if (w.cat === 'SG') { // 산탄총: 배그처럼 총열 위 가늠쇠(구슬)로 조준
+    const top = 0.052;
+    g.add(M(BX(0.012, 0.006, Math.min(B, 0.5)), GUNMAT.dark, 0, top - 0.004, recF - Math.min(B, 0.5) / 2)); // 총열 위 리브
+    g.add(M(new THREE.SphereGeometry(0.0055, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffe6a0 }), 0, top + 0.003, recF - B + 0.03));
+    info.sightY = top + 0.003; info.sgBead = true;
+  } else if (!att.scope || att.scope === 'iron' || w.integrated) {
     if (!w.integrated) {
       const fp = new THREE.Group(); fp.position.set(0, 0.0, recF - Math.min(B, 0.3) + 0.02);
       fp.add(M(BX(0.004, 0.022, 0.004), GUNMAT.black, 0, sightY - 0.01, 0));
@@ -3035,7 +3102,7 @@ function bulletHit(b, victim, part, hp, dir) {
 function applyBulletDamage(b, victim, part, hp, dir) {
   const c = CAT_INFO[b.st.def.cat];
   let base = b.dmg * falloffMul(b.st, b.dist);
-  let mult = part === 'head' ? c.head : part === 'leg' ? c.limb : 1;
+  let mult = part === 'head' ? c.head : part === 'leg' ? c.limb : (c.body || 1);
   let dmg = base * mult;
   const head = part === 'head';
   if (head && victim.helmet.lv > 0) { dmg *= 1 - ARMOR.helmet.red[victim.helmet.lv]; victim.helmet.dur -= base * mult * 0.6; if (victim.helmet.dur <= 0) victim.breakArmor('helmet'); }
@@ -3159,6 +3226,11 @@ function explodeGrenade(type, pos, owner, fromNet) {
     }
     const cd = camera.position.distanceTo(pos);
     if (cd < 30) G.shake = Math.max(G.shake, (1 - cd / 30) * 1.2);
+    // 가까이서 터지면 이명 (벽에 막혀도 조금은 울려요)
+    if (PLAYER && !PLAYER.dead && PLAYER.pos.distanceTo(pos) < 14) {
+      const d = PLAYER.pos.distanceTo(pos), k = (1 - d / 14) * (losClear(src, PLAYER.eyePos, false) ? 1 : 0.5);
+      if (k > 0.12) AU.deafen(1.5 + 5.5 * k, k);
+    }
   } else if (type === 'smoke') {
     AU.smoke(pos);
     const mat = new THREE.SpriteMaterial({ map: TEX.smokeBig, color: 0xd6d6d4, transparent: true, opacity: 0, depthWrite: false, fog: true });
@@ -3183,15 +3255,15 @@ function explodeGrenade(type, pos, owner, fromNet) {
       const facing = clamp((look.dot(to) + 0.35) / 1.35, 0, 1);
       const power = clamp((1 - d / 28) * (0.35 + 0.65 * facing) * 1.4, 0, 1);
       a.blind = Math.max(a.blind, power * 5);
-      if (a === PLAYER) { HUD.flashbang(power); if (power > 0.3) AU.ring(power * 3); }
+      if (a === PLAYER) { HUD.flashbang(power); if (power > 0.15) AU.deafen(2 + 4.5 * power, power); }
     }
   }
 }
 
 // ================= 캐릭터 (플레이어와 봇이 같이 씀) =================
 const STANCE = {
-  stand: { h: 1.8, eye: 1.62, speed: 4.7, sprint: 6.3, recoil: 1.0, spread: 1.0 },
-  crouch: { h: 1.25, eye: 1.12, speed: 2.6, sprint: 4.2, recoil: 0.8, spread: 0.8 },
+  stand: { h: 1.8, eye: 1.62, speed: 4.7, sprint: 6.0, recoil: 1.0, spread: 1.0 },
+  crouch: { h: 1.25, eye: 1.12, speed: 2.6, sprint: 4.0, recoil: 0.8, spread: 0.8 },
   prone: { h: 0.6, eye: 0.38, speed: 1.15, sprint: 1.15, recoil: 0.55, spread: 0.6 },
 };
 const MAX_HP = 200;
@@ -3232,6 +3304,7 @@ class Actor {
   setLoadout(list) {
     this.weapons = list.map(({ id, att }) => {
       const stats = weaponStats(id, att);
+      AU.prep(id, WEAPONS[id].cat);
       const model = buildGunModel(id, att);
       return { id, att, stats, mag: stats.mag, reserve: stats.mag * 6, model: model.group, info: model, fireMode: WEAPONS[id].modes.includes('A') ? 'A' : WEAPONS[id].modes[0] };
     });
@@ -3262,6 +3335,29 @@ class Actor {
     this.soldier.setGun(buildGrenadeModel(type)); this.soldier.setArms('HG');
     if (this.onEquip) this.onEquip();
   }
+  holster() { // X: 총 넣고 맨손
+    if (this.pin || this.dead) return;
+    if (this.mode === 'fist') { this.equip(this.cur); return; }
+    this.mode = 'fist'; this.ads = false; this.reloadT = 0; this.burst = 0; this.boltT = 0; this.switchT = 0.3; this.punchCD = 0;
+    this.soldier.setGun(null); this.soldier.setArms('HG');
+    if (this.onEquip) this.onEquip();
+  }
+  punch() {
+    this.punchCD = 0.55; this.punchT = 0.28; this.punchSide = !this.punchSide;
+    const o = new V3(), d = new V3(); this.getAim(o, d);
+    const e = o.clone().addScaledVector(d, 1.7);
+    let best = null, bp = null, bs = 9;
+    for (const a of ACTORS) {
+      if (a === this || a.dead || (G.mode === 'mp' && a.team !== undefined && a.team === this.team)) continue;
+      if (a.pos.distanceTo(this.pos) > 3) continue;
+      const h = segHitSoldier(o, e, a.hitbox) || segHitSoldier(o.clone().add(new V3(0, -0.25, 0)), e.clone().add(new V3(0, -0.25, 0)), a.hitbox);
+      if (h && h.s < bs) { bs = h.s; best = a; bp = h.part; }
+    }
+    if (best && raycastWorld(o, d, bs * 1.7)) best = null; // 벽 너머는 안 맞음
+    if (this.isPlayer) AU.punch(!!best);
+    if ((this.isPlayer || this.netBot) && NET.active) netSend({ t: 'punch' }, '*', this.isPlayer ? NET.id : this.netId);
+    if (best) bulletHit({ owner: this, st: FIST_ST, dmg: 18, dist: 1 }, best, bp, o.clone().addScaledVector(d, bs * 1.7), d.clone());
+  }
   get height() { return this.stance === 'prone' ? 0.6 : this.stance === 'crouch' ? 1.25 : 1.8; }
   canStand(h) { return ceilingAt(this.pos.x, this.pos.z, RADIUS * 0.8, this.pos.y + 0.3) - this.pos.y > h; }
   setStance(s) {
@@ -3283,6 +3379,7 @@ class Actor {
     // 원하는 속도
     let sp = this.sprint ? st.sprint : st.speed;
     if (this.mode === 'gun' && this.w) sp *= CAT_INFO[this.w.stats.cat].move;
+    else if (this.mode === 'fist') sp *= this.sprint ? 1.13 : 1.06; // 맨손이 제일 빨라요
     if (this.ads && !this.sprint) sp *= this.stance === 'prone' ? 0.0 : 0.6;
     else if (this.shoulderT > 0.5) sp *= 0.8;
     if (this.stanceLock > 0 && this.stance === 'prone') sp *= 0.2;
@@ -3441,6 +3538,11 @@ class Actor {
     }
     if (this.sinceShot > 0.25) this.shots = 0;
     if (this.mode === 'throw') { this.updateThrow(dt); return; }
+    if (this.mode === 'fist') { // 맨손 공격
+      this.punchCD = Math.max(0, (this.punchCD || 0) - dt); this.punchT = Math.max(0, (this.punchT || 0) - dt);
+      if ((this.triggerEdge || this.trigger) && this.punchCD <= 0 && this.switchT <= 0 && !this.vault && !this.dead) this.punch();
+      this.triggerEdge = false; return;
+    }
     if (!w) return;
     // 사격
     const fm = w.fireMode;
@@ -3494,7 +3596,7 @@ class Actor {
     this.applyRecoil(vk * DEG, hk * DEG);
     // 소리 + 화염
     const muz = this.muzzleWorld(new V3());
-    AU.shot(muz, def.cat, st.suppressed, this.isPlayer);
+    AU.shot(muz, def.cat, st.suppressed, this.isPlayer, def.id);
     if (def.cat !== 'XB') muzzleFlash(muz, dir, def.cat === 'SR' || def.cat === 'SG' || def.cat === 'LMG', st.flashHidden);
     else if (w.mag <= 0) { this.cooldown = 0.35; setTimeout(() => { if (this.w === w && w.mag <= 0) this.startReload(); }, 350); } // 석궁: 쏘면 바로 다시 장전
     if (this.onFire) this.onFire(st);
@@ -3591,7 +3693,17 @@ function buildViewmodel() {
   const p = PLAYER;
   while (VM.root.children.length) VM.root.remove(VM.root.children[0]);
   VM.arms = new THREE.Group();
-  if (p.mode === 'throw') {
+  if (p.mode === 'fist') { // 맨손: 양 주먹
+    const g = new THREE.Group(); VM.gun = g; VM.info = null; VM.fists = [];
+    for (const s of [-1, 1]) {
+      const f = new THREE.Group();
+      const fist = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.065, 0.08), new THREE.MeshStandardMaterial({ color: 0x3a2f28, roughness: 0.85 })); f.add(fist);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, 0.26), vmSleeve); arm.position.set(0, -0.05, 0.14); arm.rotation.x = -0.35; f.add(arm);
+      f.userData.home = new V3(s * 0.2, -0.24, -0.55); f.position.copy(f.userData.home); f.rotation.set(0.1, -s * 0.12, s * 0.2);
+      g.add(f); VM.fists.push(f);
+    }
+    VM.root.add(g);
+  } else if (p.mode === 'throw') {
     const g = buildGrenadeModel(p.throwType); g.scale.setScalar(1.1); VM.gun = g; VM.info = null;
     VM.root.add(g);
     VM.arms.add(limbMesh(new V3(0.0, -0.02, 0.06), new V3(0.12, -0.35, 0.4), 0.04, 0.05, vmSleeve));
@@ -3704,13 +3816,14 @@ function playerInput(dt) {
   // 무기 바꾸기
   if (P.Digit1) p.equip(0); if (P.Digit2) p.equip(1); if (P.Digit3) p.equip(2);
   if (P.Digit5 || P.KeyG) p.equipThrow();
+  if (P.KeyX) p.holster(); // 총 넣기 → 맨손
   // 조준경 휠 줌 (3배율 이상)
   const zw = p.w && p.mode === 'gun' ? p.w : null;
   if (INPUT.wheel && zw && p.adsT > 0.5 && zw.stats.scopeZoom >= 3) {
     const mx_ = zw.stats.scopeZoom, mn = Math.max(1.5, mx_ * (mx_ >= 15 ? 0.33 : 0.5)), step = (mx_ - mn) / 4;
     zw.zoomSel = clamp((zw.zoomSel || mx_) - Math.sign(INPUT.wheel) * step, mn, mx_);
     HUD.toast(`${+zw.zoomSel.toFixed(1)}배`); AU.click(0.08, 2200);
-  } else if (INPUT.wheel && !p.pin && p.adsT < 0.1) { if (p.mode === 'throw') p.equip(p.cur); else p.equip((p.cur + 1) % p.weapons.length); }
+  } else if (INPUT.wheel && !p.pin && p.adsT < 0.1) { if (p.mode === 'throw' || p.mode === 'fist') p.equip(p.cur); else p.equip((p.cur + 1) % p.weapons.length); }
   if (P.KeyB) p.cycleFireMode();
   if (P.KeyR) { if (p.mode === 'throw') p.cook(); else p.startReload(); }
   if (frozen) { p.trigger = false; return; }
@@ -3736,6 +3849,9 @@ function playerInput(dt) {
     } else if (AM === 'toggle') { if (INPUT.rmbPressed) p.ads = !p.ads && p.reloadT <= 0; p.shoulder = false; }
     else { p.ads = INPUT.rmb && p.reloadT <= 0; p.shoulder = false; }
     if (p.sprint) { p.ads = false; p.shoulder = false; }
+  } else if (p.mode === 'fist') {
+    if (INPUT.lmbPressed) p.triggerEdge = true;
+    p.trigger = INPUT.lmb; p.ads = false; p.shoulder = false;
   } else {
     if (INPUT.lmbPressed) p.pullPin();
     if (INPUT.lmbReleased && p.pin) p.release(INPUT.rmb);
@@ -3828,6 +3944,15 @@ function updateViewmodel(dt, hsp) {
   VM.switchY = damp(VM.switchY, p.switchT > 0.25 ? -0.25 : 0, 14, dt);
   const bob = Math.sin(VM.bobPhase) * Math.min(1, hsp / 4), bob2 = Math.cos(VM.bobPhase * 2) * Math.min(1, hsp / 4);
   const g = VM.gun;
+  if (p.mode === 'fist' && VM.fists) {
+    g.position.set(bob * 0.01, VM.switchY + bob2 * 0.008, 0);
+    const k = (p.punchT || 0) / 0.28, jab = Math.sin(clamp(1 - k, 0, 1) * Math.PI) * (k > 0 ? 1 : 0);
+    VM.fists.forEach((f, i) => {
+      const act = (i === 1) === !!p.punchSide ? jab : 0;
+      f.position.copy(f.userData.home); f.position.z -= act * 0.22; f.position.x -= (i ? 1 : -1) * act * 0.16; f.position.y += act * 0.12;
+    });
+    return;
+  }
   if (p.mode === 'throw') {
     const raise = p.pin ? 1 : 0;
     g.position.set(0.2 + bob * 0.01, -0.2 + VM.switchY + raise * 0.06 + bob2 * 0.008, -0.35 + raise * 0.12);
@@ -3836,8 +3961,8 @@ function updateViewmodel(dt, hsp) {
   }
   const info = VM.info, cat = p.w.stats.cat;
   const hip = cat === 'HG' ? new V3(0.15, -0.15, -0.38) : new V3(0.16, -0.16, -0.36);
-  const adsZ = cat === 'HG' ? -0.32 : (p.w.att.scope && p.w.att.scope !== 'iron' ? -0.2 : -0.22);
-  const adsP = VM.show2x ? new V3(0, -info.sightY - 0.04, -0.36) : new V3(0, -info.sightY, adsZ);
+  const adsZ = cat === 'HG' ? -0.32 : cat === 'SG' ? -0.27 : (p.w.att.scope && p.w.att.scope !== 'iron' ? -0.2 : -0.22);
+  const adsP = VM.show2x ? new V3(0, -info.sightY - 0.04, -0.36) : cat === 'SG' ? new V3(0.02, -info.sightY - 0.075, -0.3) : new V3(0, -info.sightY, adsZ);
   const shP = cat === 'HG' ? new V3(0.07, -0.13, -0.34) : new V3(0.075, -0.125, -0.3);
   hip.lerp(shP, smooth01(p.shoulderT || 0));
   const pos = hip.lerp(adsP, ads);
@@ -4197,9 +4322,9 @@ const HUD = {
   init() {
     this.cc = $('compass').getContext('2d');
     this.dc = $('dmgdir').getContext('2d');
-    this.arcLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.25, gapSize: 0.15, transparent: true, opacity: 0.8, depthTest: true }));
+    this.arcLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0xff2a1f, dashSize: 0.3, gapSize: 0.12, transparent: true, opacity: 0.95, depthTest: false }));
     this.arcLine.frustumCulled = false; scene.add(this.arcLine); this.arcLine.visible = false;
-    this.arcRing = new THREE.Mesh(new THREE.RingGeometry(0.25, 0.32, 24), new THREE.MeshBasicMaterial({ color: 0xff5544, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
+    this.arcRing = new THREE.Mesh(new THREE.RingGeometry(0.25, 0.32, 24), new THREE.MeshBasicMaterial({ color: 0xff2a1f, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false, depthTest: false }));
     this.arcRing.rotation.x = -Math.PI / 2; scene.add(this.arcRing); this.arcRing.visible = false;
   },
   hitMarker(kill, head) { this.hitT = kill ? 0.5 : 0.18; this.hitKill = kill; this.hitHead = head; },
@@ -4257,10 +4382,12 @@ const HUD = {
     UI('stance', 'textContent', p.stance === 'prone' ? '엎드림' : p.stance === 'crouch' ? '앉음' : p.sprint ? '달리기' : '서기');
     // 무기
     const w = p.w;
-    if (p.mode === 'throw') {
+    if (p.mode === 'fist') {
+      UI('w-name', 'textContent', '맨손'); UI('w-ammo', 'innerHTML', '<small>주먹</small>'); UI('w-mode', 'textContent', '좌클릭: 때리기 · X: 총 꺼내기');
+    } else if (p.mode === 'throw') {
       UI('w-name', 'textContent', THROWABLES[p.throwType].name);
       UI('w-ammo', 'innerHTML', `${p.throwables[p.throwType]}<small>개</small>`);
-      UI('w-mode', 'textContent', p.pin ? (p.cookT >= 0 ? '쿠킹 중' : '안전핀 뽑음') : '좌클릭 꾹: 준비');
+      UI('w-mode', 'textContent', p.pin ? (INPUT.rmb ? '가까이 던지기 (우클릭)' : '멀리 던지기') + (p.cookT >= 0 ? ' · 쿠킹 중' : '') : '좌클릭 꾹: 준비 · 우클릭: 가까이');
     } else if (w) {
       UI('w-name', 'textContent', w.stats.def.name);
       UI('w-ammo', 'innerHTML', `<span class="${w.mag <= w.stats.mag * 0.25 ? 'low' : ''}">${w.mag}</span><small> / ${w.reserve}</small>`);
@@ -4280,8 +4407,21 @@ const HUD = {
     if (full) { UI('scope', 'className', 'sc-' + scope); }
     const dotOn = p.adsT > 0.9 && (scope === 'reddot' || scope === 'holo') && CAM.blend < 0.5;
     UI('ret', 'style.display', dotOn ? 'block' : 'none'); if (dotOn) UI('ret', 'className', 'r-' + scope);
-    const showCross = !(p.adsT > 0.5 && CAM.blend < 0.5) && !p.dead && p.mode === 'gun' && !(p.sprint && Math.hypot(p.vel.x, p.vel.z) > 3);
+    const isSG = p.mode === 'gun' && w && w.stats.cat === 'SG';
+    const showSG = isSG && !p.dead && !(p.sprint && Math.hypot(p.vel.x, p.vel.z) > 3);
+    const showCross = !isSG && !(p.adsT > 0.5 && CAM.blend < 0.5) && !p.dead && p.mode === 'gun' && !(p.sprint && Math.hypot(p.vel.x, p.vel.z) > 3);
     UI('cross', 'style.display', showCross ? 'block' : 'none');
+    UI('sgc', 'style.display', showSG ? 'block' : 'none');
+    if (showSG) { // 산탄총: 배그처럼 초록 원 조준선 (원 크기 = 산탄이 퍼지는 범위)
+      const moving = Math.hypot(p.vel.x, p.vel.z);
+      const sp = lerp(w.stats.hip * lerp(1, 0.42, p.shoulderT || 0), w.stats.ads, p.adsT) * STANCE[p.stance].spread * 0.5 + w.stats.pelletSpread + moving / 6 + (p.onGround ? 0 : 3);
+      const focal = (innerHeight / 2) / Math.tan(camera.fov * DEG / 2);
+      const r = Math.max(14, Math.tan(sp * DEG) * focal);
+      this.sgr = damp(this.sgr || r, r, 14, dt);
+      const R = Math.round(this.sgr), D = R + 7;
+      UI('sgc-r', 'style.cssText', `width:${R * 2}px;height:${R * 2}px;left:${-R - 2}px;top:${-R - 2}px`);
+      UI('sgc-d', 'style.cssText', `width:${D * 2}px;height:${D * 2}px;left:${-D - 2}px;top:${-D - 2}px`);
+    }
     if (showCross && w) {
       const moving = Math.hypot(p.vel.x, p.vel.z);
       let sp = lerp(w.stats.hip * lerp(1, 0.42, p.shoulderT || 0), w.stats.ads, p.adsT) * STANCE[p.stance].spread + moving / 6 * 2 + (p.onGround ? 0 : 4) + Math.min(p.shots, 6) * 0.25 * (p.sinceShot < 0.2 ? 1 : 0);
@@ -4292,7 +4432,7 @@ const HUD = {
       UI('ch-t', 'style.transform', `translate(-50%, ${-g - 10}px)`); UI('ch-b', 'style.transform', `translate(-50%, ${g}px)`);
       UI('ch-l', 'style.transform', `translate(${-g - 10}px, -50%)`); UI('ch-r', 'style.transform', `translate(${g}px, -50%)`);
     }
-    UI('dot', 'style.display', !p.dead && p.mode === 'throw' ? 'block' : 'none');
+    UI('dot', 'style.display', !p.dead && (p.mode === 'throw' || p.mode === 'fist') ? 'block' : 'none');
     // 맞힘 표시
     this.hitT -= dt;
     const hm = $('hit'); hm.style.opacity = this.hitT > 0 ? 1 : 0;
@@ -4384,7 +4524,7 @@ const HUD = {
     UI('heading', 'textContent', Math.round(head) % 360);
   },
   updateArc(p) {
-    const on = false; // 수류탄 궤적은 보여주지 않아요 (배그처럼)
+    const on = p.mode === 'throw' && p.pin && !p.dead && G.state !== 'menu'; // 안전핀 뽑고 있을 때 빨간 궤적 (배그처럼)
     this.arcLine.visible = this.arcRing.visible = on;
     if (!on) return;
     const o = p.throwOrigin(new V3()), v = p.throwVelocity(INPUT.rmb, new V3());
@@ -5016,7 +5156,7 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 7; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 8; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 const STANCE_CODE = { stand: 0, crouch: 1, prone: 2 }, STANCE_NAME = ['stand', 'crouch', 'prone'];
@@ -5457,19 +5597,21 @@ function netRecv(m) {
       if (!m.d && r.dead && G.state === 'pre') { r.dead = false; r.soldier.deadT = 0; r.soldier.body.rotation.set(0, 0, 0); }
       r.helmet.lv = m.hl; r.helmet.dur = m.hd; r.vest.lv = m.vl; r.vest.dur = m.vd;
       if (r.soldier.vest.visible !== m.vl > 0 || r.soldier.helmet.visible !== m.hl > 0) r.soldier.setArmor(m.hl, m.vl);
-      if (m.m === 't') { if (r.mode !== 'throw' || r.throwType !== m.tt) { r.mode = 'throw'; r.throwType = m.tt; r.soldier.setGun(buildGrenadeModel(m.tt)); r.soldier.setArms('HG'); } }
+      if (m.m === 'f') { if (r.mode !== 'fist') { r.mode = 'fist'; r.soldier.setGun(null); r.soldier.setArms('HG'); } }
+      else if (m.m === 't') { if (r.mode !== 'throw' || r.throwType !== m.tt) { r.mode = 'throw'; r.throwType = m.tt; r.soldier.setGun(buildGrenadeModel(m.tt)); r.soldier.setArms('HG'); } }
       else if (r.weapons.length && (r.mode !== 'gun' || r.cur !== m.w)) { r.cur = clamp(m.w, 0, r.weapons.length - 1); r.mode = 'gun'; r.soldier.setGun(r.w.model); r.soldier.setArms(r.w.stats.cat); }
       r.reloadT = m.rl ? 0.5 : 0; r.reloadDur = 1;
       r.netVault = m.vt === undefined ? -1 : m.vt; r.netVaultOver = !!m.vo;
       break;
     }
+    case 'punch': { const r = REMOTES[from]; if (r) { r.punchT = 0.28; AU.punch(false, r.pos); } break; }
     case 'shot': {
       const r = REMOTES[from]; if (!r || !r.weapons.length) break;
       const w = r.weapons.find(x => x.id === m.id) || r.w;
       const o = new V3().fromArray(m.o);
       for (const d of m.d) { spawnBullet(r, o, new V3().fromArray(d), w.stats, 0); BULLETS[BULLETS.length - 1].visual = true; }
       const muz = r.w && r.mode === 'gun' ? r.muzzleWorld(new V3()) : o;
-      AU.shot(muz, w.stats.cat, w.stats.suppressed, false);
+      AU.shot(muz, w.stats.cat, w.stats.suppressed, false, w.id);
       if (w.stats.cat !== 'XB') muzzleFlash(muz, new V3().fromArray(m.d[0]), w.stats.cat === 'SR' || w.stats.cat === 'SG', w.stats.flashHidden);
       for (const id in NET.bots) NET.bots[id].hearShot && NET.bots[id].hearShot(r, w.stats.suppressed);
       break;
@@ -5478,7 +5620,7 @@ function netRecv(m) {
       const r = REMOTES[from];
       const victim = NET.host && NET.bots[m.to] ? NET.bots[m.to] : PLAYER;
       if (!r || victim.dead || G.state !== 'live' || r.team === victim.team) break;
-      const st = weaponStats(m.id, m.att || fullAttachments(m.id));
+      const st = m.id === 'fist' ? FIST_ST : weaponStats(m.id, m.att || fullAttachments(m.id));
       applyBulletDamage({ owner: r, st, dmg: m.dmg, dist: m.dist, start: new V3() }, victim, m.part, new V3().fromArray(m.hp), new V3().fromArray(m.dir));
       break;
     }
@@ -5509,7 +5651,7 @@ function netUpdate(dt) {
     netSend({
       t: 'st', p: [+p.pos.x.toFixed(3), +p.pos.y.toFixed(3), +p.pos.z.toFixed(3)], v: [+p.vel.x.toFixed(2), +p.vel.z.toFixed(2)], y: +p.yaw.toFixed(4), pi: +p.pitch.toFixed(4),
       s: STANCE_CODE[p.stance], l: +p.lean.toFixed(2), a: +p.adsT.toFixed(2), sp: p.sprint ? 1 : 0, h: Math.round(p.health * 10) / 10, d: p.dead ? 1 : 0,
-      hl: p.helmet.lv, hd: Math.round(p.helmet.dur), vl: p.vest.lv, vd: Math.round(p.vest.dur), w: p.cur, m: p.mode === 'throw' ? 't' : 'g', tt: p.throwType, rl: p.reloadT > 0 ? 1 : 0, vt: p.vault ? +Math.min(1, p.vault.t).toFixed(2) : -1, vo: p.vault && p.vault.over ? 1 : 0,
+      hl: p.helmet.lv, hd: Math.round(p.helmet.dur), vl: p.vest.lv, vd: Math.round(p.vest.dur), w: p.cur, m: p.mode === 'throw' ? 't' : p.mode === 'fist' ? 'f' : 'g', tt: p.throwType, rl: p.reloadT > 0 ? 1 : 0, vt: p.vault ? +Math.min(1, p.vault.t).toFixed(2) : -1, vo: p.vault && p.vault.over ? 1 : 0,
     }, '*', sid);
     const lo = { t: 'lo', list: p.weapons.map(w => ({ id: w.id, att: w.att })) };
     const key = JSON.stringify(lo.list);

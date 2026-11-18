@@ -22,6 +22,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:"Pr
 #cross{position:absolute;left:50%;top:50%}
 #cross i{position:absolute;background:#fff;box-shadow:0 0 2px rgba(0,0,0,.9)}
 #ch-t,#ch-b{width:2px;height:10px;left:0}#ch-l,#ch-r{height:2px;width:10px;top:0}
+#sgc{position:absolute;left:50%;top:50%;display:none;pointer-events:none}
+#sgc .r{position:absolute;border-radius:50%;border:2px solid rgba(70,255,120,.85);box-shadow:0 0 4px rgba(40,220,90,.7),inset 0 0 3px rgba(40,220,90,.5)}
+#sgc .d{position:absolute;border-radius:50%;border:2px dotted rgba(70,255,120,.55)}
+#sgc .c{position:absolute;width:3px;height:3px;margin:-1.5px;border-radius:50%;background:rgba(90,255,140,.95);box-shadow:0 0 3px #2be06a}
 #dot{position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;background:#fff;border-radius:50%;box-shadow:0 0 2px #000}
 #hit{position:absolute;left:50%;top:50%;width:0;height:0;opacity:0;transition:opacity .08s}
 #hit i{position:absolute;width:2px;height:11px;background:#fff;left:-1px;top:-5px;box-shadow:0 0 2px #000}
@@ -196,6 +200,7 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
   <div id="premenu"><kbd>~</kbd> 총 바꾸기 (풀파츠) · 시작하면 바꿀 수 없어요</div>
   <canvas id="dmgdir" width="300" height="300"></canvas>
   <div id="cross"><i id="ch-t"></i><i id="ch-b"></i><i id="ch-l"></i><i id="ch-r"></i></div>
+  <div id="sgc"><div class="d" id="sgc-d"></div><div class="r" id="sgc-r"></div><div class="c"></div></div>
   <div id="dot"></div>
   <div id="ret"></div>
   <div id="scope"><div class="ring"></div><div class="glass"></div>
@@ -216,7 +221,7 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
     <div id="hpbar"><div id="hplag"></div><div id="hpfill"></div></div>
   </div>
   <div id="weapon"><div id="w-name">M416</div><div id="w-ammo">30</div><div id="w-mode">연사</div><div id="slots"></div></div>
-  <div id="help"><b>V</b> 1/3인칭 · <b>Alt</b> 둘러보기 · <b>Q/E</b> 기울이기 · <b>C</b> 앉기 · <b>Z</b> 엎드리기 · <b>Space</b> 점프/넘기 · <b>B</b> 사격모드 · <b>G</b> 수류탄</div>
+  <div id="help"><b>V</b> 1/3인칭 · <b>Alt</b> 둘러보기 · <b>Q/E</b> 기울이기 · <b>C</b> 앉기 · <b>Z</b> 엎드리기 · <b>Space</b> 점프/넘기 · <b>B</b> 사격모드 · <b>G</b> 수류탄 · <b>X</b> 맨손</div>
 </div>
 
 <div id="start" class="overlay">

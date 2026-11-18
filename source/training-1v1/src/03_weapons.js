@@ -1,21 +1,22 @@
 // ================= 총기 데이터 =================
+// 피해량·부위 배율은 배그(PUBG PC) 값 기준
 // [id, 이름, 분류, 탄, 피해, 탄속(m/s), 발사간격(s), 탄창, 대용량탄창, 재장전(s), 사격모드, 수직반동(도), 수평반동, 최대조준경, 파츠칸]
 // 파츠칸: m=총구 g=손잡이 x=탄창 s=개머리판
 const WEAPON_TABLE = [
-  ['m416', 'M416', 'AR', '5.56mm', 41, 880, 0.0857, 30, 40, 2.1, 'SA', 0.42, 0.20, 7, 'mgxs'],
+  ['m416', 'M416', 'AR', '5.56mm', 40, 880, 0.0857, 30, 40, 2.1, 'SA', 0.42, 0.20, 7, 'mgxs'],
   ['akm', 'AKM', 'AR', '7.62mm', 47, 715, 0.100, 30, 40, 2.7, 'SA', 0.74, 0.30, 7, 'mx'],
   ['beryl', 'Beryl M762', 'AR', '7.62mm', 44, 715, 0.086, 30, 40, 2.9, 'SBA', 0.84, 0.38, 7, 'mgx'],
-  ['scar', 'SCAR-L', 'AR', '5.56mm', 41, 870, 0.096, 30, 40, 2.2, 'SA', 0.45, 0.22, 7, 'mgx'],
+  ['scar', 'SCAR-L', 'AR', '5.56mm', 42, 870, 0.096, 30, 40, 2.2, 'SA', 0.45, 0.22, 7, 'mgx'],
   ['aug', 'AUG', 'AR', '5.56mm', 41, 940, 0.0857, 30, 40, 3.0, 'SA', 0.40, 0.21, 7, 'mgx'],
   ['groza', 'Groza', 'AR', '7.62mm', 47, 715, 0.080, 30, 40, 3.0, 'SA', 0.62, 0.30, 5, 'mx'],
-  ['qbz', 'QBZ95', 'AR', '5.56mm', 41, 870, 0.092, 30, 40, 2.8, 'SA', 0.45, 0.22, 7, 'mgx'],
+  ['qbz', 'QBZ95', 'AR', '5.56mm', 42, 870, 0.092, 30, 40, 2.8, 'SA', 0.45, 0.22, 7, 'mgx'],
   ['g36c', 'G36C', 'AR', '5.56mm', 41, 870, 0.086, 30, 40, 2.5, 'SA', 0.44, 0.22, 5, 'mgx'],
   ['m16', 'M16A4', 'AR', '5.56mm', 43, 900, 0.075, 30, 40, 2.3, 'SB', 0.48, 0.20, 7, 'mx'],
   ['mk47', 'Mk47 Mutant', 'AR', '7.62mm', 49, 780, 0.100, 20, 30, 2.7, 'SB', 0.70, 0.30, 7, 'mgx'],
   ['ace32', 'ACE32', 'AR', '7.62mm', 43, 715, 0.088, 30, 40, 2.6, 'SA', 0.60, 0.26, 7, 'mgxs'],
   ['famas', 'FAMAS', 'AR', '5.56mm', 39, 925, 0.0667, 25, 35, 2.8, 'SBA', 0.50, 0.26, 7, 'mx'],
   ['ump', 'UMP45', 'SMG', '.45 ACP', 41, 360, 0.092, 25, 35, 2.4, 'SBA', 0.32, 0.15, 5, 'mgx'],
-  ['vector', 'Vector', 'SMG', '9mm', 33, 380, 0.055, 19, 33, 1.9, 'SBA', 0.42, 0.20, 3, 'mgxs'],
+  ['vector', 'Vector', 'SMG', '9mm', 31, 380, 0.055, 19, 33, 1.9, 'SBA', 0.42, 0.20, 3, 'mgxs'],
   ['uzi', 'Micro UZI', 'SMG', '9mm', 26, 350, 0.048, 25, 35, 2.2, 'SA', 0.30, 0.18, 1, 'mxs'],
   ['tommy', 'Tommy Gun', 'SMG', '.45 ACP', 40, 280, 0.086, 30, 50, 3.0, 'SA', 0.38, 0.20, 0, 'mgx'],
   ['bizon', 'PP-19 Bizon', 'SMG', '9mm', 35, 408, 0.086, 53, 53, 3.2, 'SA', 0.30, 0.15, 5, 'm'],
@@ -23,7 +24,7 @@ const WEAPON_TABLE = [
   ['p90', 'P90', 'SMG', '5.7mm', 35, 715, 0.060, 50, 50, 2.5, 'SA', 0.28, 0.15, 5, ''],
   ['js9', 'JS9', 'SMG', '9mm', 34, 400, 0.067, 30, 40, 2.4, 'SA', 0.28, 0.14, 5, 'mgx'],
   ['sks', 'SKS', 'DMR', '7.62mm', 53, 800, 0.090, 10, 20, 2.9, 'S', 1.30, 0.50, 8, 'mgxs'],
-  ['slr', 'SLR', 'DMR', '7.62mm', 58, 840, 0.100, 10, 20, 2.9, 'S', 1.60, 0.60, 8, 'mxs'],
+  ['slr', 'SLR', 'DMR', '7.62mm', 56, 840, 0.100, 10, 20, 2.9, 'S', 1.60, 0.60, 8, 'mxs'],
   ['mini14', 'Mini14', 'DMR', '5.56mm', 48, 990, 0.100, 20, 30, 2.6, 'S', 0.90, 0.35, 8, 'mxs'],
   ['mk14', 'Mk14 EBR', 'DMR', '7.62mm', 61, 853, 0.090, 10, 20, 3.0, 'SA', 1.60, 0.60, 8, 'mxs'],
   ['qbu', 'QBU', 'DMR', '5.56mm', 48, 945, 0.100, 10, 20, 2.6, 'S', 0.90, 0.35, 8, 'mx'],
@@ -41,31 +42,34 @@ const WEAPON_TABLE = [
   ['s12k', 'S12K', 'SG', '12 Gauge', 24, 350, 0.25, 5, 8, 2.6, 'S', 3.0, 0.8, 2, 'mx'],
   ['dbs', 'DBS', 'SG', '12 Gauge', 26, 400, 0.30, 14, 14, 4.5, 'S', 3.2, 0.8, 2, ''],
   ['o12', 'O12', 'SG', '12 Gauge', 30, 350, 0.20, 5, 8, 2.6, 'SA', 3.0, 0.8, 2, 'mx'],
-  ['sawed', 'Sawed-off', 'SG', '12 Gauge', 20, 340, 0.20, 2, 2, 2.0, 'S', 3.5, 0.8, 0, ''],
-  ['m249', 'M249', 'LMG', '5.56mm', 40, 915, 0.075, 75, 150, 6.5, 'A', 0.48, 0.22, 7, ''],
-  ['dp28', 'DP-28', 'LMG', '7.62mm', 51, 715, 0.109, 47, 47, 4.5, 'A', 0.60, 0.25, 7, ''],
-  ['mg3', 'MG3', 'LMG', '7.62mm', 40, 820, 0.060, 75, 75, 6.5, 'A', 0.60, 0.28, 7, ''],
+  ['sawed', 'Sawed-off', 'SG', '12 Gauge', 21, 340, 0.20, 2, 2, 2.0, 'S', 3.5, 0.8, 0, ''],
+  ['m249', 'M249', 'LMG', '5.56mm', 41, 915, 0.075, 75, 150, 6.5, 'A', 0.48, 0.22, 7, ''],
+  ['dp28', 'DP-28', 'LMG', '7.62mm', 52, 715, 0.109, 47, 47, 4.5, 'A', 0.60, 0.25, 7, ''],
+  ['mg3', 'MG3', 'LMG', '7.62mm', 42, 820, 0.060, 75, 75, 6.5, 'A', 0.60, 0.28, 7, ''],
   ['crossbow', '석궁', 'XB', '볼트', 105, 100, 0.3, 1, 1, 3.4, 'S', 1.0, 0.25, 5, ''],
-  ['p92', 'P92', 'HG', '9mm', 35, 380, 0.135, 15, 20, 2.0, 'S', 0.9, 0.4, 2, 'mx'],
-  ['p1911', 'P1911', 'HG', '.45 ACP', 41, 250, 0.110, 7, 12, 2.1, 'S', 1.1, 0.5, 2, 'mx'],
+  ['p92', 'P92', 'HG', '9mm', 34, 380, 0.135, 15, 20, 2.0, 'S', 0.9, 0.4, 2, 'mx'],
+  ['p1911', 'P1911', 'HG', '.45 ACP', 42, 250, 0.110, 7, 12, 2.1, 'S', 1.1, 0.5, 2, 'mx'],
   ['p18c', 'P18C', 'HG', '9mm', 23, 375, 0.060, 17, 25, 2.0, 'SA', 0.7, 0.4, 2, 'mx'],
-  ['r1895', 'R1895', 'HG', '7.62mm', 62, 330, 0.40, 7, 7, 3.0, 'S', 1.6, 0.6, 2, 'm'],
+  ['r1895', 'R1895', 'HG', '7.62mm', 64, 330, 0.40, 7, 7, 3.0, 'S', 1.6, 0.6, 2, 'm'],
   ['r45', 'R45', 'HG', '.45 ACP', 65, 330, 0.25, 6, 6, 2.2, 'S', 1.6, 0.6, 2, ''],
   ['deagle', 'Desert Eagle', 'HG', '.50 AE', 62, 420, 0.20, 7, 10, 2.2, 'S', 2.2, 0.7, 2, 'x'],
   ['skorpion', 'Skorpion', 'HG', '9mm', 22, 300, 0.070, 20, 40, 2.6, 'SA', 0.45, 0.25, 2, 'gxs'],
 ];
 const CAT_NAME = { AR: '돌격소총', SMG: '기관단총', DMR: '지정사수소총', SR: '저격소총', SG: '산탄총', LMG: '경기관총', HG: '권총', XB: '석궁' };
 const CAT_INFO = {
-  AR: { head: 2.35, limb: 0.9, hip: 2.2, ads: 0.06, adsTime: 0.22, move: 0.97, falloff: [120, 400, 0.75] },
-  SMG: { head: 2.1, limb: 1.05, hip: 1.5, ads: 0.10, adsTime: 0.17, move: 1.0, falloff: [40, 150, 0.6] },
-  DMR: { head: 2.35, limb: 0.95, hip: 2.6, ads: 0.02, adsTime: 0.28, move: 0.95, falloff: [200, 600, 0.8] },
-  SR: { head: 6.0, limb: 1.0, hip: 3.5, ads: 0.0, adsTime: 0.32, move: 0.94, falloff: [300, 800, 0.85] },
-  SG: { head: 1.5, limb: 0.9, hip: 3.6, ads: 2.6, adsTime: 0.22, move: 0.97, falloff: [7, 30, 0.08] },
-  LMG: { head: 2.3, limb: 0.9, hip: 3.0, ads: 0.10, adsTime: 0.35, move: 0.9, falloff: [120, 400, 0.75] },
-  HG: { head: 2.1, limb: 1.0, hip: 1.6, ads: 0.15, adsTime: 0.15, move: 1.03, falloff: [30, 120, 0.6] },
-  XB: { head: 2.6, limb: 1.0, hip: 2.4, ads: 0.0, adsTime: 0.26, move: 0.98, falloff: [500, 900, 1] },
+  AR: { body: 1.0, head: 2.35, limb: 0.9, hip: 2.2, ads: 0.06, adsTime: 0.22, move: 0.97, falloff: [120, 400, 0.75] },
+  SMG: { body: 1.05, head: 2.1, limb: 1.3, hip: 1.5, ads: 0.10, adsTime: 0.17, move: 1.0, falloff: [40, 150, 0.6] },
+  DMR: { body: 1.05, head: 2.35, limb: 0.95, hip: 2.6, ads: 0.02, adsTime: 0.28, move: 0.95, falloff: [200, 600, 0.8] },
+  SR: { body: 1.3, head: 6.0, limb: 0.95, hip: 3.5, ads: 0.0, adsTime: 0.32, move: 0.94, falloff: [300, 800, 0.85] },
+  SG: { body: 0.9, head: 1.5, limb: 1.05, hip: 3.6, ads: 2.6, adsTime: 0.22, move: 0.97, falloff: [7, 30, 0.08] },
+  LMG: { body: 1.05, head: 2.3, limb: 0.9, hip: 3.0, ads: 0.10, adsTime: 0.35, move: 0.9, falloff: [120, 400, 0.75] },
+  HG: { body: 1.0, head: 2.1, limb: 1.0, hip: 1.6, ads: 0.15, adsTime: 0.15, move: 1.08, falloff: [30, 120, 0.6] },
+  XB: { body: 1.4, head: 2.3, limb: 1.2, hip: 2.4, ads: 0.0, adsTime: 0.26, move: 0.98, falloff: [500, 900, 1] },
 };
 const WEAPONS = {};
+// 맨손 (배그 주먹 피해 18)
+CAT_INFO.FIST = { body: 1.0, head: 2.0, limb: 0.8, hip: 0, ads: 0, adsTime: 0.2, move: 1.1, falloff: [100, 200, 1] };
+const FIST_ST = { def: { id: 'fist', name: '맨손', cat: 'FIST', dmg: 18, vel: 0 }, cat: 'FIST' };
 for (const r of WEAPON_TABLE) {
   const [id, name, cat, ammo, dmg, vel, interval, mag, ext, reload, modes, rv, rh, scopeMax, slots] = r;
   WEAPONS[id] = { id, name, cat, ammo, dmg, vel, interval, mag, ext, reload, modes, rv, rh, scopeMax, slots, pellets: cat === 'SG' ? (id === 'o12' ? 8 : 9) : 1, bolt: cat === 'SR' && interval > 1, integrated: id === 'vss' };
@@ -290,7 +294,12 @@ function buildGunModel(id, att) {
   if (att.grip === 'laser') { g.add(M(BX(0.026, 0.03, 0.05), GUNMAT.dark, 0, -0.012, gz)); g.add(M(CY(0.004, 0.004, 0.01, 6), new THREE.MeshBasicMaterial({ color: 0xff2020 }), 0, -0.012, gz - 0.03, Math.PI / 2)); }
   // 아이언사이트 (조준경이 없을 때)
   const sightY = 0.083;
-  if (!att.scope || att.scope === 'iron' || w.integrated) {
+  if (w.cat === 'SG') { // 산탄총: 배그처럼 총열 위 가늠쇠(구슬)로 조준
+    const top = 0.052;
+    g.add(M(BX(0.012, 0.006, Math.min(B, 0.5)), GUNMAT.dark, 0, top - 0.004, recF - Math.min(B, 0.5) / 2)); // 총열 위 리브
+    g.add(M(new THREE.SphereGeometry(0.0055, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffe6a0 }), 0, top + 0.003, recF - B + 0.03));
+    info.sightY = top + 0.003; info.sgBead = true;
+  } else if (!att.scope || att.scope === 'iron' || w.integrated) {
     if (!w.integrated) {
       const fp = new THREE.Group(); fp.position.set(0, 0.0, recF - Math.min(B, 0.3) + 0.02);
       fp.add(M(BX(0.004, 0.022, 0.004), GUNMAT.black, 0, sightY - 0.01, 0));

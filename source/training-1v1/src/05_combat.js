@@ -160,7 +160,7 @@ function bulletHit(b, victim, part, hp, dir) {
 function applyBulletDamage(b, victim, part, hp, dir) {
   const c = CAT_INFO[b.st.def.cat];
   let base = b.dmg * falloffMul(b.st, b.dist);
-  let mult = part === 'head' ? c.head : part === 'leg' ? c.limb : 1;
+  let mult = part === 'head' ? c.head : part === 'leg' ? c.limb : (c.body || 1);
   let dmg = base * mult;
   const head = part === 'head';
   if (head && victim.helmet.lv > 0) { dmg *= 1 - ARMOR.helmet.red[victim.helmet.lv]; victim.helmet.dur -= base * mult * 0.6; if (victim.helmet.dur <= 0) victim.breakArmor('helmet'); }
@@ -284,6 +284,11 @@ function explodeGrenade(type, pos, owner, fromNet) {
     }
     const cd = camera.position.distanceTo(pos);
     if (cd < 30) G.shake = Math.max(G.shake, (1 - cd / 30) * 1.2);
+    // 가까이서 터지면 이명 (벽에 막혀도 조금은 울려요)
+    if (PLAYER && !PLAYER.dead && PLAYER.pos.distanceTo(pos) < 14) {
+      const d = PLAYER.pos.distanceTo(pos), k = (1 - d / 14) * (losClear(src, PLAYER.eyePos, false) ? 1 : 0.5);
+      if (k > 0.12) AU.deafen(1.5 + 5.5 * k, k);
+    }
   } else if (type === 'smoke') {
     AU.smoke(pos);
     const mat = new THREE.SpriteMaterial({ map: TEX.smokeBig, color: 0xd6d6d4, transparent: true, opacity: 0, depthWrite: false, fog: true });
@@ -308,7 +313,7 @@ function explodeGrenade(type, pos, owner, fromNet) {
       const facing = clamp((look.dot(to) + 0.35) / 1.35, 0, 1);
       const power = clamp((1 - d / 28) * (0.35 + 0.65 * facing) * 1.4, 0, 1);
       a.blind = Math.max(a.blind, power * 5);
-      if (a === PLAYER) { HUD.flashbang(power); if (power > 0.3) AU.ring(power * 3); }
+      if (a === PLAYER) { HUD.flashbang(power); if (power > 0.15) AU.deafen(2 + 4.5 * power, power); }
     }
   }
 }

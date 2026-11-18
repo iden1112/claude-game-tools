@@ -21,7 +21,17 @@ function buildViewmodel() {
   const p = PLAYER;
   while (VM.root.children.length) VM.root.remove(VM.root.children[0]);
   VM.arms = new THREE.Group();
-  if (p.mode === 'throw') {
+  if (p.mode === 'fist') { // 맨손: 양 주먹
+    const g = new THREE.Group(); VM.gun = g; VM.info = null; VM.fists = [];
+    for (const s of [-1, 1]) {
+      const f = new THREE.Group();
+      const fist = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.065, 0.08), new THREE.MeshStandardMaterial({ color: 0x3a2f28, roughness: 0.85 })); f.add(fist);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, 0.26), vmSleeve); arm.position.set(0, -0.05, 0.14); arm.rotation.x = -0.35; f.add(arm);
+      f.userData.home = new V3(s * 0.2, -0.24, -0.55); f.position.copy(f.userData.home); f.rotation.set(0.1, -s * 0.12, s * 0.2);
+      g.add(f); VM.fists.push(f);
+    }
+    VM.root.add(g);
+  } else if (p.mode === 'throw') {
     const g = buildGrenadeModel(p.throwType); g.scale.setScalar(1.1); VM.gun = g; VM.info = null;
     VM.root.add(g);
     VM.arms.add(limbMesh(new V3(0.0, -0.02, 0.06), new V3(0.12, -0.35, 0.4), 0.04, 0.05, vmSleeve));
@@ -134,13 +144,14 @@ function playerInput(dt) {
   // 무기 바꾸기
   if (P.Digit1) p.equip(0); if (P.Digit2) p.equip(1); if (P.Digit3) p.equip(2);
   if (P.Digit5 || P.KeyG) p.equipThrow();
+  if (P.KeyX) p.holster(); // 총 넣기 → 맨손
   // 조준경 휠 줌 (3배율 이상)
   const zw = p.w && p.mode === 'gun' ? p.w : null;
   if (INPUT.wheel && zw && p.adsT > 0.5 && zw.stats.scopeZoom >= 3) {
     const mx_ = zw.stats.scopeZoom, mn = Math.max(1.5, mx_ * (mx_ >= 15 ? 0.33 : 0.5)), step = (mx_ - mn) / 4;
     zw.zoomSel = clamp((zw.zoomSel || mx_) - Math.sign(INPUT.wheel) * step, mn, mx_);
     HUD.toast(`${+zw.zoomSel.toFixed(1)}배`); AU.click(0.08, 2200);
-  } else if (INPUT.wheel && !p.pin && p.adsT < 0.1) { if (p.mode === 'throw') p.equip(p.cur); else p.equip((p.cur + 1) % p.weapons.length); }
+  } else if (INPUT.wheel && !p.pin && p.adsT < 0.1) { if (p.mode === 'throw' || p.mode === 'fist') p.equip(p.cur); else p.equip((p.cur + 1) % p.weapons.length); }
   if (P.KeyB) p.cycleFireMode();
   if (P.KeyR) { if (p.mode === 'throw') p.cook(); else p.startReload(); }
   if (frozen) { p.trigger = false; return; }
@@ -166,6 +177,9 @@ function playerInput(dt) {
     } else if (AM === 'toggle') { if (INPUT.rmbPressed) p.ads = !p.ads && p.reloadT <= 0; p.shoulder = false; }
     else { p.ads = INPUT.rmb && p.reloadT <= 0; p.shoulder = false; }
     if (p.sprint) { p.ads = false; p.shoulder = false; }
+  } else if (p.mode === 'fist') {
+    if (INPUT.lmbPressed) p.triggerEdge = true;
+    p.trigger = INPUT.lmb; p.ads = false; p.shoulder = false;
   } else {
     if (INPUT.lmbPressed) p.pullPin();
     if (INPUT.lmbReleased && p.pin) p.release(INPUT.rmb);
@@ -258,6 +272,15 @@ function updateViewmodel(dt, hsp) {
   VM.switchY = damp(VM.switchY, p.switchT > 0.25 ? -0.25 : 0, 14, dt);
   const bob = Math.sin(VM.bobPhase) * Math.min(1, hsp / 4), bob2 = Math.cos(VM.bobPhase * 2) * Math.min(1, hsp / 4);
   const g = VM.gun;
+  if (p.mode === 'fist' && VM.fists) {
+    g.position.set(bob * 0.01, VM.switchY + bob2 * 0.008, 0);
+    const k = (p.punchT || 0) / 0.28, jab = Math.sin(clamp(1 - k, 0, 1) * Math.PI) * (k > 0 ? 1 : 0);
+    VM.fists.forEach((f, i) => {
+      const act = (i === 1) === !!p.punchSide ? jab : 0;
+      f.position.copy(f.userData.home); f.position.z -= act * 0.22; f.position.x -= (i ? 1 : -1) * act * 0.16; f.position.y += act * 0.12;
+    });
+    return;
+  }
   if (p.mode === 'throw') {
     const raise = p.pin ? 1 : 0;
     g.position.set(0.2 + bob * 0.01, -0.2 + VM.switchY + raise * 0.06 + bob2 * 0.008, -0.35 + raise * 0.12);
@@ -266,8 +289,8 @@ function updateViewmodel(dt, hsp) {
   }
   const info = VM.info, cat = p.w.stats.cat;
   const hip = cat === 'HG' ? new V3(0.15, -0.15, -0.38) : new V3(0.16, -0.16, -0.36);
-  const adsZ = cat === 'HG' ? -0.32 : (p.w.att.scope && p.w.att.scope !== 'iron' ? -0.2 : -0.22);
-  const adsP = VM.show2x ? new V3(0, -info.sightY - 0.04, -0.36) : new V3(0, -info.sightY, adsZ);
+  const adsZ = cat === 'HG' ? -0.32 : cat === 'SG' ? -0.27 : (p.w.att.scope && p.w.att.scope !== 'iron' ? -0.2 : -0.22);
+  const adsP = VM.show2x ? new V3(0, -info.sightY - 0.04, -0.36) : cat === 'SG' ? new V3(0.02, -info.sightY - 0.075, -0.3) : new V3(0, -info.sightY, adsZ);
   const shP = cat === 'HG' ? new V3(0.07, -0.13, -0.34) : new V3(0.075, -0.125, -0.3);
   hip.lerp(shP, smooth01(p.shoulderT || 0));
   const pos = hip.lerp(adsP, ads);

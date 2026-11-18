@@ -13,9 +13,9 @@ const HUD = {
   init() {
     this.cc = $('compass').getContext('2d');
     this.dc = $('dmgdir').getContext('2d');
-    this.arcLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.25, gapSize: 0.15, transparent: true, opacity: 0.8, depthTest: true }));
+    this.arcLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0xff2a1f, dashSize: 0.3, gapSize: 0.12, transparent: true, opacity: 0.95, depthTest: false }));
     this.arcLine.frustumCulled = false; scene.add(this.arcLine); this.arcLine.visible = false;
-    this.arcRing = new THREE.Mesh(new THREE.RingGeometry(0.25, 0.32, 24), new THREE.MeshBasicMaterial({ color: 0xff5544, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
+    this.arcRing = new THREE.Mesh(new THREE.RingGeometry(0.25, 0.32, 24), new THREE.MeshBasicMaterial({ color: 0xff2a1f, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false, depthTest: false }));
     this.arcRing.rotation.x = -Math.PI / 2; scene.add(this.arcRing); this.arcRing.visible = false;
   },
   hitMarker(kill, head) { this.hitT = kill ? 0.5 : 0.18; this.hitKill = kill; this.hitHead = head; },
@@ -73,10 +73,12 @@ const HUD = {
     UI('stance', 'textContent', p.stance === 'prone' ? '엎드림' : p.stance === 'crouch' ? '앉음' : p.sprint ? '달리기' : '서기');
     // 무기
     const w = p.w;
-    if (p.mode === 'throw') {
+    if (p.mode === 'fist') {
+      UI('w-name', 'textContent', '맨손'); UI('w-ammo', 'innerHTML', '<small>주먹</small>'); UI('w-mode', 'textContent', '좌클릭: 때리기 · X: 총 꺼내기');
+    } else if (p.mode === 'throw') {
       UI('w-name', 'textContent', THROWABLES[p.throwType].name);
       UI('w-ammo', 'innerHTML', `${p.throwables[p.throwType]}<small>개</small>`);
-      UI('w-mode', 'textContent', p.pin ? (p.cookT >= 0 ? '쿠킹 중' : '안전핀 뽑음') : '좌클릭 꾹: 준비');
+      UI('w-mode', 'textContent', p.pin ? (INPUT.rmb ? '가까이 던지기 (우클릭)' : '멀리 던지기') + (p.cookT >= 0 ? ' · 쿠킹 중' : '') : '좌클릭 꾹: 준비 · 우클릭: 가까이');
     } else if (w) {
       UI('w-name', 'textContent', w.stats.def.name);
       UI('w-ammo', 'innerHTML', `<span class="${w.mag <= w.stats.mag * 0.25 ? 'low' : ''}">${w.mag}</span><small> / ${w.reserve}</small>`);
@@ -96,8 +98,21 @@ const HUD = {
     if (full) { UI('scope', 'className', 'sc-' + scope); }
     const dotOn = p.adsT > 0.9 && (scope === 'reddot' || scope === 'holo') && CAM.blend < 0.5;
     UI('ret', 'style.display', dotOn ? 'block' : 'none'); if (dotOn) UI('ret', 'className', 'r-' + scope);
-    const showCross = !(p.adsT > 0.5 && CAM.blend < 0.5) && !p.dead && p.mode === 'gun' && !(p.sprint && Math.hypot(p.vel.x, p.vel.z) > 3);
+    const isSG = p.mode === 'gun' && w && w.stats.cat === 'SG';
+    const showSG = isSG && !p.dead && !(p.sprint && Math.hypot(p.vel.x, p.vel.z) > 3);
+    const showCross = !isSG && !(p.adsT > 0.5 && CAM.blend < 0.5) && !p.dead && p.mode === 'gun' && !(p.sprint && Math.hypot(p.vel.x, p.vel.z) > 3);
     UI('cross', 'style.display', showCross ? 'block' : 'none');
+    UI('sgc', 'style.display', showSG ? 'block' : 'none');
+    if (showSG) { // 산탄총: 배그처럼 초록 원 조준선 (원 크기 = 산탄이 퍼지는 범위)
+      const moving = Math.hypot(p.vel.x, p.vel.z);
+      const sp = lerp(w.stats.hip * lerp(1, 0.42, p.shoulderT || 0), w.stats.ads, p.adsT) * STANCE[p.stance].spread * 0.5 + w.stats.pelletSpread + moving / 6 + (p.onGround ? 0 : 3);
+      const focal = (innerHeight / 2) / Math.tan(camera.fov * DEG / 2);
+      const r = Math.max(14, Math.tan(sp * DEG) * focal);
+      this.sgr = damp(this.sgr || r, r, 14, dt);
+      const R = Math.round(this.sgr), D = R + 7;
+      UI('sgc-r', 'style.cssText', `width:${R * 2}px;height:${R * 2}px;left:${-R - 2}px;top:${-R - 2}px`);
+      UI('sgc-d', 'style.cssText', `width:${D * 2}px;height:${D * 2}px;left:${-D - 2}px;top:${-D - 2}px`);
+    }
     if (showCross && w) {
       const moving = Math.hypot(p.vel.x, p.vel.z);
       let sp = lerp(w.stats.hip * lerp(1, 0.42, p.shoulderT || 0), w.stats.ads, p.adsT) * STANCE[p.stance].spread + moving / 6 * 2 + (p.onGround ? 0 : 4) + Math.min(p.shots, 6) * 0.25 * (p.sinceShot < 0.2 ? 1 : 0);
@@ -108,7 +123,7 @@ const HUD = {
       UI('ch-t', 'style.transform', `translate(-50%, ${-g - 10}px)`); UI('ch-b', 'style.transform', `translate(-50%, ${g}px)`);
       UI('ch-l', 'style.transform', `translate(${-g - 10}px, -50%)`); UI('ch-r', 'style.transform', `translate(${g}px, -50%)`);
     }
-    UI('dot', 'style.display', !p.dead && p.mode === 'throw' ? 'block' : 'none');
+    UI('dot', 'style.display', !p.dead && (p.mode === 'throw' || p.mode === 'fist') ? 'block' : 'none');
     // 맞힘 표시
     this.hitT -= dt;
     const hm = $('hit'); hm.style.opacity = this.hitT > 0 ? 1 : 0;
@@ -200,7 +215,7 @@ const HUD = {
     UI('heading', 'textContent', Math.round(head) % 360);
   },
   updateArc(p) {
-    const on = false; // 수류탄 궤적은 보여주지 않아요 (배그처럼)
+    const on = p.mode === 'throw' && p.pin && !p.dead && G.state !== 'menu'; // 안전핀 뽑고 있을 때 빨간 궤적 (배그처럼)
     this.arcLine.visible = this.arcRing.visible = on;
     if (!on) return;
     const o = p.throwOrigin(new V3()), v = p.throwVelocity(INPUT.rmb, new V3());
