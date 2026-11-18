@@ -75,7 +75,7 @@ function createPlayer() {
   };
   p.onFire = (st) => {
     // 탄피
-    if (CAM.blend > 0.5 && st.def.cat !== 'SR' && st.def.cat !== 'SG' && st.def.id !== 'r1895' && st.def.id !== 'r45') {
+    if (CAM.blend > 0.5 && st.def.cat !== 'SR' && st.def.cat !== 'SG' && st.def.cat !== 'XB' && st.def.id !== 'r1895' && st.def.id !== 'r45') {
       const right = _v3.set(Math.cos(p.yaw), 0, -Math.sin(p.yaw));
       const pos = CAM.blend < 0.5 ? camera.position.clone().addScaledVector(right, 0.12).add(_v4.set(0, -0.08, 0)).addScaledVector(camDir(new V3()), 0.35) : p.muzzleWorld(new V3());
       ejectShell(pos, right, _v4.set(0, 1, 0));
@@ -244,7 +244,8 @@ function updateViewmodel(dt, hsp) {
   VM.cam.position.copy(camera.position); VM.cam.quaternion.copy(camera.quaternion);
   const scoped = p.mode === 'gun' && p.w && effZoom(p.w) >= 2 && p.adsT > 0.85;
   // 2배율: 조준경 화면 안 아래쪽에 총 앞부분이 보이게 (조준경 통은 숨김)
-  const show2x = scoped && p.mode === 'gun' && effZoom(p.w) < 3;
+  const sid = p.mode === 'gun' ? effScopeId(p.w) : null;
+  const show2x = scoped && (sid === '2x' || sid === '3x') && effZoom(p.w) <= 3;
   VM.root.visible = CAM.blend < 0.3 && !p.dead && (!scoped || show2x);
   if (VM.info && VM.info.scopeBody) VM.info.scopeBody.visible = !show2x;
   VM.show2x = show2x;
@@ -282,8 +283,9 @@ function updateViewmodel(dt, hsp) {
   if (p.reloadT > 0) {
     const k = 1 - p.reloadT / p.reloadDur, e = Math.sin(clamp(k, 0, 1) * Math.PI);
     rz += e * 0.5; rx += e * 0.25; pos.y -= e * 0.06; pos.x -= e * 0.03;
-    if (info.magMesh) { const out = k > 0.25 && k < 0.7 ? 1 : 0; info.magMesh.position.y = info.magHome.y - out * 0.25; info.magMesh.visible = !(k > 0.35 && k < 0.6); }
-  } else if (info.magMesh) { info.magMesh.position.copy(info.magHome); info.magMesh.visible = true; }
+    if (info.xbBolt) { info.xbBolt.visible = k > 0.7; info.xbBolt.position.z = info.magHome.z + (k < 0.9 ? 0.25 * (0.9 - k) : 0); }
+    else if (info.magMesh) { const out = k > 0.25 && k < 0.7 ? 1 : 0; info.magMesh.position.y = info.magHome.y - out * 0.25; info.magMesh.visible = !(k > 0.35 && k < 0.6); }
+  } else if (info.magMesh) { info.magMesh.position.copy(info.magHome); info.magMesh.visible = !info.xbBolt || p.w.mag > 0; }
   // 볼트 당기기
   if (p.boltT > 0 && p.w.stats.def.interval > 0.5) { const k = 1 - p.boltT / p.w.stats.def.interval, e = Math.sin(clamp((k - 0.08) / 0.85, 0, 1) * Math.PI); rz -= e * 0.42; ry -= e * 0.12; pos.y -= e * 0.035; pos.z += e * 0.05; pos.x -= e * 0.02; }
   // 파쿠르: 총을 내리고 옆으로 비킴 (손으로 짚는 느낌)

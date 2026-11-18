@@ -44,7 +44,7 @@ function botRoundStart(b = BOT) {
     holdT: rand(6, 14), stuckT: 0, lastPos: b.pos.clone(), nadeCD: rand(6, 12), coverT: 0, visT: 0, peekT: 0, thinkT: 0, alertTurn: false,
   });
   // 처음 갈 곳 (봇 쪽 절반)
-  const spots = [[16, 20], [0, 17], [-19, 13], [6, 8], [-8, 9.5], [30, 14], [-22, 6], [13, 6.5], [0, 7.2]];
+  const spots = WORLD.map.spots;
   const s = pick(spots); ai.goal = new V3(s[0] + rand(-1, 1), 0, s[1] + rand(-1, 1));
 }
 function botWeaponFor(dist, b = BOT) {
@@ -279,6 +279,7 @@ function botUpdate(dt, b = BOT) {
           const guess = new V3(rand(-30, 30), 0, rand(-40, 0));
           if (Math.random() < 0.6) guess.set(rand(-12, 12), 0, rand(-30, -5));
           if (ai.flip) guess.z = -guess.z;
+          { const WB = WORLD.map.bounds; guess.x = clamp(guess.x, WB.minX + 2, WB.maxX - 2); guess.z = clamp(guess.z, WB.minZ + 2, WB.maxZ - 2); }
           ai.goal = guess;
         }
       }

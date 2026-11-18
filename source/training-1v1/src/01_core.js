@@ -1,5 +1,5 @@
 'use strict';
-const GAME_BUILD = 16; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 17; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -172,6 +172,23 @@ TEX.metal = canvasTex(128, 128, (g, w, h) => {
   }
   noiseFill(g, w, h, 0, 16);
 });
+TEX.brick = canvasTex(256, 256, (g, w, h) => { // 붉은 벽돌 (1:1 대결 맵)
+  g.fillStyle = '#5a4a40'; g.fillRect(0, 0, w, h);
+  const bh = 32, bw = 64;
+  for (let r = 0; r < h / bh; r++) for (let c = -1; c < w / bw + 1; c++) {
+    const x = c * bw + (r % 2) * bw / 2, y = r * bh;
+    g.fillStyle = `rgb(${150 + rand(-22, 18)},${70 + rand(-14, 12)},${52 + rand(-10, 10)})`; g.fillRect(x + 3, y + 3, bw - 6, bh - 6);
+  }
+  blotches(g, w, h, 14, 'rgba(40,30,25,A)', 10, 50, 0.25);
+  noiseFill(g, w, h, 0, 22);
+});
+TEX.asphalt = canvasTex(512, 512, (g, w, h) => { // 아스팔트 바닥
+  g.fillStyle = '#4b4c4e'; g.fillRect(0, 0, w, h);
+  blotches(g, w, h, 70, 'rgba(30,30,32,A)', 15, 80, 0.25);
+  blotches(g, w, h, 40, 'rgba(120,118,112,A)', 10, 50, 0.12);
+  noiseFill(g, w, h, 0, 34);
+  for (let i = 0; i < 5; i++) { g.strokeStyle = 'rgba(20,20,22,0.5)'; g.lineWidth = 2; g.beginPath(); let x = Math.random() * w, y = Math.random() * h; g.moveTo(x, y); for (let k = 0; k < 8; k++) { x += rand(-25, 25); y += rand(-25, 25); g.lineTo(x, y); } g.stroke(); }
+});
 TEX.lines = canvasTex(512, 512, (g, w, h) => { // 바닥 페인트 선
   g.clearRect(0, 0, w, h);
   g.fillStyle = 'rgba(235,225,180,0.85)'; g.fillRect(0, 0, w, h);
@@ -231,6 +248,11 @@ const MAT = {
   ground: new THREE.MeshStandardMaterial({ map: TEX.ground, color: 0xb0ab9c, roughness: 1.0 }),
   cont: [0xa83a2c, 0x2c5e8a, 0x3f6f3a, 0xc27a1f, 0x6d6f73, 0x8a2f55].map(c => new THREE.MeshStandardMaterial({ map: TEX.container, color: c, roughness: 0.6, metalness: 0.35 })),
   dark: new THREE.MeshStandardMaterial({ color: 0x2a2c2f, roughness: 0.7, metalness: 0.3 }),
+  brick: new THREE.MeshStandardMaterial({ map: TEX.brick, roughness: 0.95 }),
+  asphalt: new THREE.MeshStandardMaterial({ map: TEX.asphalt, roughness: 0.97 }),
+  car: [0x8e2a24, 0x2b4f7a, 0xc9c4b8, 0x3d5a3a].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.45, metalness: 0.5 })),
+  glass: new THREE.MeshStandardMaterial({ color: 0x1c2630, roughness: 0.15, metalness: 0.8 }),
+  barrel: new THREE.MeshStandardMaterial({ color: 0x2f5d8a, roughness: 0.6, metalness: 0.4 }),
 };
 
 // ================= 소리 (WebAudio 합성) =================
@@ -252,6 +274,7 @@ const AU = (() => {
     gritBus = ctx.createGain(); gritBus.gain.value = 0.8; gritBus.connect(grit); grit.connect(master);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    try { buildGunSounds(); } catch (e) {}
   }
   function setVol(v) { if (master) master.gain.value = v * 1.2; }
   // 소리 위치 → 음량, 좌우, 먹먹함
@@ -292,6 +315,97 @@ const AU = (() => {
     LMG: { body: 1150, len: 0.36, boom: 85, bLen: 0.3, sub: 0.2, tail: 1.0, vol: 1.35 },
     HG: { body: 1600, len: 0.24, boom: 110, bLen: 0.18, sub: 0, tail: 0.6, vol: 1.05 },
   };
+  // ---- 총소리 샘플 미리 만들기 (한 번만 계산 → 쏠 때는 재생만 해서 가볍고 풍성하게) ----
+  const BUF = {};
+  function biq(x, type, f, q, sr) { // RBJ 바이쿼드 필터 (배열 직접 처리)
+    const w = 2 * Math.PI * f / sr, cs = Math.cos(w), al = Math.sin(w) / (2 * q);
+    let b0, b1, b2, a0 = 1 + al, a1 = -2 * cs, a2 = 1 - al;
+    if (type === 'lp') { b0 = (1 - cs) / 2; b1 = 1 - cs; b2 = b0; }
+    else if (type === 'hp') { b0 = (1 + cs) / 2; b1 = -(1 + cs); b2 = b0; }
+    else { b0 = al; b1 = 0; b2 = -al; }
+    b0 /= a0; b1 /= a0; b2 /= a0; a1 /= a0; a2 /= a0;
+    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    for (let i = 0; i < x.length; i++) { const y = b0 * x[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x[i]; y2 = y1; y1 = y; x[i] = y; }
+    return x;
+  }
+  const nz = (n) => { const a = new Float32Array(n); for (let i = 0; i < n; i++) a[i] = Math.random() * 2 - 1; return a; };
+  const SND = { // crack 날카로움, body 폭발음 대역, boom 쿵 높이, punch 몸통 길이, sub 저음, tail 메아리 길이, mech 쇳소리
+    AR: { crack: 1.0, body: 1500, boom: 105, punch: 0.07, sub: 0.25, tail: 1.3, mech: 0.35, drive: 2.6 },
+    SMG: { crack: 0.9, body: 2100, boom: 135, punch: 0.045, sub: 0, tail: 0.9, mech: 0.45, drive: 2.2 },
+    DMR: { crack: 1.15, body: 1200, boom: 85, punch: 0.1, sub: 0.6, tail: 1.9, mech: 0.3, drive: 3.0 },
+    SR: { crack: 1.35, body: 950, boom: 62, punch: 0.16, sub: 1.0, tail: 3.0, mech: 0.0, drive: 3.4 },
+    SG: { crack: 0.8, body: 800, boom: 70, punch: 0.14, sub: 0.85, tail: 1.8, mech: 0.25, drive: 3.2 },
+    LMG: { crack: 1.05, body: 1350, boom: 95, punch: 0.08, sub: 0.4, tail: 1.5, mech: 0.4, drive: 2.8 },
+    HG: { crack: 0.85, body: 1900, boom: 125, punch: 0.05, sub: 0.1, tail: 1.0, mech: 0.3, drive: 2.2 },
+  };
+  function makeGunSound(p, suppressed, noTail) {
+    const sr = ctx.sampleRate, n = Math.floor(sr * 0.45), x = new Float32Array(n);
+    const ex = (t, tau) => Math.exp(-t / tau);
+    if (!suppressed) {
+      // 1) 날카로운 '딱' (초음속 크랙 + 화약 터지는 앞소리)
+      const c = biq(nz(n), 'hp', 1800, 0.7, sr);
+      for (let i = 0; i < n; i++) { const t = i / sr; x[i] += c[i] * ex(t, 0.0045 + p.crack * 0.002) * 1.3 * p.crack; }
+      // 2) '쾅' 몸통: 대역이 넓은 폭발 소리 (짧게 커졌다 줄어듦)
+      const b = biq(biq(nz(n), 'lp', p.body, 0.9, sr), 'hp', 90, 0.7, sr);
+      for (let i = 0; i < n; i++) { const t = i / sr; x[i] += b[i] * Math.min(1, t / 0.0006) * ex(t, p.punch * 0.55) * 1.6; }
+      // 3) 공명 '웅' (총열·공기 울림)
+      const r = biq(nz(n), 'bp', p.boom * 3.2, 2.2, sr);
+      for (let i = 0; i < n; i++) { const t = i / sr; x[i] += r[i] * ex(t, p.punch * 0.9) * 2.2; }
+      // 4) 가슴 치는 쿵 (내려가는 저음)
+      let ph = 0;
+      for (let i = 0; i < n; i++) { const t = i / sr, f = p.boom * 0.55 + p.boom * 1.9 * ex(t, 0.018); ph += 2 * Math.PI * f / sr; x[i] += Math.sin(ph) * ex(t, p.punch * 1.1) * 0.9; }
+      if (p.sub) { ph = 0; for (let i = 0; i < n; i++) { const t = i / sr; ph += 2 * Math.PI * (34 + 30 * ex(t, 0.05)) / sr; x[i] += Math.sin(ph) * Math.min(1, t / 0.004) * ex(t, 0.13) * 0.8 * p.sub; } }
+    } else {
+      // 소음기: '퓻' 하는 둔한 공기 소리
+      const b = biq(biq(nz(n), 'lp', 1700, 0.8, sr), 'hp', 180, 0.7, sr);
+      for (let i = 0; i < n; i++) { const t = i / sr; x[i] += b[i] * Math.min(1, t / 0.001) * ex(t, 0.022) * 1.3; }
+      let ph = 0; for (let i = 0; i < n; i++) { const t = i / sr; ph += 2 * Math.PI * (90 + 160 * ex(t, 0.01)) / sr; x[i] += Math.sin(ph) * ex(t, 0.03) * 0.5; }
+    }
+    // 5) 쇳소리 (노리쇠가 철컥)
+    const m = Math.max(p.mech, suppressed ? 0.5 : 0);
+    if (m) {
+      const mk = biq(nz(n), 'bp', 3400, 6, sr), mk2 = biq(nz(n), 'bp', 2300, 5, sr);
+      const t1 = 0.012 + Math.random() * 0.004, t2 = 0.055 + Math.random() * 0.01;
+      for (let i = 0; i < n; i++) { const t = i / sr; if (t > t1) x[i] += mk[i] * ex(t - t1, 0.006) * 0.7 * m; if (t > t2) x[i] += mk2[i] * ex(t - t2, 0.008) * 0.55 * m; }
+    }
+    // 부드럽게 꽉 채우기 (소프트 클리핑) + 정규화
+    const dr = suppressed ? 1.4 : p.drive, nd = Math.tanh(dr);
+    let pk = 0; for (let i = 0; i < n; i++) { x[i] = Math.tanh(x[i] * dr) / nd; pk = Math.max(pk, Math.abs(x[i])); }
+    for (let i = 0; i < n; i++) x[i] *= 0.92 / (pk || 1);
+    for (let i = n - 400; i < n; i++) x[i] *= (n - i) / 400;
+    const dry = ctx.createBuffer(1, n, sr); dry.getChannelData(0).set(x);
+    if (noTail) return { dry, tail: null };
+    // 6) 메아리 (스테레오): 넓은 울림 + 건물에 튕겨 돌아오는 소리 몇 번
+    const tl = (suppressed ? 0.5 : p.tail), m2 = Math.floor(sr * tl), tail = ctx.createBuffer(2, m2, sr);
+    const echoes = suppressed ? [] : [[0.085, 0.55, -0.6], [0.16, 0.42, 0.7], [0.29, 0.3, -0.3], [0.47, 0.2, 0.5], [0.72, 0.12, -0.7]];
+    const burst = biq(nz(Math.floor(sr * 0.25)), 'lp', p.body * 0.55, 0.7, sr);
+    for (let ch = 0; ch < 2; ch++) {
+      const y = new Float32Array(m2), wn = biq(biq(nz(m2), 'lp', 900, 0.6, sr), 'hp', 70, 0.7, sr), dk = biq(nz(m2), 'lp', 260, 0.7, sr);
+      for (let i = 0; i < m2; i++) { const t = i / sr, a = Math.min(1, t / 0.012); y[i] = (wn[i] * ex(t, tl * 0.18) * 0.55 + dk[i] * ex(t, tl * 0.32) * 0.9) * a; }
+      for (const [d, g, pan] of echoes) {
+        const o = Math.floor(sr * d * (tl / 2)), gg = g * (ch ? 1 + pan * 0.6 : 1 - pan * 0.6);
+        for (let i = 0; i < burst.length && o + i < m2; i++) y[o + i] += burst[i] * ex(i / sr, 0.05) * gg * 1.4;
+      }
+      for (let i = m2 - 800; i < m2; i++) if (i >= 0) y[i] *= (m2 - i) / 800;
+      tail.getChannelData(ch).set(y);
+    }
+    let tp = 0; for (let ch = 0; ch < 2; ch++) for (const v of tail.getChannelData(ch)) tp = Math.max(tp, Math.abs(v));
+    for (let ch = 0; ch < 2; ch++) { const d = tail.getChannelData(ch); for (let i = 0; i < d.length; i++) d[i] *= 0.8 / (tp || 1); }
+    return { dry, tail };
+  }
+  function buildGunSounds() { // 한 번에 다 만들면 잠깐 멈출 수 있어서 종류별로 나눠서 만들어요
+    Object.keys(SND).forEach((k, i) => setTimeout(() => {
+      try {
+        const a = makeGunSound(SND[k], false), sa = makeGunSound(SND[k], true);
+        const v = [a, { dry: makeGunSound(SND[k], false, true).dry, tail: a.tail }, { dry: makeGunSound(SND[k], false, true).dry, tail: a.tail }];
+        BUF[k] = v; BUF[k + '_s'] = [sa, { dry: makeGunSound(SND[k], true, true).dry, tail: sa.tail }];
+      } catch (e) {}
+    }, 20 + i * 60));
+  }
+  function playBuf(out, buf, t, vol, rate) {
+    const src = ctx.createBufferSource(); src.buffer = buf; src.playbackRate.value = rate;
+    const g = ctx.createGain(); g.gain.value = vol; src.connect(g); g.connect(out); src.start(t);
+  }
   const api = {
     init, setVol,
     get ctx() { return ctx; },
@@ -304,6 +418,27 @@ const AU = (() => {
       const delay = local ? 0 : s.dist / 343 * 0.35;
       const out = chain(s), T0 = t + delay;
       const V = s.vol * p.vol;
+      if (cat === 'XB') { // 석궁: 줄이 튕기는 '팅~' + 둔한 '퉁'
+        tone(out, T0, 0.22, 210, 120, 0.7 * s.vol, 'triangle');
+        tone(out, T0, 0.12, 95, 55, 0.9 * s.vol);
+        noise(out, T0, 0.07, 'bandpass', 1400, 1.2, 0.8 * s.vol);
+        noise(out, T0 + 0.005, 0.25, 'bandpass', 380, 3, 0.4 * s.vol, 0.004);
+        addVoice(T0 + 0.25, 4); return;
+      }
+      const bk = BUF[(SND[cat] ? cat : 'AR') + (suppressed ? '_s' : '')];
+      if (bk) {
+        const b = pick(bk), rate = rand(0.95, 1.05) * (suppressed ? 1 : 1);
+        // 멀리서 쏘면 앞소리는 작아지고 메아리 비율이 커져요
+        playBuf(out, b.dry, T0, (suppressed ? 0.75 : 1.25) * V, rate);
+        let n = 1, tailEnd = T0 + b.dry.duration;
+        if (!lite && (T0 - lastTail > (cat === 'SR' || cat === 'SG' || cat === 'DMR' ? 0 : 0.11) || suppressed)) {
+          lastTail = T0;
+          const tv = (suppressed ? 0.12 : 0.42 + Math.min(0.5, s.dist / 90)) * V;
+          playBuf(chain({ ...s, lp: Math.min(s.lp, 9000) }), b.tail, T0 + 0.01, tv, rate); n++; tailEnd = T0 + b.tail.duration;
+        }
+        addVoice(Math.min(tailEnd, T0 + 0.6), n);
+        return;
+      }
       if (suppressed) {
         noise(out, T0, 0.09, 'bandpass', 2600, 0.8, 0.5 * V);
         if (!lite) noise(out, T0, 0.16, 'lowpass', 700, 0.7, 0.35 * s.vol);

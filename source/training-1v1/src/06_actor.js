@@ -33,7 +33,7 @@ class Actor {
     this.pin = false; this.cookT = -1; this.mode = 'gun';
     this.throwables = { frag: THROWABLES.frag.count, smoke: THROWABLES.smoke.count, flash: THROWABLES.flash.count };
     this.lastDamage = 0; this.stepAcc = 0; this.fireMode = null;
-    for (const w of this.weapons) { w.mag = w.stats.mag; w.reserve = w.stats.mag * 6; }
+    for (const w of this.weapons) { w.mag = w.stats.mag; w.reserve = Math.max(w.stats.mag * 6, 15); }
     this.soldier.deadT = 0; this.soldier.body.rotation.set(0, 0, 0);
     this.soldier.setVisible(true);
     this.equip(0, true);
@@ -305,7 +305,8 @@ class Actor {
     // 소리 + 화염
     const muz = this.muzzleWorld(new V3());
     AU.shot(muz, def.cat, st.suppressed, this.isPlayer);
-    muzzleFlash(muz, dir, def.cat === 'SR' || def.cat === 'SG' || def.cat === 'LMG', st.flashHidden);
+    if (def.cat !== 'XB') muzzleFlash(muz, dir, def.cat === 'SR' || def.cat === 'SG' || def.cat === 'LMG', st.flashHidden);
+    else if (w.mag <= 0) { this.cooldown = 0.35; setTimeout(() => { if (this.w === w && w.mag <= 0) this.startReload(); }, 350); } // 석궁: 쏘면 바로 다시 장전
     if (this.onFire) this.onFire(st);
     for (const a of ACTORS) if (a !== this && a.hearShot) a.hearShot(this, st.suppressed);
   }

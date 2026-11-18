@@ -6,7 +6,7 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 6; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 7; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 const STANCE_CODE = { stand: 0, crouch: 1, prone: 2 }, STANCE_NAME = ['stand', 'crouch', 'prone'];
@@ -371,17 +371,17 @@ function netStartGame() {
 function netNextRound() {
   const L = NET.lobby, round = G.round + 1;
   const flip = round % 2 === 0;
-  const spawns = {};
+  const spawns = {}, map = L.size === 1 ? 'duel' : 'arena', SZ = Math.abs(MAPS[map].spawnZ);
   for (const team of [0, 1]) {
     const ps = L.players.filter(p => p.team === team);
-    const z = (team === 0) !== flip ? -46.5 : 46.5;
+    const z = (team === 0) !== flip ? -SZ : SZ;
     ps.forEach((p, i) => { const x = (i - (ps.length - 1) / 2) * 6 + rand(-1, 1); spawns[p.id] = [+x.toFixed(2), z, z < 0 ? Math.PI : 0]; });
   }
-  const m = { t: 'round', round, score: G.score, spawns, players: L.players, armor: SETTINGS.armor, winTo: G.winTo };
+  const m = { t: 'round', round, score: G.score, spawns, players: L.players, armor: SETTINGS.armor, winTo: G.winTo, map };
   netSend(m); applyRound(m);
 }
 function applyRound(m) {
-  NET.active = true; G.mode = 'mp';
+  NET.active = true; G.mode = 'mp'; setMap(m.map || 'arena');
   for (const id of ['start', 'mp', 'end']) $(id).style.display = 'none';
   SETTINGS.armor = m.armor; G.winTo = m.winTo; G.score = m.score.slice();
   NET.lobby.players = m.players;
@@ -460,7 +460,7 @@ function netRecv(m) {
       for (const d of m.d) { spawnBullet(r, o, new V3().fromArray(d), w.stats, 0); BULLETS[BULLETS.length - 1].visual = true; }
       const muz = r.w && r.mode === 'gun' ? r.muzzleWorld(new V3()) : o;
       AU.shot(muz, w.stats.cat, w.stats.suppressed, false);
-      muzzleFlash(muz, new V3().fromArray(m.d[0]), w.stats.cat === 'SR' || w.stats.cat === 'SG', w.stats.flashHidden);
+      if (w.stats.cat !== 'XB') muzzleFlash(muz, new V3().fromArray(m.d[0]), w.stats.cat === 'SR' || w.stats.cat === 'SG', w.stats.flashHidden);
       for (const id in NET.bots) NET.bots[id].hearShot && NET.bots[id].hearShot(r, w.stats.suppressed);
       break;
     }

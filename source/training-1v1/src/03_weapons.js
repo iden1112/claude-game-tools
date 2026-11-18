@@ -45,6 +45,7 @@ const WEAPON_TABLE = [
   ['m249', 'M249', 'LMG', '5.56mm', 40, 915, 0.075, 75, 150, 6.5, 'A', 0.48, 0.22, 7, ''],
   ['dp28', 'DP-28', 'LMG', '7.62mm', 51, 715, 0.109, 47, 47, 4.5, 'A', 0.60, 0.25, 7, ''],
   ['mg3', 'MG3', 'LMG', '7.62mm', 40, 820, 0.060, 75, 75, 6.5, 'A', 0.60, 0.28, 7, ''],
+  ['crossbow', '석궁', 'XB', '볼트', 105, 100, 0.3, 1, 1, 3.4, 'S', 1.0, 0.25, 5, ''],
   ['p92', 'P92', 'HG', '9mm', 35, 380, 0.135, 15, 20, 2.0, 'S', 0.9, 0.4, 1, 'mx'],
   ['p1911', 'P1911', 'HG', '.45 ACP', 41, 250, 0.110, 7, 12, 2.1, 'S', 1.1, 0.5, 1, 'mx'],
   ['p18c', 'P18C', 'HG', '9mm', 23, 375, 0.060, 17, 25, 2.0, 'SA', 0.7, 0.4, 1, 'mx'],
@@ -53,7 +54,7 @@ const WEAPON_TABLE = [
   ['deagle', 'Desert Eagle', 'HG', '.50 AE', 62, 420, 0.20, 7, 10, 2.2, 'S', 2.2, 0.7, 1, 'x'],
   ['skorpion', 'Skorpion', 'HG', '9mm', 22, 300, 0.070, 20, 40, 2.6, 'SA', 0.45, 0.25, 1, 'gxs'],
 ];
-const CAT_NAME = { AR: '돌격소총', SMG: '기관단총', DMR: '지정사수소총', SR: '저격소총', SG: '산탄총', LMG: '경기관총', HG: '권총' };
+const CAT_NAME = { AR: '돌격소총', SMG: '기관단총', DMR: '지정사수소총', SR: '저격소총', SG: '산탄총', LMG: '경기관총', HG: '권총', XB: '석궁' };
 const CAT_INFO = {
   AR: { head: 2.35, limb: 0.9, hip: 2.2, ads: 0.06, adsTime: 0.22, move: 0.97, falloff: [120, 400, 0.75] },
   SMG: { head: 2.1, limb: 1.05, hip: 1.5, ads: 0.10, adsTime: 0.17, move: 1.0, falloff: [40, 150, 0.6] },
@@ -62,6 +63,7 @@ const CAT_INFO = {
   SG: { head: 1.5, limb: 0.9, hip: 3.6, ads: 2.6, adsTime: 0.22, move: 0.97, falloff: [7, 30, 0.08] },
   LMG: { head: 2.3, limb: 0.9, hip: 3.0, ads: 0.10, adsTime: 0.35, move: 0.9, falloff: [120, 400, 0.75] },
   HG: { head: 2.1, limb: 1.0, hip: 1.6, ads: 0.15, adsTime: 0.15, move: 1.03, falloff: [30, 120, 0.6] },
+  XB: { head: 2.6, limb: 1.0, hip: 2.4, ads: 0.0, adsTime: 0.26, move: 0.98, falloff: [500, 900, 1] },
 };
 const WEAPONS = {};
 for (const r of WEAPON_TABLE) {
@@ -91,7 +93,7 @@ function scopeOptions(w) { if (w.scopeMax < 0) return []; if (w.cat === 'SG') re
 function stockType(w) { if (!w.slots.includes('s')) return null; if (w.cat === 'SR') return w.id === 'kar98k' || w.id === 'mosin' ? 'cheek' : 'cheek'; if (w.cat === 'DMR') return 'cheek'; return 'tac'; }
 function defaultScope(w) {
   const o = scopeOptions(w); if (!o.length) return null;
-  const want = { AR: 'reddot', SMG: 'holo', DMR: '4x', SR: '8x', SG: 'reddot', LMG: 'reddot', HG: 'reddot' }[w.cat];
+  const want = { AR: 'reddot', SMG: 'holo', DMR: '4x', SR: '8x', SG: 'reddot', LMG: 'reddot', HG: 'reddot', XB: 'reddot' }[w.cat];
   return o.includes(want) ? want : o[o.length - 1];
 }
 // 풀파츠 장착
@@ -119,6 +121,7 @@ function weaponStats(id, att) {
     suppressed: w.integrated, flashHidden: w.integrated, pelletSpread: 4.2, sway: 1, recovery: 1, scopeZoom: 1.15,
   };
   if (w.integrated) s.scopeZoom = 4;
+  if (w.cat === 'XB') { s.suppressed = true; s.flashHidden = true; }
   if (att.scope) s.scopeZoom = scopeZoom(att.scope);
   switch (att.muzzle) {
     case 'comp': s.rv *= 0.85; s.rh *= 0.82; break;
@@ -215,6 +218,7 @@ function buildGunModel(id, att) {
     g.add(info.muzzle, info.eject);
     return info;
   }
+  if (id === 'crossbow') return buildCrossbow(g, att, info);
   const R = st.rec, B = st.bar, big = w.cat === 'SR' || w.cat === 'DMR' || w.cat === 'LMG';
   const recF = -R + 0.08;                       // 몸통 앞끝 z
   // 몸통 (윗부분 + 아랫부분)
@@ -301,6 +305,64 @@ function buildGunModel(id, att) {
   else if (att.scope && att.scope !== 'iron') addScope(g, att.scope, 0.0, -0.06, info);
   gunExtras(g, id, { body, furn, R, B, recF, hgL, att, scoped: !!(att.scope && att.scope !== 'iron') });
   info.eject.position.set(0.03, 0.05, -0.05);
+  g.add(info.muzzle, info.eject);
+  return info;
+}
+
+// ================= 석궁 =================
+const XBMAT = {
+  wood: new THREE.MeshStandardMaterial({ color: 0x6b4426, roughness: 0.6 }),
+  limb: new THREE.MeshStandardMaterial({ color: 0x1f2224, roughness: 0.5, metalness: 0.3 }),
+  string: new THREE.MeshBasicMaterial({ color: 0xd8d2c0 }),
+  bolt: new THREE.MeshStandardMaterial({ color: 0x9a8a6a, roughness: 0.7 }),
+  fletch: new THREE.MeshStandardMaterial({ color: 0xc23a2a, roughness: 0.8, side: THREE.DoubleSide }),
+  tip: new THREE.MeshStandardMaterial({ color: 0xb8bcc2, roughness: 0.3, metalness: 0.9 }),
+};
+function boltMesh() { // 화살(볼트) 하나: 앞쪽이 -z
+  const b = new THREE.Group();
+  b.add(M(CY(0.0045, 0.0045, 0.4, 6), XBMAT.bolt, 0, 0, 0, Math.PI / 2));
+  b.add(M(new THREE.ConeGeometry(0.008, 0.035, 6), XBMAT.tip, 0, 0, -0.215, -Math.PI / 2));
+  for (let k = 0; k < 3; k++) { const p = new THREE.Group(); p.rotation.z = k * Math.PI * 2 / 3; p.position.z = 0.16; p.add(M(new THREE.PlaneGeometry(0.06, 0.018), XBMAT.fletch, 0, 0.012, 0, 0, Math.PI / 2)); b.add(p); }
+  return b;
+}
+function buildCrossbow(g, att, info) {
+  // 개머리 + 몸통 (나무)
+  g.add(M(BX(0.045, 0.06, 0.34), XBMAT.wood, 0, -0.005, 0.1));
+  g.add(M(BX(0.05, 0.1, 0.06), XBMAT.wood, 0, -0.03, 0.27));
+  g.add(M(BX(0.034, 0.1, 0.045), GUNMAT.dark, 0, -0.065, 0.02, -0.25));          // 손잡이
+  g.add(M(BX(0.006, 0.006, 0.06), GUNMAT.dark, 0, -0.035, -0.02));               // 방아쇠울
+  g.add(M(BX(0.03, 0.03, 0.5), XBMAT.limb, 0, 0.02, -0.3));                       // 앞 레일 (화살 놓는 곳)
+  g.add(M(BX(0.022, 0.008, 0.24), GUNMAT.dark, 0, 0.064, -0.02));                 // 위 레일
+  // 활 (양쪽 날개) — 앞쪽 끝
+  const fz = -0.52;
+  g.add(M(BX(0.07, 0.05, 0.06), XBMAT.limb, 0, 0.02, fz));
+  const tips = [];
+  for (const s of [-1, 1]) {
+    const L = 0.3, ang = 0.32, cx = s * (0.035 + Math.cos(ang) * L / 2), cz = fz + Math.sin(ang) * L / 2;
+    const limb = M(BX(L, 0.016, 0.03), XBMAT.limb, cx, 0.025, cz); limb.rotation.y = -s * ang; g.add(limb);
+    tips.push(new V3(s * (0.035 + Math.cos(ang) * L), 0.03, fz + Math.sin(ang) * L));
+  }
+  // 줄: 날개 끝 → 걸쇠
+  const latch = new V3(0, 0.035, -0.12);
+  for (const t of tips) {
+    const d = latch.clone().sub(t), len = d.length();
+    const s = M(BX(0.003, 0.003, len), XBMAT.string, (t.x + latch.x) / 2, (t.y + latch.y) / 2, (t.z + latch.z) / 2);
+    s.rotation.y = Math.atan2(d.x, d.z); g.add(s);
+  }
+  g.add(M(new THREE.TorusGeometry(0.03, 0.006, 6, 12), GUNMAT.dark, 0, 0.0, -0.58, Math.PI / 2)); // 발 거는 고리
+  // 장전된 화살 (재장전 때 사라졌다 나타남)
+  const bolt = boltMesh(); bolt.position.set(0, 0.042, -0.31); g.add(bolt);
+  info.magMesh = bolt; info.magHome = bolt.position.clone(); g.userData.mag = bolt; info.xbBolt = bolt;
+  // 조준기
+  const sightY = 0.083;
+  if (att.scope && att.scope !== 'iron') addScope(g, att.scope, 0.0, -0.04, info);
+  else {
+    g.add(M(BX(0.004, 0.022, 0.004), GUNMAT.black, 0, sightY - 0.01, -0.46));
+    g.add(M(new THREE.TorusGeometry(0.009, 0.0035, 6, 14), GUNMAT.black, 0, sightY, 0.05));
+    g.add(M(BX(0.03, 0.012, 0.012), GUNMAT.dark, 0, sightY - 0.015, 0.05));
+    info.sightY = sightY;
+  }
+  info.muzzle.position.set(0, 0.042, -0.56); info.eject.position.set(0, 0.04, -0.1);
   g.add(info.muzzle, info.eject);
   return info;
 }

@@ -1,18 +1,21 @@
 // ================= 맵 (훈련장 1v1 경기장) =================
 const ARENA = 50;
 const ARENA_BOUNDS = { minX: -ARENA, maxX: ARENA, minZ: -ARENA, maxZ: ARENA };
-const WORLD = { boxes: [], half: 50, smokes: [], bounds: ARENA_BOUNDS };
+const WORLD = { boxes: [], half: 50, smokes: [], bounds: ARENA_BOUNDS, map: null };
+// 맵 여러 개: 같은 자리(가운데)에 만들어 두고, 쓰는 맵만 보이게 + 충돌 상자 바꾸기
+const MAPS = {}; let BUILD = null;
+function WADD(o) { (BUILD ? BUILD.group : scene).add(o); }
 
 // 상자 하나: 바닥 높이 y0 에서 시작
 function addBox(cx, y0, cz, w, h, d, mat, opt = {}) {
   const b = { min: new V3(cx - w / 2, y0, cz - d / 2), max: new V3(cx + w / 2, y0 + h, cz + d / 2), kind: opt.kind || 'solid', pen: opt.pen || 0 };
-  WORLD.boxes.push(b);
+  WORLD.boxes.push(b); if (BUILD) b.map = BUILD.id;
   if (opt.invisible) return b;
   const ts = opt.texScale === undefined ? 2 : opt.texScale;
   const m = new THREE.Mesh(boxGeo(w, h, d, ts), mat);
   m.position.set(cx, y0 + h / 2, cz);
   m.castShadow = opt.shadow !== false; m.receiveShadow = true;
-  scene.add(m); b.mesh = m;
+  WADD(m); b.mesh = m;
   return b;
 }
 // 중심 대칭 (점대칭) 으로 두 번 놓기: 양쪽이 공평하게
@@ -27,7 +30,7 @@ function container(cx, y0, cz, long, alongX, color) {
   const corners = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
   for (const [sx, sz] of corners) {
     const p = new THREE.Mesh(new THREE.BoxGeometry(0.16, H + 0.02, 0.16), fm);
-    p.position.set(cx + sx * (w / 2 - 0.07), y0 + H / 2, cz + sz * (d / 2 - 0.07)); p.castShadow = true; scene.add(p);
+    p.position.set(cx + sx * (w / 2 - 0.07), y0 + H / 2, cz + sz * (d / 2 - 0.07)); p.castShadow = true; WADD(p);
   }
   // 문 쪽 손잡이 막대
   const endX = alongX, sgn = 1;
@@ -35,7 +38,7 @@ function container(cx, y0, cz, long, alongX, color) {
     const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, H - 0.3, 6), fm);
     if (endX) bar.position.set(cx + sgn * (w / 2 + 0.03), y0 + H / 2, cz + k * 0.45);
     else bar.position.set(cx + k * 0.45, y0 + H / 2, cz + sgn * (d / 2 + 0.03));
-    scene.add(bar);
+    WADD(bar);
   }
   return b;
 }
@@ -99,15 +102,55 @@ function buildWorld() {
   g.rotation.x = -Math.PI / 2; g.position.y = -0.06; g.receiveShadow = true;
   TEX.ground.repeat.set(120, 120);
   scene.add(g);
+  // 경기장 밖 풍경: 언덕과 나무 (멀리 흐릿하게)
+  const hillMat = new THREE.MeshStandardMaterial({ color: 0x6f7d58, roughness: 1, flatShading: true });
+  for (let i = 0; i < 30; i++) {
+    const a = i / 30 * Math.PI * 2 + rand(-0.05, 0.05), r = rand(170, 320);
+    const h = rand(18, 60);
+    if (Math.hypot(Math.cos(a) * r - 300, Math.sin(a) * r) < 150) continue; // 훈련장 자리 비우기
+    const m = new THREE.Mesh(new THREE.ConeGeometry(rand(40, 90), h, 7), hillMat);
+    m.position.set(Math.cos(a) * r, h / 2 - 2, Math.sin(a) * r); scene.add(m);
+  }
+  const treeMat = new THREE.MeshStandardMaterial({ color: 0x3e5a35, roughness: 1, flatShading: true });
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4f3b28, roughness: 1 });
+  for (let i = 0; i < 90; i++) {
+    const a = Math.random() * Math.PI * 2, r = rand(60, 150);
+    const t = new THREE.Group();
+    const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 3, 6), trunkMat); tr.position.y = 1.5; t.add(tr);
+    const s = rand(0.8, 1.6);
+    for (let k = 0; k < 3; k++) { const c = new THREE.Mesh(new THREE.ConeGeometry(2.6 - k * 0.6, 3.2, 7), treeMat); c.position.y = 3.6 + k * 1.8; c.castShadow = false; t.add(c); }
+    t.scale.setScalar(s); t.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); scene.add(t);
+  }
+  buildMap('arena', ARENA_BOUNDS, -46.5, [[16, 20], [0, 17], [-19, 13], [6, 8], [-8, 9.5], [30, 14], [-22, 6], [13, 6.5], [0, 7.2]], buildArena);
+  buildMap('duel', DUEL_BOUNDS, -32.5, [[0, 4], [6.5, 9.5], [-8, 15], [8, 21], [-3, 26], [10, 2.5], [-10.5, 4.5]], buildDuel);
+  setMap('arena');
+}
+function buildMap(id, bounds, spawnZ, spots, fn) {
+  const M = MAPS[id] = { id, group: new THREE.Group(), bounds, spawnZ, spots, boxes: [] };
+  scene.add(M.group); BUILD = M;
+  const saved = WORLD.boxes; WORLD.boxes = M.boxes;
+  fn();
+  buildNav(bounds); M.nav = { grid: NAV.grid, cover: NAV.cover };
+  WORLD.boxes = saved; BUILD = null;
+}
+function setMap(id) {
+  const M = MAPS[id]; if (!M) return;
+  const extra = WORLD.boxes.filter(b => !b.map);
+  WORLD.boxes = M.boxes.concat(extra);
+  for (const k in MAPS) MAPS[k].group.visible = k === id;
+  NAV.grid = M.nav.grid; NAV.cover = M.nav.cover;
+  WORLD.map = M; WORLD.bounds = M.bounds;
+}
+function buildArena() {
   // 경기장 안쪽 바닥(콘크리트 패드)
   const padTex = TEX.concrete.clone(); padTex.needsUpdate = true; padTex.repeat.set(25, 25);
   const pad = new THREE.Mesh(new THREE.PlaneGeometry(ARENA * 2, ARENA * 2), new THREE.MeshStandardMaterial({ map: padTex, color: 0x8d8a83, roughness: 0.95 }));
-  pad.rotation.x = -Math.PI / 2; pad.position.y = 0; pad.receiveShadow = true; scene.add(pad);
+  pad.rotation.x = -Math.PI / 2; pad.position.y = 0; pad.receiveShadow = true; WADD(pad);
   // 페인트 선 (경기장 안내선)
   const lineMat = new THREE.MeshStandardMaterial({ map: TEX.lines, transparent: true, opacity: 0.8, roughness: 0.9, color: 0xc9bb7c, polygonOffset: true, polygonOffsetFactor: -2, depthWrite: false });
-  const addLine = (x, z, w, d) => { const l = new THREE.Mesh(new THREE.PlaneGeometry(w, d), lineMat); l.rotation.x = -Math.PI / 2; l.position.set(x, 0.02, z); l.renderOrder = 1; l.receiveShadow = true; scene.add(l); };
+  const addLine = (x, z, w, d) => { const l = new THREE.Mesh(new THREE.PlaneGeometry(w, d), lineMat); l.rotation.x = -Math.PI / 2; l.position.set(x, 0.02, z); l.renderOrder = 1; l.receiveShadow = true; WADD(l); };
   addLine(0, 0, 0.25, ARENA * 2 - 2); addLine(0, -ARENA + 8, 18, 0.25); addLine(0, ARENA - 8, 18, 0.25);
-  const circ = new THREE.Mesh(new THREE.RingGeometry(9.6, 9.85, 64), lineMat); circ.rotation.x = -Math.PI / 2; circ.position.y = 0.02; circ.renderOrder = 1; scene.add(circ);
+  const circ = new THREE.Mesh(new THREE.RingGeometry(9.6, 9.85, 64), lineMat); circ.rotation.x = -Math.PI / 2; circ.position.y = 0.02; circ.renderOrder = 1; WADD(circ);
 
   // 바깥 벽
   const H = 5;
@@ -118,7 +161,7 @@ function buildWorld() {
   // 벽 위 철조망 기둥
   for (let i = -ARENA; i <= ARENA; i += 6) {
     for (const [x, z] of [[i, -ARENA - 0.5], [i, ARENA + 0.5], [-ARENA - 0.5, i], [ARENA + 0.5, i]]) {
-      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.4, 6), MAT.dark); p.position.set(x, H + 0.7, z); scene.add(p);
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.4, 6), MAT.dark); p.position.set(x, H + 0.7, z); WADD(p);
     }
   }
 
@@ -180,7 +223,7 @@ function buildWorld() {
   // 계단 난간 기둥(보기용)
   for (const s of [-1, 1]) for (let i = 0; i <= steps; i += 2) {
     const p = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.0, 6), MAT.dark);
-    p.position.set(s * (hx + 1.38), rise * i + 0.5, s * (-3.0 + run * i)); scene.add(p);
+    p.position.set(s * (hx + 1.38), rise * i + 0.5, s * (-3.0 + run * i)); WADD(p);
   }
 
   // ---- 컨테이너 ----
@@ -235,32 +278,13 @@ function buildWorld() {
   // 감시탑(보기용 기둥 + 조명) 네 귀퉁이
   for (const [x, z] of [[-47, -47], [47, -47], [-47, 47], [47, 47]]) {
     addBox(x, 0, z, 0.5, 9, 0.5, MAT.metal, { texScale: 1 });
-    const head = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 0.6), MAT.dark); head.position.set(x, 9.2, z); scene.add(head);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 0.6), MAT.dark); head.position.set(x, 9.2, z); WADD(head);
     const lamp = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.35), new THREE.MeshBasicMaterial({ color: 0xfff4d0 }));
-    lamp.position.set(x * 0.985, 9.2, z * 0.985); lamp.lookAt(0, 0, 0); scene.add(lamp);
+    lamp.position.set(x * 0.985, 9.2, z * 0.985); lamp.lookAt(0, 0, 0); WADD(lamp);
   }
 
-  // 경기장 밖 풍경: 언덕과 나무 (멀리 흐릿하게)
-  const hillMat = new THREE.MeshStandardMaterial({ color: 0x6f7d58, roughness: 1, flatShading: true });
-  for (let i = 0; i < 30; i++) {
-    const a = i / 30 * Math.PI * 2 + rand(-0.05, 0.05), r = rand(170, 320);
-    const h = rand(18, 60);
-    if (Math.hypot(Math.cos(a) * r - 300, Math.sin(a) * r) < 150) continue; // 훈련장 자리 비우기
-    const m = new THREE.Mesh(new THREE.ConeGeometry(rand(40, 90), h, 7), hillMat);
-    m.position.set(Math.cos(a) * r, h / 2 - 2, Math.sin(a) * r); scene.add(m);
-  }
-  const treeMat = new THREE.MeshStandardMaterial({ color: 0x3e5a35, roughness: 1, flatShading: true });
-  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4f3b28, roughness: 1 });
-  for (let i = 0; i < 90; i++) {
-    const a = Math.random() * Math.PI * 2, r = rand(60, 150);
-    const t = new THREE.Group();
-    const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 3, 6), trunkMat); tr.position.y = 1.5; t.add(tr);
-    const s = rand(0.8, 1.6);
-    for (let k = 0; k < 3; k++) { const c = new THREE.Mesh(new THREE.ConeGeometry(2.6 - k * 0.6, 3.2, 7), treeMat); c.position.y = 3.6 + k * 1.8; c.castShadow = false; t.add(c); }
-    t.scale.setScalar(s); t.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); scene.add(t);
-  }
-  buildNav();
 }
+
 
 // ================= 충돌 =================
 const BOX_EPS = 1e-4;
@@ -345,14 +369,125 @@ function losClear(a, b, useSmoke = true) {
   return true;
 }
 
+
+// ================= 1:1 대결 맵 "벽돌 골목" (좁고 길쭉한 도시 골목) =================
+const DUEL_BOUNDS = { minX: -14, maxX: 14, minZ: -36, maxZ: 36 };
+function car(cx, cz, alongZ, color) {
+  const L = 4.4, W = 1.9, w = alongZ ? W : L, d = alongZ ? L : W;
+  addBox(cx, 0, cz, w, 1.1, d, MAT.car[color % MAT.car.length], { texScale: 0, kind: 'metal' });
+  addBox(cx, 1.1, cz, w - (alongZ ? 0.25 : 2.0), 0.62, d - (alongZ ? 2.0 : 0.25), MAT.glass, { texScale: 0, kind: 'metal' });
+  const wg = new THREE.CylinderGeometry(0.36, 0.36, 0.26, 12);
+  for (const a of [-1, 1]) for (const b of [-1, 1]) {
+    const wh = new THREE.Mesh(wg, MAT.dark);
+    if (alongZ) { wh.rotation.z = Math.PI / 2; wh.position.set(cx + a * (W / 2 + 0.02), 0.36, cz + b * 1.35); }
+    else { wh.rotation.x = Math.PI / 2; wh.position.set(cx + b * 1.35, 0.36, cz + a * (W / 2 + 0.02)); }
+    WADD(wh);
+  }
+}
+function carSym(cx, cz, alongZ, color) { car(cx, cz, alongZ, color); car(-cx, -cz, alongZ, color + 1); }
+const _barrelGeo = new THREE.CylinderGeometry(0.31, 0.31, 0.95, 14);
+function barrel(x, z) {
+  addBox(x, 0, z, 0.62, 0.95, 0.62, MAT.barrel, { invisible: true, kind: 'metal' });
+  const m = new THREE.Mesh(_barrelGeo, MAT.barrel); m.position.set(x, 0.475, z); m.castShadow = true; m.receiveShadow = true; WADD(m);
+}
+function barrelSym(x, z) { barrel(x, z); barrel(-x, -z); }
+// 구멍(문·창문) 뚫린 벽: along 'x' 면 z 고정, 'z' 면 x 고정
+function holeWall(along, fixed, a0, a1, h, T, mat, holes) {
+  const put = (c, len, y0, hh) => { if (len < 0.02 || hh < 0.02) return; along === 'x' ? addBox(c, y0, fixed, len, hh, T, mat) : addBox(fixed, y0, c, T, hh, len, mat); };
+  let cur = a0;
+  for (const o of holes.slice().sort((p, q) => p.c - q.c)) {
+    const l = o.c - o.w / 2, r = o.c + o.w / 2;
+    put((cur + l) / 2, l - cur, 0, h);
+    put(o.c, o.w, 0, o.y0); put(o.c, o.w, o.y1, h - o.y1);
+    cur = r;
+  }
+  put((cur + a1) / 2, a1 - cur, 0, h);
+}
+// 작은 벽돌집: 가운데 쪽으로 문, 적 쪽과 뒤쪽에 창문, 뒤 계단으로 지붕 올라가기
+function shack(cx, cz) {
+  const w = 6.5, d = 6, h = 3, T = 0.3, sx = Math.sign(cx), sz = Math.sign(cz), B = MAT.brick;
+  const door = { c: cz, w: 1.4, y0: 0, y1: 2.3 }, win = (c) => ({ c, w: 1.5, y0: 1.05, y1: 2.05 });
+  holeWall('z', cx - sx * (w / 2 - T / 2), cz - d / 2, cz + d / 2, h, T, B, [door]);            // 가운데 쪽: 문
+  holeWall('z', cx + sx * (w / 2 - T / 2), cz - d / 2, cz + d / 2, h, T, B, [win(cz)]);         // 바깥 벽 쪽: 창문
+  holeWall('x', cz - sz * (d / 2 - T / 2), cx - w / 2 + T, cx + w / 2 - T, h, T, B, [win(cx + sx * 1.2)]); // 적 쪽 창문
+  holeWall('x', cz + sz * (d / 2 - T / 2), cx - w / 2 + T, cx + w / 2 - T, h, T, B, [{ c: cx + sx * 1.6, w: 1.2, y0: 0, y1: 2.3 }]); // 뒤쪽 작은 문
+  addBox(cx, h, cz, w, 0.25, d, MAT.concreteDark, { texScale: 3 });                              // 지붕
+  addBox(cx, h + 0.25, cz - sz * (d / 2 - 0.15), w, 0.85, 0.3, MAT.concrete);                    // 지붕 앞 난간 (엄폐)
+  addBox(cx + sx * (w / 2 - 0.15), h + 0.25, cz, 0.3, 0.85, d, MAT.concrete);                     // 바깥 쪽 난간
+  const steps = 10, rise = (h + 0.25) / steps, run = 0.45;
+  stairs(cx - sx * 1.7, cz + sz * (d / 2 + steps * run), 1.2, steps, rise, run, sz < 0 ? 'z+' : 'z-', MAT.metal);
+  // 안쪽 상자
+  crate(cx + sx * 1.6, 0, cz - sz * 1.4, 1.1);
+}
+function buildDuel() {
+  const B = DUEL_BOUNDS, W = B.maxX - B.minX, L = B.maxZ - B.minZ;
+  const at = TEX.asphalt.clone(); at.needsUpdate = true; at.repeat.set(W / 6, L / 6);
+  const pad = new THREE.Mesh(new THREE.PlaneGeometry(W, L), new THREE.MeshStandardMaterial({ map: at, roughness: 0.97 }));
+  pad.rotation.x = -Math.PI / 2; pad.position.y = 0; pad.receiveShadow = true; WADD(pad);
+  // 도로 노란 점선 + 흰 주차선
+  const lm = new THREE.MeshStandardMaterial({ color: 0xd9b23a, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2, depthWrite: false });
+  const wm = new THREE.MeshStandardMaterial({ color: 0xd8d8d2, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2, depthWrite: false });
+  const decal = (x, z, w, d, m) => { const l = new THREE.Mesh(new THREE.PlaneGeometry(w, d), m); l.rotation.x = -Math.PI / 2; l.position.set(x, 0.015, z); l.renderOrder = 1; l.receiveShadow = true; WADD(l); };
+  for (let z = -33; z <= 33; z += 4) decal(0, z, 0.22, 2.2, lm);
+  for (const s of [-1, 1]) { for (let k = 0; k < 4; k++) decal(s * 9, s * (-30 + k * 3), 4.5, 0.15, wm); decal(0, s * -31.5, 10, 0.3, wm); }
+  // 바깥 벽 (벽돌) + 위 테두리
+  const H = 5.5;
+  addBox(0, 0, B.minZ - 0.5, W + 2, H, 1, MAT.brick, { texScale: 2 });
+  addBox(0, 0, B.maxZ + 0.5, W + 2, H, 1, MAT.brick, { texScale: 2 });
+  addBox(B.minX - 0.5, 0, 0, 1, H, L, MAT.brick, { texScale: 2 });
+  addBox(B.maxX + 0.5, 0, 0, 1, H, L, MAT.brick, { texScale: 2 });
+  const cap = new THREE.MeshStandardMaterial({ color: 0x55534f, roughness: 0.9 });
+  for (const [x, z, w, d] of [[0, B.minZ - 0.5, W + 2.4, 1.3], [0, B.maxZ + 0.5, W + 2.4, 1.3], [B.minX - 0.5, 0, 1.3, L + 2], [B.maxX + 0.5, 0, 1.3, L + 2]]) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, d), cap); m.position.set(x, H + 0.15, z); m.castShadow = true; WADD(m);
+  }
+  // 벽 너머 높은 건물들 (보기용)
+  const bm = [0x6e6a64, 0x7d5a4b, 0x5d6168].map(c => new THREE.MeshStandardMaterial({ map: TEX.concrete, color: c, roughness: 0.95 }));
+  const winMat = new THREE.MeshStandardMaterial({ color: 0x223040, roughness: 0.2, metalness: 0.7 });
+  for (const s of [-1, 1]) for (let z = -40; z <= 40; z += 13) {
+    const h = rand(12, 22), m = new THREE.Mesh(new THREE.BoxGeometry(10, h, 12), bm[(Math.abs(z) + (s > 0 ? 1 : 0)) % 3]);
+    m.position.set(s * 21, h / 2, z); m.castShadow = true; m.receiveShadow = true; WADD(m);
+    for (let y = 3; y < h - 1; y += 3.2) for (let k = -1; k <= 1; k++) { const wi = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.4), winMat); wi.position.set(s * 15.98, y, z + k * 3.6); wi.rotation.y = -s * Math.PI / 2; WADD(wi); }
+  }
+  for (const s of [-1, 1]) { const h = rand(14, 20), m = new THREE.Mesh(new THREE.BoxGeometry(40, h, 10), bm[2]); m.position.set(0, h / 2, s * 43); m.castShadow = true; WADD(m); }
+  // 가로등
+  for (const s of [-1, 1]) for (let z = -27; z <= 27; z += 18) {
+    const x = s * 13.6;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 6, 8), MAT.dark); pole.position.set(x, 3, z); WADD(pole);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 0.08), MAT.dark); arm.position.set(x - s * 0.6, 6, z); WADD(arm);
+    const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.25), new THREE.MeshBasicMaterial({ color: 0xffe9b0 })); lamp.position.set(x - s * 1.15, 5.94, z); WADD(lamp);
+  }
+
+  // ---- 가운데: 콘크리트 블록 (상자 밟고 올라가요) ----
+  addBox(0, 0, 0, 3.6, 2.2, 3.6, MAT.concrete);
+  crateSym(2.5, 0, -1.1, 1.2);
+  // ---- 양쪽 벽돌집 ----
+  shack(-8, -15); shack(8, 15);
+  // ---- 자동차 ----
+  carSym(5.8, -8.5, true, 0);
+  carSym(-2.8, -24.5, false, 2);
+  carSym(-11.2, -27, true, 3);
+  // ---- 엄폐물 ----
+  addSym(-3.8, 0, -6, 3.2, 1.0, 0.6, MAT.concrete, { kind: 'barrier' });
+  addSym(10.6, 0, -17, 0.6, 1.0, 3.2, MAT.concrete, { kind: 'barrier' });
+  addSym(0, 0, -29.5, 5, 1.1, 0.6, MAT.concrete, { kind: 'barrier' });     // 시작 지점 엄폐
+  addSym(8.5, 0, -29.5, 0.6, 1.0, 2.6, MAT.concrete, { kind: 'barrier' });
+  addSym(3.6, 0, -18.5, 0.5, 3.0, 5.0, MAT.brick, { texScale: 2 });           // 골목 나누는 높은 벽
+  addSym(11.2, 0, -5, 3.2, 0.95, 0.8, MAT.sandbag, { texScale: 1.6, kind: 'sand' });
+  addSym(-1.5, 0, -14, 2.6, 0.95, 0.8, MAT.sandbag, { texScale: 1.6, kind: 'sand' });
+  barrelSym(12.6, -23.5); barrelSym(12.6, -22.8); barrelSym(11.95, -23.15);
+  barrelSym(-12.7, -3.2); barrelSym(-12.7, -2.5);
+  crateSym(12.7, 0, -12, 1.25); crateSym(12.7, 1.25, -12, 1.25); crateSym(12.7, 0, -10.75, 1.25);
+  crateSym(-5.5, 0, -33.5, 1.2);
+}
+
 // ================= AI 길찾기 격자 =================
 const NAV = { size: 1, n: 100, off: 50, grid: null, cover: null };
-function buildNav() {
+function buildNav(B = ARENA_BOUNDS) {
   const n = NAV.n; NAV.grid = new Uint8Array(n * n);
   const r = 0.45;
   for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
     const x = i - NAV.off + 0.5, z = j - NAV.off + 0.5;
-    let blocked = Math.abs(x) > ARENA - 1 || Math.abs(z) > ARENA - 1;
+    let blocked = x < B.minX + 1 || x > B.maxX - 1 || z < B.minZ + 1 || z > B.maxZ - 1;
     if (!blocked) for (const b of WORLD.boxes) {
       if (b.min.y > 1.6 || b.max.y < 0.35) continue;
       if (x + r > b.min.x && x - r < b.max.x && z + r > b.min.z && z - r < b.max.z) { blocked = true; break; }

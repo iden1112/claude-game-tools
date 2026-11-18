@@ -18,7 +18,7 @@ const enemy = () => BOT;
 function goMenu() {
   if (NET.active || NET.peer || NET.bc) { netSend({ t: 'bye' }); netReset(); }
   G.state = 'menu'; G.mode = 'arena'; G.menuOpen = false;
-  WORLD.bounds = ARENA_BOUNDS; clearCombat();
+  WORLD.bounds = WORLD.map.bounds; clearCombat();
   for (const id of ['pause', 'end', 'loadout', 'rangemenu', 'mp']) $(id).style.display = 'none';
   $('start-settings').appendChild($('settings'));
   $('start').style.display = 'flex';
@@ -33,7 +33,7 @@ function goMenu() {
 
 const GAME = {
   startMatch() {
-    G.mode = 'arena'; G.myTeam = 0; PLAYER.team = undefined; WORLD.bounds = ARENA_BOUNDS;
+    G.mode = 'arena'; G.myTeam = 0; PLAYER.team = undefined; setMap('duel');
     ACTORS.length = 0; ACTORS.push(PLAYER, BOT); BOT.soldier.setVisible(true);
     for (const a of RANGE.dummies) a.soldier.setVisible(false);
     G.score = [0, 0]; G.round = 0; G.time = 0; resetKD(); PLAYER.name = NICK();
@@ -45,13 +45,14 @@ const GAME = {
   newRound(sideOverride) {
     G.round++;
     clearCombat();
-    WORLD.bounds = ARENA_BOUNDS;
+    if (G.mode !== 'mp') setMap('duel');
+    WORLD.bounds = WORLD.map.bounds;
     const mp = G.mode === 'mp', E = enemy();
     ACTORS.length = 0; ACTORS.push(PLAYER, E);
     PLAYER.setLoadout(playerLoadoutList());
     if (!mp) BOT.setLoadout(botLoadout());
     const side = sideOverride !== undefined ? sideOverride : G.round % 2 === 0;
-    const pz = side ? 46.5 : -46.5;
+    const SZ = Math.abs(WORLD.map.spawnZ), pz = side ? SZ : -SZ;
     PLAYER.reset(); E.reset();
     if (mp) { E.soldier.setVisible(true); E.net.pos.set(0, 0, -pz); }
     PLAYER.pos.set(rand(-5, 5), 0, pz); PLAYER.yaw = pz < 0 ? Math.PI : 0; PLAYER.pitch = 0;
@@ -71,7 +72,7 @@ const GAME = {
   newRoundMP(spawns) {
     G.round++;
     clearCombat();
-    WORLD.bounds = ARENA_BOUNDS;
+    WORLD.bounds = WORLD.map.bounds;
     PLAYER.setLoadout(playerLoadoutList());
     for (const a of ACTORS) {
       a.reset();

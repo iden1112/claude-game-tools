@@ -67,10 +67,18 @@ function spawnBullet(owner, origin, dir, st, pelletDmg) {
     owner, st, pos: origin.clone(), start: origin.clone(), vel: dir.clone().multiplyScalar(st.def.vel), age: 0, dist: 0,
     dmg: pelletDmg, tracer: null, cracked: false,
   };
-  if (st.def.cat !== 'SG' || Math.random() < 0.35) { b.tracer = getTracer(); b.tracer.scale.set(0, 0, 0); }
+  if (st.def.cat === 'XB') { b.arrow = getArrow(); b.arrow.position.copy(origin); b.arrow.lookAt(_v4.copy(origin).sub(dir)); }
+  else if (st.def.cat !== 'SG' || Math.random() < 0.35) { b.tracer = getTracer(); b.tracer.scale.set(0, 0, 0); }
   BULLETS.push(b);
 }
 const _bp = new V3(), _bn = new V3(), _bd = new V3(), _hbTmp = {};
+// ---- 석궁 화살: 날아가는 모습 + 벽에 꽂힘 ----
+const arrowPool = [], STUCK = [];
+function getArrow() {
+  let a = arrowPool.find(x => !x.visible);
+  if (!a) { a = boltMesh(); a.scale.setScalar(1.6); scene.add(a); arrowPool.push(a); }
+  a.visible = true; a.userData.stuckT = 0; return a;
+}
 function updateBullets(dt) {
   for (let i = BULLETS.length - 1; i >= 0; i--) {
     const b = BULLETS[i];
@@ -98,6 +106,10 @@ function updateBullets(dt) {
       if (_v2.distanceTo(PLAYER.eyePos) < 2.2 && !hitActor) { b.cracked = true; AU.crack(_v2); }
     }
     b.dist += Math.min(hitT, segL);
+    if (b.arrow) { // 화살은 날아가는 방향을 따라 기울어요 (포물선)
+      b.arrow.position.copy(_bp).addScaledVector(_bd, Math.min(hitT, segL));
+      b.arrow.lookAt(_v4.copy(b.arrow.position).sub(_bd));
+    }
     // 예광탄 모양
     if (b.tracer) {
       const tip = _v3.copy(_bp).addScaledVector(_bd, Math.min(hitT, segL));
@@ -120,7 +132,14 @@ function updateBullets(dt) {
       if (Math.random() < 0.25 && camera.position.distanceTo(hp) < 30) AU.click(0.05, 3000);
       done = true;
     }
-    if (done) { if (b.tracer) b.tracer.visible = false; BULLETS.splice(i, 1); }
+    if (done) {
+      if (b.tracer) b.tracer.visible = false;
+      if (b.arrow) { // 벽·바닥에 맞으면 꽂힌 채로 잠깐 남아요
+        if (wr && !hitActor) { b.arrow.position.addScaledVector(_bd, 0.12); b.arrow.userData.stuckT = 12; STUCK.push(b.arrow); if (STUCK.length > 20) { STUCK.shift().visible = false; } }
+        else b.arrow.visible = false;
+      }
+      BULLETS.splice(i, 1);
+    }
   }
 }
 function falloffMul(st, d) {
@@ -153,6 +172,7 @@ function applyBulletDamage(b, victim, part, hp, dir) {
 
 // ---- 탄피 / 화염 업데이트 ----
 function updateFX(dt) {
+  for (let i = STUCK.length - 1; i >= 0; i--) { const a = STUCK[i]; a.userData.stuckT -= dt; if (a.userData.stuckT <= 0) { a.visible = false; STUCK.splice(i, 1); } }
   for (const s of flashPool) if (s.visible) { s.userData.t -= dt; if (s.userData.t <= 0) s.visible = false; }
   if (flashLightT > 0) { flashLightT -= dt; if (flashLightT <= 0) flashLight.intensity = 0; }
   for (const s of shells) if (s.m.visible) {

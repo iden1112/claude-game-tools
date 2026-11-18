@@ -101,7 +101,8 @@ function enterRange() {
 }
 function clearCombat() {
   if (typeof HUD !== 'undefined') { HUD.flashV = 0; HUD.hurtV = 0; }
-  for (const b of BULLETS) if (b.tracer) b.tracer.visible = false; BULLETS.length = 0;
+  for (const b of BULLETS) { if (b.tracer) b.tracer.visible = false; if (b.arrow) b.arrow.visible = false; } BULLETS.length = 0;
+  for (const a of STUCK) a.visible = false; STUCK.length = 0;
   for (const g of GRENADES) scene.remove(g.mesh); GRENADES.length = 0;
   for (const s of WORLD.smokes) for (const p of s.puffs) scene.remove(p.sprite); WORLD.smokes.length = 0;
   for (const d of decals) if (d) d.position.y = -100;
