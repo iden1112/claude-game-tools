@@ -1,5 +1,5 @@
 'use strict';
-const GAME_BUILD = 17; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 18; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -429,11 +429,11 @@ const AU = (() => {
       if (bk) {
         const b = pick(bk), rate = rand(0.95, 1.05) * (suppressed ? 1 : 1);
         // 멀리서 쏘면 앞소리는 작아지고 메아리 비율이 커져요
-        playBuf(out, b.dry, T0, (suppressed ? 0.75 : 1.25) * V, rate);
+        playBuf(out, b.dry, T0, (suppressed ? 0.6 : 0.95) * V, rate);
         let n = 1, tailEnd = T0 + b.dry.duration;
         if (!lite && (T0 - lastTail > (cat === 'SR' || cat === 'SG' || cat === 'DMR' ? 0 : 0.11) || suppressed)) {
           lastTail = T0;
-          const tv = (suppressed ? 0.12 : 0.42 + Math.min(0.5, s.dist / 90)) * V;
+          const tv = (suppressed ? 0.1 : 0.32 + Math.min(0.4, s.dist / 90)) * V;
           playBuf(chain({ ...s, lp: Math.min(s.lp, 9000) }), b.tail, T0 + 0.01, tv, rate); n++; tailEnd = T0 + b.tail.duration;
         }
         addVoice(Math.min(tailEnd, T0 + 0.6), n);

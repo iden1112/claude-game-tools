@@ -165,6 +165,7 @@ function applyBulletDamage(b, victim, part, hp, dir) {
   const head = part === 'head';
   if (head && victim.helmet.lv > 0) { dmg *= 1 - ARMOR.helmet.red[victim.helmet.lv]; victim.helmet.dur -= base * mult * 0.6; if (victim.helmet.dur <= 0) victim.breakArmor('helmet'); }
   if (part === 'torso' && victim.vest.lv > 0) { dmg *= 1 - ARMOR.vest.red[victim.vest.lv]; victim.vest.dur -= base; if (victim.vest.dur <= 0) victim.breakArmor('vest'); }
+  if (part !== 'head' && b.st.def.bolt) dmg = 68; // 저격총(볼트액션) 몸통: 조끼 상관없이 3방이면 쓰러짐
   bloodFX(hp, dir);
   if (victim.dummy && b.owner === PLAYER) rangeOnHit(victim, Math.min(dmg, victim.health), part, b.dist, hp, b.st);
   victim.damage(dmg, b.owner, { head, weapon: b.st.def.name, dir: dir.clone(), dist: b.dist });
