@@ -6,6 +6,7 @@ PLAYER.pos.set(-3, 0, -30); BOT.pos.set(3, 0, 30); BOT.yaw = 0; PLAYER.yaw = Mat
 for (const a of ACTORS) a.afterMove(0);
 HUD.init(); setupMenus(); setupLoadoutUI(); setupRangeMenu(); setupMP();
 frame();
+$('verlabel').textContent = 'v' + GAME_BUILD;
 // 새 버전 알림: 웹사이트에 더 새 게임이 있으면 시작 화면에 알려줘요
 const GAME_SITE = 'https://iden1112.github.io/claude-game-tools/';
 (function checkUpdate() {

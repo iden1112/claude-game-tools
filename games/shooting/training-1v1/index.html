@@ -218,7 +218,7 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
 
 <div id="start" class="overlay">
   <div class="panel">
-    <h1>훈련장 1v1<small>배틀그라운드 훈련장 스타일 1대1 · AI 대전 · 친구와 온라인 대전 · 사격 훈련장 · 7점 선승 · PC 전용</small></h1>
+    <h1>훈련장 1v1 <span id="verlabel" style="font-size:13px;color:#9aa4ad;font-weight:600;letter-spacing:0"></span><small>배틀그라운드 훈련장 스타일 1대1 · AI 대전 · 친구와 온라인 대전 · 사격 훈련장 · 7점 선승 · PC 전용</small></h1>
     <div class="nickrow"><label>닉네임</label><input id="start-nick" maxlength="12" placeholder="닉네임을 정하세요" autocomplete="off"></div>
     <div class="row"><button class="btn" id="btn-start">AI 대전</button><button class="btn" id="btn-mp">친구와 대전</button><button class="btn" id="btn-range">훈련장</button><button class="btn sub" id="btn-loadout">총 고르기 (~)</button></div>
     <div class="cols">
@@ -5129,6 +5129,7 @@ PLAYER.pos.set(-3, 0, -30); BOT.pos.set(3, 0, 30); BOT.yaw = 0; PLAYER.yaw = Mat
 for (const a of ACTORS) a.afterMove(0);
 HUD.init(); setupMenus(); setupLoadoutUI(); setupRangeMenu(); setupMP();
 frame();
+$('verlabel').textContent = 'v' + GAME_BUILD;
 // 새 버전 알림: 웹사이트에 더 새 게임이 있으면 시작 화면에 알려줘요
 const GAME_SITE = 'https://iden1112.github.io/claude-game-tools/';
 (function checkUpdate() {
