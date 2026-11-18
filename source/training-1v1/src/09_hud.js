@@ -107,9 +107,9 @@ const HUD = {
       const moving = Math.hypot(p.vel.x, p.vel.z);
       const sp = lerp(w.stats.hip * lerp(1, 0.42, p.shoulderT || 0), w.stats.ads, p.adsT) * STANCE[p.stance].spread * 0.5 + w.stats.pelletSpread + moving / 6 + (p.onGround ? 0 : 3);
       const focal = (innerHeight / 2) / Math.tan(camera.fov * DEG / 2);
-      const r = Math.max(14, Math.tan(sp * DEG) * focal);
+      const r = Math.max(9, Math.tan(sp * DEG) * focal * 0.55);
       this.sgr = damp(this.sgr || r, r, 14, dt);
-      const R = Math.round(this.sgr), D = R + 7;
+      const R = Math.round(this.sgr), D = R + 5;
       UI('sgc-r', 'style.cssText', `width:${R * 2}px;height:${R * 2}px;left:${-R - 2}px;top:${-R - 2}px`);
       UI('sgc-d', 'style.cssText', `width:${D * 2}px;height:${D * 2}px;left:${-D - 2}px;top:${-D - 2}px`);
     }
