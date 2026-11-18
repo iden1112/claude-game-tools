@@ -32,7 +32,8 @@ function makeBot(name) {
 function botLoadout() {
   const p = pick(BOT_POOLS.primary); let s = pick(BOT_POOLS.secondary);
   if (WEAPONS[p].cat === 'SMG' && WEAPONS[s].cat === 'SMG') s = pick(['m416', 'akm', 'scar']);
-  return [{ id: p, att: fullAttachments(p) }, { id: s, att: fullAttachments(s) }];
+  const h = pick(['p92', 'p1911', 'p18c', 'deagle']);
+  return [{ id: p, att: fullAttachments(p) }, { id: s, att: fullAttachments(s) }, { id: h, att: fullAttachments(h) }];
 }
 function botRoundStart(b = BOT) {
   const ai = b.ai;

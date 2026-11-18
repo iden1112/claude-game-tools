@@ -1,8 +1,16 @@
 // ================= 게임 진행 =================
 const G = { myTeam: 0, state: 'menu', mode: 'arena', time: 0, round: 0, score: [0, 0], shake: 0, preT: 0, roundT: 0, postT: 0, menuOpen: false, paused: false, winTo: 7 };
 const ROUND_TIME = 150;
-let LOADOUT = { slots: [{ id: 'm416', scope: 'reddot', muzzle: 'comp', grip: 'vert' }, { id: 'kar98k', scope: '8x', muzzle: 'supp' }] };
+let LOADOUT = { slots: [{ id: 'm416', scope: 'reddot', muzzle: 'comp', grip: 'vert' }, { id: 'kar98k', scope: '8x', muzzle: 'supp' }, { id: 'p92', muzzle: 'supp' }] };
 try { const s = JSON.parse(localStorage.getItem('tg1v1_loadout') || 'null'); if (s && s.slots && s.slots.every(x => WEAPONS[x.id])) LOADOUT = s; } catch (e) {}
+// 배그처럼: 1·2번은 주무기, 3번은 권총
+(function fixLoadoutSlots() {
+  const sl = LOADOUT.slots, def = [{ id: 'm416' }, { id: 'kar98k' }];
+  let hg = sl.slice(0, 2).find(x => WEAPONS[x.id].cat === 'HG');
+  for (let i = 0; i < 2; i++) if (!sl[i] || WEAPONS[sl[i].id].cat === 'HG') sl[i] = Object.assign({ id: def[i].id }, fullAttachments(def[i].id));
+  if (!sl[2] || WEAPONS[sl[2].id].cat !== 'HG') sl[2] = hg || Object.assign({ id: 'p92' }, fullAttachments('p92'));
+  sl.length = 3;
+})();
 function saveLoadout() { try { localStorage.setItem('tg1v1_loadout', JSON.stringify(LOADOUT)); } catch (e) {} }
 function playerLoadoutList() { return LOADOUT.slots.map(s => ({ id: s.id, att: fullAttachments(s.id, s) })); }
 const enemy = () => BOT;
@@ -194,8 +202,8 @@ function closeLoadout(force) {
 function statBar(label, v, max, txt) { return `<div class="sb"><span>${label}</span><div><i style="width:${clamp(v / max, 0.03, 1) * 100}%"></i></div><em>${txt}</em></div>`; }
 function renderLoadout() {
   const sl = LOADOUT.slots[LO.slot];
-  $('lo-slots').innerHTML = LOADOUT.slots.map((s, i) => `<button class="${i === LO.slot ? 'on' : ''}" data-slot="${i}"><small>${i + 1}번 무기</small>${WEAPONS[s.id].name}</button>`).join('');
-  $('lo-cats').innerHTML = Object.keys(CAT_NAME).map(c => `<button class="${c === LO.cat ? 'on' : ''}" data-cat="${c}">${CAT_NAME[c]}</button>`).join('');
+  $('lo-slots').innerHTML = LOADOUT.slots.map((s, i) => `<button class="${i === LO.slot ? 'on' : ''}" data-slot="${i}"><small>${i + 1}번 ${i === 2 ? '권총' : '주무기'}</small>${WEAPONS[s.id].name}</button>`).join('');
+  $('lo-cats').innerHTML = Object.keys(CAT_NAME).filter(c => LO.slot === 2 ? c === 'HG' : c !== 'HG').map(c => `<button class="${c === LO.cat ? 'on' : ''}" data-cat="${c}">${CAT_NAME[c]}</button>`).join('');
   $('lo-guns').innerHTML = Object.values(WEAPONS).filter(w => w.cat === LO.cat).map(w => `<button class="gun ${w.id === sl.id ? 'on' : ''}" data-gun="${w.id}"><b>${w.name}</b><small>${w.ammo} · ${w.dmg}${w.pellets > 1 ? '×' + w.pellets : ''}</small></button>`).join('');
   const w = WEAPONS[sl.id], att = fullAttachments(sl.id, sl), st = weaponStats(sl.id, att);
   const rpm = Math.round(60 / w.interval);

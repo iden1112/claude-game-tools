@@ -132,7 +132,7 @@ function playerInput(dt) {
   if (P.KeyV) { CAM.tpp = !CAM.tpp; HUD.toast(CAM.tpp ? '3인칭' : '1인칭'); }
   CAM.free = !!(K.AltLeft || K.AltRight) && !p.ads && !INPUT.rmb && !(p.w && p.w.id === 'win94' && p.adsT > 0);
   // 무기 바꾸기
-  if (P.Digit1) p.equip(0); if (P.Digit2) p.equip(1);
+  if (P.Digit1) p.equip(0); if (P.Digit2) p.equip(1); if (P.Digit3) p.equip(2);
   if (P.Digit5 || P.KeyG) p.equipThrow();
   // 조준경 휠 줌 (3배율 이상)
   const zw = p.w && p.mode === 'gun' ? p.w : null;
