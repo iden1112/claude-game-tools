@@ -1,5 +1,5 @@
 'use strict';
-const GAME_BUILD = 19; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 20; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -355,6 +355,15 @@ const AU = (() => {
       let ph = 0;
       for (let i = 0; i < n; i++) { const t = i / sr, f = p.boom * 0.55 + p.boom * 1.9 * ex(t, 0.018); ph += 2 * Math.PI * f / sr; x[i] += Math.sin(ph) * ex(t, p.punch * 1.1) * 0.9; }
       if (p.sub) { ph = 0; for (let i = 0; i < n; i++) { const t = i / sr; ph += 2 * Math.PI * (34 + 30 * ex(t, 0.05)) / sr; x[i] += Math.sin(ph) * Math.min(1, t / 0.004) * ex(t, 0.13) * 0.8 * p.sub; } }
+    } else if (p.sub >= 0.6) {
+      // 저격총·지정사수 소음기: 배그처럼 '피슝~' (날카로운 '피' + 바람 가르는 '슝')
+      const c = biq(nz(n), 'hp', 3200, 0.7, sr);
+      for (let i = 0; i < n; i++) { const t = i / sr; x[i] += c[i] * ex(t, 0.006) * 1.1; }
+      const sh = biq(biq(nz(n), 'bp', 2400, 0.9, sr), 'hp', 600, 0.7, sr);
+      for (let i = 0; i < n; i++) { const t = i / sr; const a = Math.min(1, t / 0.008); x[i] += sh[i] * a * ex(t, 0.055) * 1.5; }
+      let ph = 0;
+      for (let i = 0; i < n; i++) { const t = i / sr, f = 700 + 2100 * ex(t, 0.06); ph += 2 * Math.PI * f / sr; x[i] += Math.sin(ph) * Math.min(1, t / 0.01) * ex(t, 0.09) * 0.32; }
+      ph = 0; for (let i = 0; i < n; i++) { const t = i / sr; ph += 2 * Math.PI * (60 + 120 * ex(t, 0.012)) / sr; x[i] += Math.sin(ph) * ex(t, 0.045) * 0.55; }
     } else {
       // 소음기: '퓻' 하는 둔한 공기 소리
       const b = biq(biq(nz(n), 'lp', 1700, 0.8, sr), 'hp', 180, 0.7, sr);
@@ -369,7 +378,7 @@ const AU = (() => {
       for (let i = 0; i < n; i++) { const t = i / sr; if (t > t1) x[i] += mk[i] * ex(t - t1, 0.006) * 0.7 * m; if (t > t2) x[i] += mk2[i] * ex(t - t2, 0.008) * 0.55 * m; }
     }
     // 부드럽게 꽉 채우기 (소프트 클리핑) + 정규화
-    const dr = suppressed ? 1.4 : p.drive, nd = Math.tanh(dr);
+    const dr = suppressed ? (p.sub >= 0.6 ? 1.8 : 1.4) : p.drive, nd = Math.tanh(dr);
     let pk = 0; for (let i = 0; i < n; i++) { x[i] = Math.tanh(x[i] * dr) / nd; pk = Math.max(pk, Math.abs(x[i])); }
     for (let i = 0; i < n; i++) x[i] *= 0.92 / (pk || 1);
     for (let i = n - 400; i < n; i++) x[i] *= (n - i) / 400;
@@ -409,6 +418,7 @@ const AU = (() => {
   const api = {
     init, setVol,
     get ctx() { return ctx; },
+    get _buf() { return BUF; },
     shot(pos, cat, suppressed, local) {
       if (!ctx) return; const s = spatial(local ? null : pos), t = ctx.currentTime, p = P[cat] || P.AR;
       // 동시에 나는 소리가 너무 많으면 줄이기 (소리 깨짐·끊김 방지)
@@ -429,7 +439,7 @@ const AU = (() => {
       if (bk) {
         const b = pick(bk), rate = rand(0.95, 1.05) * (suppressed ? 1 : 1);
         // 멀리서 쏘면 앞소리는 작아지고 메아리 비율이 커져요
-        playBuf(out, b.dry, T0, (suppressed ? 0.6 : 0.95) * V, rate);
+        playBuf(out, b.dry, T0, (suppressed ? (SND[cat] && SND[cat].sub >= 0.6 ? 0.8 : 0.6) : 0.95) * V, rate);
         let n = 1, tailEnd = T0 + b.dry.duration;
         if (!lite && (T0 - lastTail > (cat === 'SR' || cat === 'SG' || cat === 'DMR' ? 0 : 0.11) || suppressed)) {
           lastTail = T0;
