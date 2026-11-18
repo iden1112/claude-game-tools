@@ -266,7 +266,7 @@ function updateViewmodel(dt, hsp) {
   const info = VM.info, cat = p.w.stats.cat;
   const hip = cat === 'HG' ? new V3(0.15, -0.15, -0.38) : new V3(0.16, -0.16, -0.36);
   const adsZ = cat === 'HG' ? -0.32 : (p.w.att.scope && p.w.att.scope !== 'iron' ? -0.2 : -0.22);
-  const adsP = VM.show2x ? new V3(0, -info.sightY - 0.05, -0.34) : new V3(0, -info.sightY, adsZ);
+  const adsP = VM.show2x ? new V3(0, -info.sightY - 0.04, -0.36) : new V3(0, -info.sightY, adsZ);
   const shP = cat === 'HG' ? new V3(0.07, -0.13, -0.34) : new V3(0.075, -0.125, -0.3);
   hip.lerp(shP, smooth01(p.shoulderT || 0));
   const pos = hip.lerp(adsP, ads);

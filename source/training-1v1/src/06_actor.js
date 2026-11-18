@@ -5,7 +5,7 @@ const STANCE = {
   prone: { h: 0.6, eye: 0.38, speed: 1.15, sprint: 1.15, recoil: 0.55, spread: 0.6 },
 };
 const MAX_HP = 200;
-const RADIUS = 0.33, STEP = 0.46, JUMP_V = 4.3, G_ACC = 15;
+const RADIUS = 0.33, STEP = 0.46, JUMP_V = 6.1, G_ACC = 15;
 
 class Actor {
   constructor(name, isPlayer, look) {
