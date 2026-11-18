@@ -248,12 +248,13 @@ function setupMenus() {
   diff.innerHTML = BOT_DIFF.map((d, i) => `<option value="${i}">${d.name}</option>`).join('');
   diff.value = SETTINGS.difficulty; arm.value = SETTINGS.armor;
   $('set-sens').value = SETTINGS.sens; $('set-ads').value = SETTINGS.adsSens; $('set-fov').value = SETTINGS.fov; $('set-vol').value = SETTINGS.volume;
-  $('set-aim').value = SETTINGS.aimMode; $('set-crouch').value = SETTINGS.crouchMode; $('set-lean').value = SETTINGS.leanMode; $('set-sprint').value = SETTINGS.sprintMode;
+  $('set-aim').value = SETTINGS.aimMode; $('set-crouch').value = SETTINGS.crouchMode; $('set-lean').value = SETTINGS.leanMode; $('set-sprint').value = SETTINGS.sprintMode; $('set-quality').value = SETTINGS.quality || 'mid';
   $('start-nick').value = SETTINGS.nick || '';
   const sync = () => {
     SETTINGS.difficulty = +diff.value; SETTINGS.armor = +arm.value; SETTINGS.sens = +$('set-sens').value; SETTINGS.adsSens = +$('set-ads').value;
     SETTINGS.fov = +$('set-fov').value; SETTINGS.volume = +$('set-vol').value; AU.setVol(SETTINGS.volume);
     SETTINGS.aimMode = $('set-aim').value; SETTINGS.crouchMode = $('set-crouch').value; SETTINGS.leanMode = $('set-lean').value; SETTINGS.sprintMode = $('set-sprint').value;
+    if (SETTINGS.quality !== $('set-quality').value) { SETTINGS.quality = $('set-quality').value; applyQuality(); }
     $('v-sens').textContent = SETTINGS.sens.toFixed(2); $('v-ads').textContent = SETTINGS.adsSens.toFixed(2); $('v-fov').textContent = SETTINGS.fov;
     saveSettings();
   };

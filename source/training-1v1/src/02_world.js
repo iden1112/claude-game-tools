@@ -102,6 +102,7 @@ function buildWorld() {
   g.rotation.x = -Math.PI / 2; g.position.y = -0.06; g.receiveShadow = true;
   TEX.ground.repeat.set(120, 120);
   scene.add(g);
+  const scenery = new THREE.Group(); scene.add(scenery); BUILD = { id: null, group: scenery };
   // 경기장 밖 풍경: 언덕과 나무 (멀리 흐릿하게)
   const hillMat = new THREE.MeshStandardMaterial({ color: 0x6f7d58, roughness: 1, flatShading: true });
   for (let i = 0; i < 30; i++) {
@@ -109,7 +110,7 @@ function buildWorld() {
     const h = rand(18, 60);
     if (Math.hypot(Math.cos(a) * r - 300, Math.sin(a) * r) < 150) continue; // 훈련장 자리 비우기
     const m = new THREE.Mesh(new THREE.ConeGeometry(rand(40, 90), h, 7), hillMat);
-    m.position.set(Math.cos(a) * r, h / 2 - 2, Math.sin(a) * r); scene.add(m);
+    m.position.set(Math.cos(a) * r, h / 2 - 2, Math.sin(a) * r); WADD(m);
   }
   const treeMat = new THREE.MeshStandardMaterial({ color: 0x3e5a35, roughness: 1, flatShading: true });
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4f3b28, roughness: 1 });
@@ -119,17 +120,60 @@ function buildWorld() {
     const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 3, 6), trunkMat); tr.position.y = 1.5; t.add(tr);
     const s = rand(0.8, 1.6);
     for (let k = 0; k < 3; k++) { const c = new THREE.Mesh(new THREE.ConeGeometry(2.6 - k * 0.6, 3.2, 7), treeMat); c.position.y = 3.6 + k * 1.8; c.castShadow = false; t.add(c); }
-    t.scale.setScalar(s); t.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); scene.add(t);
+    t.scale.setScalar(s); t.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); WADD(t);
   }
+  BUILD = null; mergeStatic(scenery);
   buildMap('arena', ARENA_BOUNDS, -46.5, [[16, 20], [0, 17], [-19, 13], [6, 8], [-8, 9.5], [30, 14], [-22, 6], [13, 6.5], [0, 7.2]], buildArena);
   buildMap('duel', DUEL_BOUNDS, -32.5, [[0, 4], [6.5, 9.5], [-8, 15], [8, 21], [-3, 26], [10, 2.5], [-10.5, 4.5]], buildDuel);
   setMap('arena');
+}
+// ================= 최적화: 안 움직이는 물체를 재질별로 한 덩어리로 합치기 =================
+// (상자 수백 개를 하나씩 그리면 느려서, 같은 재질끼리 묶어 한 번에 그려요)
+function mergeStatic(root) {
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const groups = new Map();
+  root.traverse(o => {
+    if (!o.isMesh || o.userData.keep || Array.isArray(o.material)) return;
+    const a = o.geometry.attributes; if (!a.position || !a.normal || !a.uv) return;
+    const k = o.material.uuid + '|' + o.castShadow + '|' + o.receiveShadow + '|' + o.renderOrder;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(o);
+  });
+  const m4 = new THREE.Matrix4(), n3 = new THREE.Matrix3(), v = new V3();
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    let nv = 0, ni = 0;
+    for (const o of list) { const g = o.geometry; nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
+    const P = new Float32Array(nv * 3), N = new Float32Array(nv * 3), U = new Float32Array(nv * 2), I = new Uint32Array(ni);
+    let vo = 0, io = 0;
+    for (const o of list) {
+      const g = o.geometry, pa = g.attributes.position, na = g.attributes.normal, ua = g.attributes.uv;
+      m4.multiplyMatrices(inv, o.matrixWorld); n3.getNormalMatrix(m4);
+      for (let i = 0; i < pa.count; i++) {
+        v.fromBufferAttribute(pa, i).applyMatrix4(m4); P[(vo + i) * 3] = v.x; P[(vo + i) * 3 + 1] = v.y; P[(vo + i) * 3 + 2] = v.z;
+        v.fromBufferAttribute(na, i).applyMatrix3(n3).normalize(); N[(vo + i) * 3] = v.x; N[(vo + i) * 3 + 1] = v.y; N[(vo + i) * 3 + 2] = v.z;
+        U[(vo + i) * 2] = ua.getX(i); U[(vo + i) * 2 + 1] = ua.getY(i);
+      }
+      if (g.index) for (let i = 0; i < g.index.count; i++) I[io++] = g.index.getX(i) + vo;
+      else for (let i = 0; i < pa.count; i++) I[io++] = i + vo;
+      vo += pa.count;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(N, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(U, 2));
+    geo.setIndex(new THREE.BufferAttribute(I, 1)); geo.computeBoundingSphere(); geo.computeBoundingBox();
+    const f = list[0], mesh = new THREE.Mesh(geo, f.material);
+    mesh.castShadow = f.castShadow; mesh.receiveShadow = f.receiveShadow; mesh.renderOrder = f.renderOrder;
+    for (const o of list) { o.parent.remove(o); o.geometry.dispose(); }
+    root.add(mesh);
+  }
 }
 function buildMap(id, bounds, spawnZ, spots, fn) {
   const M = MAPS[id] = { id, group: new THREE.Group(), bounds, spawnZ, spots, boxes: [] };
   scene.add(M.group); BUILD = M;
   const saved = WORLD.boxes; WORLD.boxes = M.boxes;
   fn();
+  mergeStatic(M.group);
   buildNav(bounds); M.nav = { grid: NAV.grid, cover: NAV.cover };
   WORLD.boxes = saved; BUILD = null;
 }
@@ -140,6 +184,7 @@ function setMap(id) {
   for (const k in MAPS) MAPS[k].group.visible = k === id;
   NAV.grid = M.nav.grid; NAV.cover = M.nav.cover;
   WORLD.map = M; WORLD.bounds = M.bounds;
+  setShadowArea(id === 'duel' ? 46 : 70);
 }
 function buildArena() {
   // 경기장 안쪽 바닥(콘크리트 패드)
@@ -522,13 +567,17 @@ function findPath(fx, fz, tx, tz) {
   let [si, sj] = navNearestFree(...navCell(fx, fz)); let [ti, tj] = navNearestFree(...navCell(tx, tz));
   const start = si + sj * n, goal = ti + tj * n;
   const g = new Float32Array(n * n).fill(Infinity), came = new Int32Array(n * n).fill(-1), closed = new Uint8Array(n * n);
-  const open = [start]; g[start] = 0;
+  g[start] = 0;
   const h = (k) => { const i = k % n, j = (k / n) | 0; const dx = Math.abs(i - ti), dz = Math.abs(j - tj); return Math.max(dx, dz) + 0.414 * Math.min(dx, dz); };
-  const f = new Float32Array(n * n).fill(Infinity); f[start] = h(start);
+  // 이진 힙 (가장 작은 f 먼저) — 예전 방식보다 훨씬 빨라요
+  const hk = [], hf = [];
+  const push = (k, f) => { let i = hk.length; hk.push(k); hf.push(f); while (i > 0) { const p = (i - 1) >> 1; if (hf[p] <= f) break; hk[i] = hk[p]; hf[i] = hf[p]; i = p; } hk[i] = k; hf[i] = f; };
+  const pop = () => { const top = hk[0], lk = hk.pop(), lf = hf.pop(); if (hk.length) { let i = 0; const L = hk.length; for (;;) { let c = 2 * i + 1; if (c >= L) break; if (c + 1 < L && hf[c + 1] < hf[c]) c++; if (hf[c] >= lf) break; hk[i] = hk[c]; hf[i] = hf[c]; i = c; } hk[i] = lk; hf[i] = lf; } return top; };
+  push(start, h(start));
   let iter = 0;
-  while (open.length && iter++ < 6000) {
-    let bi = 0; for (let k = 1; k < open.length; k++) if (f[open[k]] < f[open[bi]]) bi = k;
-    const cur = open[bi]; open.splice(bi, 1);
+  while (hk.length && iter++ < 8000) {
+    const cur = pop();
+    if (closed[cur]) continue;
     if (cur === goal) break;
     closed[cur] = 1;
     const ci = cur % n, cj = (cur / n) | 0;
@@ -538,7 +587,7 @@ function findPath(fx, fz, tx, tz) {
       if (a && b && (!navFree(ci + a, cj) || !navFree(ci, cj + b))) continue;
       const nk = ni + nj * n; if (closed[nk]) continue;
       const ng = g[cur] + (a && b ? 1.414 : 1) + (NAV.cover[nk] ? 0 : 0.15);
-      if (ng < g[nk]) { g[nk] = ng; f[nk] = ng + h(nk); came[nk] = cur; if (!open.includes(nk)) open.push(nk); }
+      if (ng < g[nk]) { g[nk] = ng; came[nk] = cur; push(nk, ng + h(nk)); }
     }
   }
   if (came[goal] < 0 && goal !== start) return null;

@@ -1,5 +1,5 @@
 'use strict';
-const GAME_BUILD = 20; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 21; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -13,7 +13,7 @@ const _v1 = new V3(), _v2 = new V3(), _v3 = new V3(), _v4 = new V3();
 
 const SETTINGS = {
   sens: 1.0, adsSens: 0.8, fov: 75, difficulty: 1, armor: 2, volume: 0.8,
-  aimMode: 'pubg', crouchMode: 'toggle', leanMode: 'hold', sprintMode: 'hold', nick: '',
+  aimMode: 'pubg', crouchMode: 'toggle', leanMode: 'hold', sprintMode: 'hold', nick: '', quality: 'mid',
 };
 try { Object.assign(SETTINGS, JSON.parse(localStorage.getItem('tg1v1_settings') || '{}')); } catch (e) {}
 function saveSettings() { try { localStorage.setItem('tg1v1_settings', JSON.stringify(SETTINGS)); } catch (e) {} }
@@ -51,6 +51,22 @@ const SC = sun.shadow.camera; SC.left = -70; SC.right = 70; SC.top = 70; SC.bott
 sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.05;
 scene.add(sun); scene.add(sun.target);
 const amb = new THREE.AmbientLight(0x9aa8b8, 0.12); scene.add(amb);
+// 그래픽 품질: 높음 / 보통 /낮음 (낮을수록 빨라요)
+let SHADOW_HALF = 70;
+function applyQuality() {
+  const q = SETTINGS.quality || 'mid';
+  renderer.setPixelRatio(q === 'high' ? Math.min(window.devicePixelRatio || 1, 1.5) : q === 'mid' ? 1 : 0.75);
+  renderer.setSize(innerWidth, innerHeight);
+  const want = q === 'low' ? 0 : q === 'mid' ? 2048 : 4096;
+  if (!want) { sun.castShadow = false; }
+  else {
+    sun.castShadow = true;
+    if (sun.shadow.mapSize.x !== want) { sun.shadow.mapSize.set(want, want); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  }
+}
+function setShadowArea(half) { // 맵 크기에 맞춰 그림자 범위를 줄이면 그림자가 더 선명하고 빨라요
+  SHADOW_HALF = half; SC.left = -half; SC.right = half; SC.top = half; SC.bottom = -half; SC.updateProjectionMatrix();
+}
 const ENV = null;
 
 // 하늘

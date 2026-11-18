@@ -1,4 +1,5 @@
 // ================= 시작 =================
+applyQuality();
 buildWorld();
 createPlayer(); createBot();
 PLAYER.setLoadout(playerLoadoutList()); BOT.setLoadout(botLoadout());

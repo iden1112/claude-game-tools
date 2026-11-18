@@ -86,7 +86,7 @@ function enterRange() {
   buildRange();
   G.mode = 'range'; G.state = 'range'; G.round = 0;
   $('start').style.display = 'none'; $('end').style.display = 'none';
-  WORLD.bounds = RANGE.bounds;
+  WORLD.bounds = RANGE.bounds; setShadowArea(70);
   BOT.soldier.setVisible(false);
   ACTORS.length = 0; ACTORS.push(PLAYER);
   for (const a of RANGE.dummies) { if (a.kind !== 'target') { ACTORS.push(a); dummyReset(a); a.soldier.setVisible(true); } }
