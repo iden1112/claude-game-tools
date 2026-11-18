@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>비행기 모델 미리보기 (aircraft3d.js)</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#8cc8f0;font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{display:block}
+#top{position:fixed;left:10px;right:10px;top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{border:1px solid rgba(255,255,255,.3);background:rgba(10,14,22,.55);color:#fff;border-radius:12px;padding:9px 14px;font-size:14px;font-weight:700;cursor:pointer}
+button.on{background:#fff;color:#111}
+#info{background:rgba(10,14,22,.55);padding:8px 12px;border-radius:12px;font-size:13px}
+#pad{position:fixed;left:10px;right:10px;bottom:12px;display:none;justify-content:space-between;align-items:flex-end}
+body.fly #pad{display:flex}
+.g{display:flex;gap:8px}
+.c{width:66px;height:66px;font-size:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;touch-action:none}
+.c small{font-size:10px}
+.c.act{background:rgba(255,255,255,.35)}
+</style>
+</head>
+<body>
+<div id="top">
+  <button id="bJet" class="on">제트기</button><button id="bPlane">경비행기</button>
+  <button id="bFly">✈ 직접 날기</button>
+  <div id="info">드래그로 돌려 보기</div>
+</div>
+<div id="pad">
+  <div class="g"><button class="c" data-k="left">◀</button><button class="c" data-k="right">▶</button></div>
+  <div class="g"><button class="c" data-k="boost">🔥<small>부스트</small></button><button class="c" data-k="brake">🪂<small>감속</small></button><button class="c" data-k="up">⬆<small>상승</small></button><button class="c" data-k="down">⬇<small>하강</small></button><button class="c" data-k="throttle" style="height:84px">▲<small>가속</small></button></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>/*
+ * aircraft3d.js — 코드로 만든 저폴리 비행기 2종 + 아케이드 비행 조종 (Three.js r128 이상, 의존성 없음)
+ *
+ *   const jet = AIRCRAFT3D.jet();            // 제트기 (삼각 날개, 꼬리날개 2개, 애프터버너, 접히는 바퀴)
+ *   const plane = AIRCRAFT3D.lightPlane();   // 경비행기 (높은 날개, 프로펠러)
+ *   scene.add(jet);
+ *
+ *   // 모델만 쓸 때: 매 프레임 애니메이션
+ *   jet.userData.animate(dt, { throttle: 1, boost: false, onGround: false, speed: 80 });
+ *
+ *   // 조종까지 쓸 때
+ *   const fc = new AIRCRAFT3D.FlightController(jet, { groundHeight: (x, z) => 0 });
+ *   fc.update(dt, { throttle, up, down, left, right, boost, brake });   // 입력은 true/false (brake: 감속판·플랩)
+ *   fc.onCrash = () => {...}; fc.onLand = () => {...}; fc.onTakeoff = () => {...};
+ *
+ * 크기: 1 = 1m. 바퀴 바닥이 y = 0, 앞쪽이 +z.
+ * 색 바꾸기: AIRCRAFT3D.jet({ body: 0x7d8792, dark: 0x3a4048, canopy: 0x8a6a20 })
+ *           AIRCRAFT3D.lightPlane({ body: 0xf4f4f0, stripe: 0xc8282a })
+ */
+(function (root) {
+  'use strict';
+  const T = () => root.THREE;
+
+  // ---------- 공통 재질 / 도우미 ----------
+  let MAT = null;
+  function mats() {
+    if (MAT) return MAT;
+    const THREE = T();
+    MAT = {
+      glass: new THREE.MeshPhongMaterial({ color: 0x121820, shininess: 140, specular: 0x9aaabb }),
+      tire: new THREE.MeshPhongMaterial({ color: 0x141414, shininess: 4 }),
+      trim: new THREE.MeshPhongMaterial({ color: 0x1a1b1d, shininess: 25 }),
+      chrome: new THREE.MeshPhongMaterial({ color: 0xd8dde3, shininess: 160, specular: 0xffffff }),
+      silver: new THREE.MeshPhongMaterial({ color: 0xc4c8cc, shininess: 110, specular: 0xdddddd }),
+      inner: new THREE.MeshPhongMaterial({ color: 0x232426, shininess: 10 }),
+      red: new THREE.MeshBasicMaterial({ color: 0xff2020 }),
+      green: new THREE.MeshBasicMaterial({ color: 0x20ff60 }),
+      flameOut: new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }),
+      flameIn: new THREE.MeshBasicMaterial({ color: 0xbfe8ff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }),
+    };
+    return MAT;
+  }
+  const paint = (c, s = 80) => new (T().MeshPhongMaterial)({ color: c, shininess: s, specular: 0x666666 });
+  function add(p, geo, mat, x = 0, y = 0, z = 0) { const m = new (T().Mesh)(geo, mat); m.position.set(x, y, z); m.castShadow = true; p.add(m); return m; }
+  function box(p, w, h, d, mat, x, y, z) { return add(p, new (T().BoxGeometry)(w, h, d), mat, x, y, z); }
+  // 옆모습(z, y) 다각형을 너비만큼 밀어서 만든 몸통
+  function ext(p, prof, width, mat, bevel = 0.04, x = 0) {
+    const THREE = T(), s = new THREE.Shape(); prof.forEach(([z, y], i) => (i ? s.lineTo(z, y) : s.moveTo(z, y)));
+    const d = Math.max(0.01, width - bevel * 2);
+    const g = new THREE.ExtrudeGeometry(s, { depth: d, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: 4 });
+    g.translate(0, 0, -d / 2); g.rotateY(-Math.PI / 2);
+    return add(p, g, mat, x, 0, 0);
+  }
+  // 위에서 본 (x, z) 다각형 판 (날개)
+  function plate(p, pts, th, mat, y) {
+    const THREE = T(), s = new THREE.Shape(); pts.forEach(([x, z], i) => (i ? s.lineTo(x, -z) : s.moveTo(x, -z)));
+    const g = new THREE.ExtrudeGeometry(s, { depth: th, bevelEnabled: false }); g.rotateX(-Math.PI / 2);
+    return add(p, g, mat, 0, y, 0);
+  }
+  function tube(p, a, b, r, mat) {
+    const THREE = T(), A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A), len = d.length();
+    const m = add(p, new THREE.CylinderGeometry(r, r, len, 10), mat);
+    m.position.copy(A).add(B).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); return m;
+  }
+  function wheel(p, x, y, z, r, w, rimMat, both) {
+    const THREE = T(), M = mats(), spin = new THREE.Group(); spin.position.set(x, y, z); p.add(spin);
+    add(spin, new THREE.CylinderGeometry(r, r, w, 20).rotateZ(Math.PI / 2), M.tire);
+    for (const sd of both ? [1, -1] : [Math.sign(x) || 1]) {
+      const fx = sd * (w / 2 + 0.006);
+      add(spin, new THREE.CylinderGeometry(r * 0.68, r * 0.68, 0.01, 18).rotateZ(Math.PI / 2), M.inner, fx - sd * 0.004, 0, 0);
+      for (let i = 0; i < 4; i++) { const s = add(spin, new THREE.BoxGeometry(0.03, r * 0.62, r * 0.16).translate(0, r * 0.33, 0), rimMat, fx + sd * 0.012, 0, 0); s.rotation.x = (i / 4) * Math.PI * 2; }
+    }
+    return { spin, r };
+  }
+  function flames(g, points, scale) {
+    const THREE = T(), M = mats();
+    const geo = new THREE.ConeGeometry(0.16, 1, 12, 1, true).translate(0, 0.5, 0).rotateX(-Math.PI / 2);
+    return points.map((e) => {
+      const f = new THREE.Group(); f.position.copy(e);
+      const o = new THREE.Mesh(geo, M.flameOut), i = new THREE.Mesh(geo, M.flameIn); i.scale.set(0.55, 0.55, 0.6);
+      f.add(o, i); f.visible = false; f.userData.k = scale; g.add(f); return f;
+    });
+  }
+  // 공통 애니메이션: 프로펠러, 바퀴, 착륙장치, 불꽃
+  function animator(g, info) {
+    return (dt, s = {}) => {
+      const thr = s.throttle || 0, speed = s.speed || 0;
+      if (info.prop) info.prop.rotation.z += (s.onGround && thr < 0.05 && speed < 1 ? 8 : 25 + thr * 25) * dt;
+      if (s.onGround) for (const w of info.wheels) w.spin.rotation.x += (speed * dt) / w.r;
+      if (info.gear) info.gear.visible = s.gearDown != null ? s.gearDown : !!s.onGround;
+      const bk = s.brake ? 1 : 0; info.brakeK = (info.brakeK || 0) + (bk - (info.brakeK || 0)) * (1 - Math.exp(-dt * 6));
+      if (info.airbrake) info.airbrake.rotation.x = info.brakeK * 0.9;
+      if (info.flaps) for (const f of info.flaps) f.rotation.x = -info.brakeK * 0.6;
+      const fl = s.boost ? 1 : info.afterburner ? thr * 0.55 : 0;
+      for (const f of info.flames) {
+        f.visible = fl > 0.02;
+        if (f.visible) { const k = f.userData.k, r = 0.8 + Math.random() * 0.4; f.scale.set(k * fl, k * fl, k * fl * r * (s.boost ? 2.2 : 1.4)); }
+      }
+    };
+  }
+
+  // ---------- 제트기 ----------
+  function jet(o = {}) {
+    const THREE = T(), M = mats(), g = new THREE.Group(); g.name = 'jet';
+    const Gy = paint(o.body != null ? o.body : 0x7d8792), Dk = paint(o.dark != null ? o.dark : 0x3a4048, 60);
+    const can = new THREE.MeshPhongMaterial({ color: o.canopy != null ? o.canopy : 0x8a6a20, emissive: 0x201000, shininess: 160, specular: 0xffffff });
+    ext(g, [[7.2, 1.95], [6.0, 1.65], [2.5, 1.35], [-5.6, 1.4], [-6.4, 1.65], [-6.4, 2.35], [-3.0, 2.45], [1.0, 2.55], [3.5, 2.35], [5.8, 2.15]], 1.5, Gy, 0.15);
+    ext(g, [[7.7, 1.93], [7.0, 1.78], [6.3, 1.82], [6.3, 2.1], [7.0, 2.06]], 0.62, Dk, 0.1);
+    ext(g, [[4.7, 2.28], [3.5, 2.98], [2.0, 3.02], [0.9, 2.5]], 0.86, can, 0.12);
+    for (const sx of [-1, 1]) {
+      const m = (pts) => pts.map(([x, z]) => [x * sx, z]);
+      plate(g, sx > 0 ? m([[0.7, 1.6], [5.2, -3.4], [5.2, -4.3], [0.7, -4.7]]) : m([[0.7, 1.6], [0.7, -4.7], [5.2, -4.3], [5.2, -3.4]]), 0.12, Gy, 1.72);
+      plate(g, sx > 0 ? m([[0.6, -4.7], [2.7, -6.0], [2.7, -6.7], [0.6, -6.5]]) : m([[0.6, -4.7], [0.6, -6.5], [2.7, -6.7], [2.7, -6.0]]), 0.09, Gy, 1.85);
+      const fin = ext(g, [[-3.9, 2.4], [-6.0, 2.4], [-6.5, 4.4], [-5.6, 4.4]], 0.1, Dk, 0.02, sx * 0.55); fin.rotation.z = sx * -0.22;
+      box(g, 0.45, 0.6, 2.2, Dk, sx * 0.88, 1.75, 1.4);
+      box(g, 0.08, 0.06, 0.12, sx > 0 ? M.red : M.green, sx * 5.2, 1.8, -3.9);
+    }
+    add(g, new THREE.CylinderGeometry(0.62, 0.55, 0.9, 16).rotateX(Math.PI / 2), Dk, 0, 1.9, -6.75);
+    add(g, new THREE.CircleGeometry(0.48, 16).rotateY(Math.PI), new THREE.MeshBasicMaterial({ color: 0xff7a2a }), 0, 1.9, -7.21);
+    const airbrake = new THREE.Group(); airbrake.position.set(0, 2.5, -1.0); g.add(airbrake); box(airbrake, 0.95, 0.05, 1.3, Gy, 0, 0, -0.65); // 에어브레이크 (감속판)
+    const gear = new THREE.Group(); g.add(gear);
+    const wheels = [wheel(gear, 1.4, 0.4, -1.2, 0.4, 0.24, M.silver), wheel(gear, -1.4, 0.4, -1.2, 0.4, 0.24, M.silver), wheel(gear, 0, 0.34, 4.6, 0.34, 0.18, M.silver, true)];
+    for (const sx of [-1, 1]) tube(gear, [sx * 1.4, 0.42, -1.2], [sx * 0.9, 1.45, -1.1], 0.07, M.chrome);
+    tube(gear, [0, 0.36, 4.6], [0, 1.5, 4.5], 0.07, M.chrome);
+    const exhaust = [new THREE.Vector3(0, 1.9, -7.15)];
+    const info = { wheels, gear, airbrake, exhaust, flames: flames(g, exhaust, 3.6), afterburner: true };
+    g.userData = Object.assign(g.userData, {
+      kind: 'jet', parts: info, exhaust, animate: animator(g, info),
+      // 조종 기본값 (m/s, 라디안)
+      flight: { vmax: 150, vfast: 230, acc: 26, stall: 42, rot: 52, climb: 0.55, cruise: 110, turn: 0.75, length: 15, wingspan: 10.4 },
+      cockpit: { x: 0, y: 2.75, z: 3.4 },
+    });
+    return g;
+  }
+
+  // ---------- 경비행기 ----------
+  function lightPlane(o = {}) {
+    const THREE = T(), M = mats(), g = new THREE.Group(); g.name = 'lightPlane';
+    const Wt = paint(o.body != null ? o.body : 0xf4f4f0, 70), Rd = paint(o.stripe != null ? o.stripe : 0xc8282a, 70);
+    ext(g, [[3.55, 1.35], [3.3, 1.0], [1.0, 0.85], [-1.6, 1.05], [-3.9, 1.5], [-4.0, 1.72], [-1.6, 1.95], [0.1, 2.3], [1.3, 2.32], [2.3, 1.85], [3.45, 1.68]], 1.15, Wt, 0.12);
+    ext(g, [[1.25, 2.26], [2.2, 1.84], [2.0, 1.66], [-0.05, 1.72], [0.12, 2.22]], 1.22, M.glass, 0.02);
+    ext(g, [[3.4, 1.28], [-3.9, 1.55], [-3.9, 1.63], [3.4, 1.4]], 1.2, Rd, 0);
+    box(g, 10.6, 0.13, 1.55, Wt, 0, 2.38, 0.75);
+    for (const sx of [-1, 1]) {
+      box(g, 0.9, 0.15, 1.57, Rd, sx * 4.9, 2.38, 0.75);
+      tube(g, [sx * 0.55, 1.15, 0.7], [sx * 2.7, 2.32, 0.85], 0.04, M.trim);
+      box(g, 0.08, 0.06, 0.1, sx > 0 ? M.red : M.green, sx * 5.32, 2.38, 0.9);
+    }
+    const flaps = [-1, 1].map((sx) => { const f = new THREE.Group(); f.position.set(sx * 2.2, 2.32, -0.02); g.add(f); box(f, 2.6, 0.06, 0.45, Wt, 0, 0, -0.22); return f; }); // 플랩 (감속)
+    box(g, 3.6, 0.08, 0.95, Wt, 0, 1.68, -3.45);
+    ext(g, [[-3.0, 1.75], [-3.95, 1.75], [-4.05, 3.1], [-3.6, 3.12]], 0.09, Rd, 0.02);
+    const prop = new THREE.Group(); prop.position.set(0, 1.42, 3.62); g.add(prop);
+    add(prop, new THREE.ConeGeometry(0.24, 0.5, 12).rotateX(Math.PI / 2), Rd, 0, 0, 0.18);
+    box(prop, 0.17, 2.1, 0.05, M.trim, 0, 0, 0.02);
+    const disc = add(prop, new THREE.CircleGeometry(1.05, 24), new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide }), 0, 0, 0.04);
+    disc.castShadow = false;
+    const wheels = [wheel(g, 1.25, 0.32, -0.15, 0.32, 0.18, M.silver), wheel(g, -1.25, 0.32, -0.15, 0.32, 0.18, M.silver), wheel(g, 0, 0.27, 2.55, 0.27, 0.14, M.silver, true)];
+    for (const sx of [-1, 1]) tube(g, [sx * 1.2, 0.34, -0.15], [sx * 0.45, 1.0, -0.1], 0.05, M.trim);
+    tube(g, [0, 0.3, 2.55], [0, 1.0, 2.45], 0.05, M.chrome);
+    const exhaust = [new THREE.Vector3(0.38, 1.0, 2.9), new THREE.Vector3(-0.38, 1.0, 2.9)];
+    const info = { wheels, prop, flaps, exhaust, flames: flames(g, exhaust, 1), afterburner: false };
+    g.userData = Object.assign(g.userData, {
+      kind: 'lightPlane', parts: info, exhaust, animate: animator(g, info),
+      flight: { vmax: 62, vfast: 85, acc: 9, stall: 19, rot: 23, climb: 0.42, cruise: 40, turn: 0.9, length: 8, wingspan: 10.6 },
+      cockpit: { x: 0, y: 2.15, z: 1.0 },
+    });
+    return g;
+  }
+
+  // ---------- 아케이드 비행 조종 ----------
+  // 땅에서는 달리고(활주), 이륙 속도가 되면 up 으로 이륙, 공중에서는 날개를 기울여 선회해요.
+  class FlightController {
+    constructor(obj, o = {}) {
+      this.obj = obj; this.f = Object.assign({}, obj.userData.flight, o.flight);
+      this.groundHeight = o.groundHeight || (() => 0);   // (x, z) => 땅 높이
+      this.waterLevel = o.waterLevel != null ? o.waterLevel : -Infinity;  // 물 높이 (이 아래로 내려가면 추락)
+      this.ceiling = o.ceiling || 900;
+      this.speed = 0; this.heading = obj.rotation.y || 0; this.pitch = 0; this.roll = 0; this.steer = 0; this.vy = 0;
+      this.onGround = true; this.dead = false;
+      this.onTakeoff = null; this.onLand = null; this.onCrash = null;
+      this.obj.rotation.order = 'YXZ';
+    }
+    get altitude() { return this.obj.position.y - Math.max(this.groundHeight(this.obj.position.x, this.obj.position.z), this.waterLevel); }
+    reset(x, z, heading = 0) { this.obj.position.set(x, this.groundHeight(x, z), z); this.heading = heading; this.speed = this.pitch = this.roll = this.vy = 0; this.onGround = true; this.dead = false; this.obj.visible = true; }
+    update(dt, inp = {}) {
+      const F = this.f, p = this.obj.position;
+      if (this.dead) return;
+      const brake = !!inp.brake, thr = !!inp.throttle && !brake, up = !!inp.up, down = !!inp.down, boost = !!inp.boost;
+      this.steer += (((inp.left ? 1 : 0) - (inp.right ? 1 : 0)) - this.steer) * (1 - Math.exp(-dt * 5));
+      let top = inp.fast ? F.vfast : F.vmax; if (boost) top *= 1.5;
+      const gh = (x, z) => this.groundHeight(x, z);
+      if (this.onGround) {
+        if (thr || boost) this.speed += F.acc * (1 - this.speed / top) * dt * (boost ? 2 : 1);
+        else this.speed -= (1.5 + this.speed * 0.04) * dt;
+        if (down || brake) this.speed -= 16 * dt;
+        this.speed = Math.max(0, this.speed);
+        this.heading += this.steer * 0.9 * Math.min(1, this.speed / 6) / (1 + this.speed / 30) * dt;
+        p.x += Math.sin(this.heading) * this.speed * dt; p.z += Math.cos(this.heading) * this.speed * dt;
+        const fx = Math.sin(this.heading), fz = Math.cos(this.heading), L = F.length / 3;
+        const hf = gh(p.x + fx * L, p.z + fz * L), hb = gh(p.x - fx * L, p.z - fz * L);
+        p.y = Math.max(gh(p.x, p.z), (hf + hb) / 2);
+        const tp = Math.atan2(hf - hb, L * 2) + (up && this.speed > F.rot * 0.8 ? 0.12 : 0);
+        this.pitch += (tp - this.pitch) * (1 - Math.exp(-dt * 8)); this.roll *= Math.exp(-dt * 6);
+        if (up && this.speed >= F.rot) { this.onGround = false; this.vy = 2; this.onTakeoff && this.onTakeoff(); }
+      } else {
+        let pt = up ? F.climb : down ? -F.climb * 0.9 : 0;
+        const stall = this.speed < F.stall; if (stall) pt = -0.45;
+        this.pitch += (pt - this.pitch) * (1 - Math.exp(-dt * 1.6));
+        this.roll += (-this.steer * 0.85 - this.roll) * (1 - Math.exp(-dt * 2.2));
+        this.heading += -this.roll * F.turn * dt;
+        if (thr || boost) this.speed += F.acc * (1 - this.speed / top) * dt * (boost ? 2.5 : 1);
+        else if (this.speed > F.cruise) this.speed += (F.cruise - this.speed) * (1 - Math.exp(-dt * 0.2));
+        if (brake && !boost) this.speed = Math.max(Math.min(this.speed, F.stall * 1.08), this.speed - F.acc * 1.3 * dt); // 감속
+        this.speed -= 9.8 * Math.sin(this.pitch) * dt * 0.8;
+        if (this.speed > top && !boost) this.speed += (top - this.speed) * (1 - Math.exp(-dt * 0.5));
+        this.speed = Math.max(this.speed, 6);
+        const hs = Math.cos(this.pitch) * this.speed; let vy = Math.sin(this.pitch) * this.speed;
+        if (stall) vy -= (F.stall - this.speed) * 0.9;
+        p.x += Math.sin(this.heading) * hs * dt; p.z += Math.cos(this.heading) * hs * dt;
+        p.y = Math.min(p.y + vy * dt, this.ceiling); this.vy = vy;
+        const g0 = gh(p.x, p.z);
+        if (p.y <= Math.max(g0, this.waterLevel)) {
+          if (g0 < this.waterLevel) return this._crash('water');
+          if (vy < -7 || this.pitch < -0.3 || Math.abs(this.roll) > 0.5) return this._crash('ground');
+          this.onGround = true; p.y = g0; this.vy = 0; this.onLand && this.onLand();
+        }
+      }
+      this.obj.rotation.set(-this.pitch, this.heading, this.roll, 'YXZ');
+      const a = this.obj.userData.animate;
+      if (a) a(dt, { throttle: thr ? 1 : 0, boost, brake, onGround: this.onGround, speed: this.speed, gearDown: this.onGround || this.altitude < 25 });
+    }
+    _crash(why) { this.dead = true; this.speed = 0; this.onCrash && this.onCrash(why, this.obj.position.clone()); }
+  }
+
+  root.AIRCRAFT3D = { jet, lightPlane, FlightController };
+  if (typeof module !== 'undefined' && module.exports) module.exports = root.AIRCRAFT3D;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true; document.body.prepend(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x8cc8f0); scene.fog = new THREE.Fog(0x8cc8f0, 120, 900);
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 2000);
+scene.add(new THREE.HemisphereLight(0xdff0ff, 0x6a8a4a, 0.65));
+const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(30, 60, 20); sun.castShadow = true;
+Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, far: 200 }); sun.shadow.mapSize.set(2048, 2048); scene.add(sun, sun.target);
+// 땅: 완만한 언덕 + 활주로
+const H = (x, z) => (Math.sin(x * 0.01) * Math.cos(z * 0.012) * 18 + Math.sin(x * 0.03 + z * 0.02) * 4) * Math.min(1, Math.max(0, (Math.abs(x) - 20) / 60));
+const gg = new THREE.PlaneGeometry(3000, 3000, 150, 150).rotateX(-Math.PI / 2);
+{ const p = gg.attributes.position; for (let i = 0; i < p.count; i++) p.setY(i, H(p.getX(i), p.getZ(i))); gg.computeVertexNormals(); }
+const ground = new THREE.Mesh(gg, new THREE.MeshLambertMaterial({ color: 0x6aa84a })); ground.receiveShadow = true; scene.add(ground);
+const runway = new THREE.Mesh(new THREE.PlaneGeometry(22, 1400).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x45474c, polygonOffset: true, polygonOffsetFactor: -2 })); runway.position.y = 0.03; runway.receiveShadow = true; scene.add(runway);
+for (let z = -680; z < 700; z += 30) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 12).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff })); m.position.set(0, 0.05, z); scene.add(m); }
+
+const models = { jet: AIRCRAFT3D.jet(), plane: AIRCRAFT3D.lightPlane() };
+models.jet.position.set(-6, 0, 0); models.plane.position.set(7, 0, 0); models.plane.rotation.y = 0.3;
+scene.add(models.jet, models.plane);
+let sel = 'jet', flying = false, fc = null;
+const input = {};
+document.querySelectorAll('[data-k]').forEach((b) => {
+  const k = b.dataset.k, on = (e) => { e.preventDefault(); input[k] = true; b.classList.add('act'); try { b.setPointerCapture(e.pointerId); } catch (_) {} }, off = () => { input[k] = false; b.classList.remove('act'); };
+  b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off);
+});
+const KM = { KeyW: 'throttle', ArrowUp: 'up', KeyX: 'up', ArrowDown: 'down', KeyS: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', Space: 'boost', KeyB: 'brake' };
+addEventListener('keydown', (e) => { if (KM[e.code]) { input[KM[e.code]] = true; e.preventDefault(); } });
+addEventListener('keyup', (e) => { if (KM[e.code]) input[KM[e.code]] = false; });
+function pick(k) { sel = k; document.getElementById('bJet').classList.toggle('on', k === 'jet'); document.getElementById('bPlane').classList.toggle('on', k === 'plane'); if (flying) startFly(); }
+function startFly() {
+  flying = true; document.body.classList.add('fly'); document.getElementById('bFly').textContent = '전시로 돌아가기';
+  const other = sel === 'jet' ? models.plane : models.jet; other.visible = false;
+  const m = models[sel]; m.visible = true;
+  fc = new AIRCRAFT3D.FlightController(m, { groundHeight: (x, z) => (Math.abs(x) < 11 ? 0 : H(x, z)) });
+  fc.reset(sel === 'jet' ? -4 : 4, -600, 0);
+  fc.onCrash = () => { info('쾅! 2초 뒤 다시 시작'); setTimeout(() => fc.reset(0, -600, 0), 2000); m.visible = false; setTimeout(() => (m.visible = true), 2000); };
+  fc.onLand = () => info('착륙!'); fc.onTakeoff = () => info('이륙!');
+}
+function stopFly() {
+  flying = false; fc = null; document.body.classList.remove('fly'); document.getElementById('bFly').textContent = '✈ 직접 날기';
+  models.jet.visible = models.plane.visible = true;
+  models.jet.position.set(-6, 0, 0); models.jet.rotation.set(0, 0, 0); models.plane.position.set(7, 0, 0); models.plane.rotation.set(0, 0.3, 0);
+}
+let infoT = 0; function info(t) { document.getElementById('info').textContent = t; infoT = 2; }
+document.getElementById('bJet').onclick = () => pick('jet');
+document.getElementById('bPlane').onclick = () => pick('plane');
+document.getElementById('bFly').onclick = () => (flying ? stopFly() : startFly());
+// 드래그로 돌려 보기
+let yaw = 0.7, pitch = 0.25, dist = 26, drag = null;
+renderer.domElement.addEventListener('pointerdown', (e) => (drag = { x: e.clientX, y: e.clientY }));
+addEventListener('pointerup', () => (drag = null));
+addEventListener('pointermove', (e) => { if (!drag) return; yaw -= (e.clientX - drag.x) * 0.008; pitch = Math.max(-0.1, Math.min(1.3, pitch + (e.clientY - drag.y) * 0.005)); drag = { x: e.clientX, y: e.clientY }; });
+renderer.domElement.addEventListener('wheel', (e) => { dist = Math.max(10, Math.min(80, dist * Math.exp(e.deltaY * 0.001))); e.preventDefault(); }, { passive: false });
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+let last = performance.now(), t = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
+  let target;
+  if (flying && fc) {
+    fc.update(dt, input);
+    const m = fc.obj, h = fc.heading, back = sel === 'jet' ? 30 : 20;
+    if (!drag) yaw += (0 - yaw) * (1 - Math.exp(-dt * 1.5));
+    const a = h + Math.PI + yaw;
+    camera.position.set(m.position.x + Math.sin(a) * back * Math.cos(pitch), m.position.y + 3 + Math.sin(pitch) * back, m.position.z + Math.cos(a) * back * Math.cos(pitch));
+    target = m.position.clone().add(new THREE.Vector3(0, 2, 0));
+    if (infoT <= 0) document.getElementById('info').textContent = `${Math.round(fc.speed * 3.6)} km/h · 고도 ${Math.max(0, Math.round(fc.altitude))} m${fc.onGround ? ' · ▲ 가속 후 ⬆ 이륙' : ''}`;
+  } else {
+    for (const k in models) models[k].userData.animate(dt, { throttle: 0.4, onGround: true, speed: 0 });
+    if (!drag) yaw += dt * 0.15;
+    camera.position.set(Math.sin(yaw) * dist * Math.cos(pitch), 2 + Math.sin(pitch) * dist, Math.cos(yaw) * dist * Math.cos(pitch));
+    target = new THREE.Vector3(0, 1.8, 0);
+    if (infoT <= 0) document.getElementById('info').textContent = '드래그로 돌려 보기 · 휠로 확대';
+  }
+  infoT -= dt;
+  camera.lookAt(target);
+  sun.position.copy(target).add(new THREE.Vector3(30, 60, 20)); sun.target.position.copy(target);
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(frame);
+window.__demo = { models, input, startFly, pick, get fc() { return fc; } };
+</script>
+</body>
+</html>

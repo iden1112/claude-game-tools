@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>하늘 전선 — 3D 공중전</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#0b1626;font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:#fff;touch-action:none}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+#hud{position:fixed;inset:0;pointer-events:none;display:none}
+.panel{background:rgba(8,18,30,.5);border-radius:10px;padding:6px 9px;font-size:12px}
+#tl{position:absolute;left:10px;top:10px;width:142px}
+.bar{height:7px;background:rgba(255,255,255,.18);border-radius:4px;overflow:hidden;margin:2px 0 4px}
+.bar i{display:block;height:100%;width:100%;background:#5be37a}
+#boostbar i{background:#ffb347}
+#basebar i{background:#5ab4ff}
+#abline{font-weight:800;color:#ffd23a;font-size:11px;margin-top:2px}
+#abline.cool{color:#aab4c0}
+#state{color:#9fe8ff;font-weight:700;min-height:14px;font-size:11px}
+#tc{position:absolute;left:50%;top:8px;transform:translateX(-50%);text-align:center}
+#score{font-size:24px;font-weight:900;text-shadow:0 2px 4px #0009}
+#wave{font-size:12px;text-shadow:0 1px 3px #000}
+#radar{position:absolute;right:10px;top:10px;width:116px;height:116px;border-radius:50%;background:rgba(8,30,20,.6);border:1px solid rgba(120,255,160,.45)}
+#topbtns{position:absolute;right:10px;top:134px;display:flex;gap:6px;pointer-events:auto}
+.sbtn{background:rgba(8,18,30,.55);border:none;color:#fff;font-size:15px;width:36px;height:36px;border-radius:50%;cursor:pointer;padding:0}
+#bc{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:12px;white-space:nowrap;font-size:13px}
+#bc b{font-size:15px}
+#xh{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border:2px solid rgba(255,255,255,.85);border-radius:50%;box-shadow:0 0 3px #0008}
+#xh:after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;background:#fff;border-radius:50%}
+#lock{position:absolute;border:2px solid #ffd23a;display:none;transform:translate(-50%,-50%)}
+#lock span{position:absolute;top:-17px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:900;color:#ffd23a;white-space:nowrap;text-shadow:0 1px 2px #000}
+#lock.on{border-color:#ff3b3b;border-width:3px}
+#lock.on span{color:#ff3b3b}
+.mk{position:absolute;transform:translate(-50%,-50%);font-size:10px;text-align:center;display:none;color:#ffd6cf;text-shadow:0 1px 2px #000;white-space:nowrap}
+.mk:before{content:"";display:block;margin:0 auto 3px;width:9px;height:9px;border:2px solid #ff5a4a;transform:rotate(45deg)}
+.mk.g:before{transform:none;border-color:#ffa53a}
+.mk.boss:before{border-color:#ff2bd0;width:13px;height:13px}
+.mk.boss{color:#ffb0f0;font-weight:800}
+#warn{position:absolute;left:50%;top:27%;transform:translateX(-50%);font-weight:900;font-size:17px;color:#ff4a3a;text-shadow:0 2px 6px #000;text-align:center;white-space:nowrap}
+#banner{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);font-size:30px;font-weight:900;text-shadow:0 3px 10px #000b;opacity:0;transition:opacity .4s;text-align:center;white-space:nowrap}
+#banner small{display:block;font-size:13px;font-weight:600;opacity:.92;white-space:normal;max-width:90vw}
+#feed{position:absolute;left:10px;top:142px;font-size:12px;line-height:1.7}
+#feed div{transition:opacity .8s;text-shadow:0 1px 3px #000}
+#hurt{position:fixed;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(255,0,0,0) 50%,rgba(255,0,0,.55) 100%)}
+#touch{position:fixed;inset:0;pointer-events:none;display:none}
+#stickzone{position:absolute;left:0;bottom:0;width:46%;height:60%;pointer-events:auto}
+#stick{position:absolute;width:116px;height:116px;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:rgba(255,255,255,.07);left:24px;bottom:44px}
+#knob{position:absolute;left:50%;top:50%;width:50px;height:50px;margin:-25px;border-radius:50%;background:rgba(255,255,255,.45)}
+#stickhint{position:absolute;left:24px;bottom:166px;width:116px;text-align:center;font-size:10px;opacity:.7}
+#btns{position:absolute;right:10px;bottom:40px;display:grid;grid-template-columns:repeat(3,58px);gap:8px;pointer-events:auto}
+.tb{width:58px;height:58px;border-radius:50%;border:2px solid rgba(255,255,255,.4);background:rgba(15,25,38,.5);color:#fff;font-size:11px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;padding:0;touch-action:none}
+.tb.wide{grid-column:span 2;width:auto;border-radius:29px}
+.tb.ab{background:rgba(230,170,20,.55)}
+.tb.ab.cool{background:rgba(60,60,70,.55);color:#bbb}
+.tb.gun{grid-column:span 3;width:auto;height:56px;border-radius:30px;background:rgba(210,60,40,.6);font-size:15px}
+.tb.down{background:rgba(255,255,255,.45)}
+body.touch #bc{bottom:6px;font-size:11px;gap:8px;padding:4px 8px}
+body.touch #bc b{font-size:12px}
+.screen{position:fixed;inset:0;display:flex;align-items:flex-start;justify-content:center;background:linear-gradient(180deg,rgba(6,16,32,.55),rgba(6,16,32,.9));z-index:10;padding:16px;overflow:auto;touch-action:pan-y}
+.screen>.card{margin:auto 0}
+.card{max-width:640px;width:100%;text-align:center}
+h1{margin:0 0 2px;font-size:34px;letter-spacing:3px;text-shadow:0 3px 12px #000a}
+.sub{opacity:.85;margin-bottom:10px;font-size:13px}
+#planes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
+@media (max-width:560px){#planes{grid-template-columns:repeat(2,1fr)}}
+.pc{padding:8px 8px 7px;border-radius:12px;border:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.07);color:#fff;cursor:pointer;text-align:left;font:inherit}
+.pc.sel{border-color:#ffd23a;background:rgba(255,210,58,.16)}
+.pc b{font-size:15px}
+.pc .ps{font-size:11px;opacity:.8;margin-bottom:4px}
+.st{display:flex;align-items:center;gap:5px;font-size:10px;opacity:.9;line-height:1.5}
+.st span{width:26px}
+.st i{flex:1;height:5px;background:rgba(255,255,255,.15);border-radius:3px;overflow:hidden;position:relative}
+.st i:after{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--w);background:#7fd3ff}
+.pc .pa{font-size:11px;color:#ffd23a;font-weight:700;margin-top:3px}
+#pinfo{font-size:12.5px;line-height:1.6;background:rgba(255,210,58,.1);border:1px solid rgba(255,210,58,.35);border-radius:10px;padding:8px 10px;text-align:left}
+#pinfo b{color:#ffd23a}
+.go{margin-top:10px;padding:13px 40px;font-size:18px;font-weight:900;border:none;border-radius:30px;background:#ff5a3a;color:#fff;cursor:pointer;box-shadow:0 4px 14px #0006}
+.go.alt{background:rgba(255,255,255,.15);font-size:14px;padding:11px 22px;margin-left:6px}
+.help{font-size:12px;opacity:.9;line-height:1.65;margin-top:12px;text-align:left;background:rgba(255,255,255,.07);border-radius:10px;padding:9px 12px}
+.help b{color:#ffd23a}
+#fsMenu{position:fixed;right:12px;top:12px;z-index:11}
+#overStats{font-size:15px;line-height:1.8;margin:8px 0 12px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hurt"></div>
+
+<div id="hud">
+  <div id="tl" class="panel">체력<div class="bar" id="hpbar"><i></i></div>부스트<div class="bar" id="boostbar"><i></i></div>기지<div class="bar" id="basebar"><i></i></div><div id="abline"></div><div id="state"></div></div>
+  <div id="tc"><div id="score">0</div><div id="wave">웨이브 1</div></div>
+  <canvas id="radar" width="232" height="232"></canvas>
+  <div id="topbtns"><button class="sbtn fsBtn" title="전체화면">⛶</button><button class="sbtn" id="pauseBtn" title="일시정지 (P)">⏸</button><button class="sbtn" id="muteBtn" title="소리">🔊</button></div>
+  <div id="feed"></div>
+  <div id="marks"></div>
+  <div id="xh"></div>
+  <div id="lock"><span></span></div>
+  <div id="warn"></div>
+  <div id="banner"></div>
+  <div id="bc" class="panel"><span>속도 <b id="spd">0</b>km/h</span><span>고도 <b id="alt">0</b>m</span><span>🚀<b id="mis">0</b></span><span>✨<b id="flr">0</b></span></div>
+</div>
+
+<div id="touch">
+  <div id="stickzone"><div id="stickhint">위로 밀면 상승</div><div id="stick"><div id="knob"></div></div></div>
+  <div id="btns">
+    <button class="tb" data-k="flare">✨<br>플레어</button>
+    <button class="tb" data-k="missile">🚀<br>미사일</button>
+    <button class="tb" data-k="boost">🔥<br>부스트</button>
+    <button class="tb wide ab" data-k="ability" id="abBtn">⭐ 능력</button>
+    <button class="tb" data-k="brake">⏬<br>감속</button>
+    <button class="tb gun" data-k="gun">기관총</button>
+  </div>
+</div>
+
+<div class="screen" id="menu">
+  <button class="sbtn fsBtn" id="fsMenu" title="전체화면">⛶</button>
+  <div class="card">
+    <h1>하늘 전선</h1>
+    <div class="sub">기지를 지키며 적 전투기·폭격기·헬기·드론·지상군을 쓸어버리세요</div>
+    <div id="planes"></div>
+    <div id="pinfo"></div>
+    <button class="go" id="startBtn">출격!</button>
+    <div class="help" id="helpKeys">
+      <b>이륙</b> 자동으로 가속해요. 속도가 붙으면 <b>W(↑)</b>로 이륙!<br>
+      <b>W/S ↑/↓</b> 상승·하강 · <b>A/D ←/→</b> 선회 · <b>스페이스·클릭</b> 기관총<br>
+      <b>E</b> 미사일 · <b>Q</b> 고유 능력 · <b>F</b> 플레어 · <b>Shift</b> 부스트 · <b>B</b> 감속 · <b>P</b> 일시정지<br>
+      적을 잠시 겨누면 <b>LOCK</b> → 미사일이 따라가요. 폭격기는 기지를 노려요!<br>
+      활주로에 착륙해 멈추면 <b>정비</b>(체력·미사일·플레어 보충).
+    </div>
+    <div class="help" id="helpTouch" style="display:none">
+      <b>이륙</b> 자동으로 가속해요. 속도가 붙으면 조이스틱을 <b>위로</b>!<br>
+      <b>왼쪽 조이스틱</b> 위·아래 = 상승·하강, 좌·우 = 선회<br>
+      <b>⭐ 능력</b>은 기체마다 달라요. 쓰고 나면 잠시 충전돼요.<br>
+      적을 잠시 겨누면 <b>LOCK</b> → 미사일이 따라가요. 폭격기는 기지를 노려요!<br>
+      활주로에 착륙해 멈추면 <b>정비</b> · 오른쪽 위 <b>⛶</b> 전체화면
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="over" style="display:none">
+  <div class="card">
+    <h1 id="overTitle">격추당했어요</h1>
+    <div id="overStats"></div>
+    <button class="go" id="againBtn">다시 출격</button><button class="go alt" id="menuBtn">기체 바꾸기</button>
+  </div>
+</div>
+
+<div class="screen" id="pause" style="display:none">
+  <div class="card"><h1>일시정지</h1><button class="go" id="resumeBtn">계속하기</button><button class="go alt" id="quitBtn">처음으로</button></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="aircraft3d.js"></script>
+<script src="aircraft-extra.js"></script>
+<script src="fx3d.js"></script>
+<script src="models3d.js"></script>
+<script>
+(function () {
+'use strict';
+const V3 = THREE.Vector3, $ = (id) => document.getElementById(id), A3 = window.AIRCRAFT3D;
+const rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const wrapA = (a) => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; };
+const sstep = (e0, e1, x) => { const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); };
+const isTouch = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
+if (isTouch) { document.body.classList.add('touch'); $('helpKeys').style.display = 'none'; $('helpTouch').style.display = ''; }
+
+// ================= 기체 =================
+const PLANES = {
+  falcon: { name: '팔콘', sub: '균형형 제트기', make: () => A3.jet(), sc: 1, hp: 100, mis: 6, fl: 16, radius: 6.5, cy: 1.9, len: 7.6, gunRate: 0.055, gunDmg: 7, gunX: 0.9, cam: [30, 7], engine: 'jet', stats: [4, 3, 3, 4],
+    passive: '모든 능력이 고르게 좋아요', ab: { key: 'salvo', name: '일제 사격', cd: 25, desc: '앞쪽 적 최대 4대에게 미사일 4발을 한꺼번에 (미사일 안 써요)' } },
+  thunder: { name: '썬더볼트', sub: '초고속 요격기', make: () => A3.interceptor(), sc: 1, hp: 80, mis: 6, fl: 14, radius: 6.5, cy: 2.0, len: 8.6, gunRate: 0.06, gunDmg: 6, gunX: 0.9, cam: [33, 7], engine: 'jet', stats: [5, 2, 2, 3],
+    passive: '최고 속도가 가장 빨라서 적을 쉽게 따돌려요', ab: { key: 'dash', name: '초음속 대시', cd: 15, desc: '4초 동안 엄청 빨라지고 무적, 쫓아오던 미사일을 떨쳐내요' } },
+  hog: { name: '워트호그', sub: '중장갑 공격기', make: () => A3.attacker(), sc: 0.9, hp: 170, mis: 4, fl: 16, radius: 7.5, cy: 2.0, len: 8.4, gunRate: 0.045, gunDmg: 9, groundMul: 2.5, gunX: 0, cam: [33, 8], engine: 'jet', stats: [2, 3, 5, 5],
+    passive: '체력이 가장 높고 기관포가 지상 적에게 2.5배', ab: { key: 'bombs', name: '폭탄 투하', cd: 12, desc: '폭탄 6발을 떨어뜨려 지상 적을 쓸어버려요' } },
+  phantom: { name: '팬텀', sub: '스텔스 전투기', make: () => A3.stealth(), sc: 1, hp: 90, mis: 6, fl: 12, radius: 6, cy: 1.9, len: 7.2, gunRate: 0.06, gunDmg: 7, gunX: 0.8, detect: 0.55, cam: [29, 6], engine: 'jet', stats: [4, 3, 3, 3],
+    passive: '적이 늦게 발견하고 대공 무기 사거리가 짧아져요', ab: { key: 'cloak', name: '투명 위장', cd: 22, desc: '8초 동안 사라져요. 적이 못 보고 미사일도 놓쳐요' } },
+  mustang: { name: '머스탱', sub: '프로펠러 전투기', make: () => A3.warbird(), sc: 0.65, hp: 95, mis: 2, fl: 10, radius: 5, cy: 1.7, len: 4.6, gunRate: 0.042, gunDmg: 6, gunX: 2.2, cam: [21, 5], engine: 'prop', stats: [2, 5, 3, 4],
+    passive: '선회가 가장 날카롭고 연사가 빨라요', ab: { key: 'frenzy', name: '광폭 사격', cd: 18, desc: '6초 동안 기관총이 2.5배 빨라지고 1.5배 세져요' } },
+  sparrow: { name: '스패로', sub: '경비행기', make: () => A3.lightPlane({ body: 0xf4f4f0, stripe: 0x2a62c8 }), sc: 0.45, hp: 75, mis: 4, fl: 12, radius: 4.8, cy: 1.5, len: 3.6, gunRate: 0.07, gunDmg: 6, gunX: 1.6, dodge: 1.8, cam: [19, 5], engine: 'prop', stats: [1, 4, 2, 2],
+    passive: '작고 날렵해서 적 총알이 잘 빗나가요', ab: { key: 'repair', name: '응급 수리', cd: 30, desc: '공중에서 체력 40%를 고치고 플레어를 채워요' } },
+};
+const STAT_NAMES = ['속도', '선회', '체력', '화력'];
+
+// ================= 세계 (지형) =================
+const WATER = 0, BASE_H = 6, WORLD = 2700;
+function rawH(x, z) {
+  return 44 * Math.sin(x * 0.0021 + 0.4) * Math.cos(z * 0.0017 - 0.3) + 26 * Math.sin(x * 0.0053 + 1.3) * Math.sin(z * 0.0047 + 0.7)
+    + 9 * Math.sin(x * 0.013) * Math.cos(z * 0.011) + 16;
+}
+function groundH(x, z) {
+  let h = rawH(x, z);
+  const r = Math.hypot(x, z); h += Math.max(0, r - 2450) * 0.4;
+  const dx = Math.max(0, Math.abs(x) - 110), dz = Math.max(0, Math.abs(z) - 420);
+  return BASE_H + (h - BASE_H) * sstep(0, 200, Math.hypot(dx, dz));
+}
+const surf = (x, z) => Math.max(groundH(x, z), WATER);
+const inBase = (x, z) => Math.abs(x) < 160 && Math.abs(z) < 480;
+const onRunway = (x, z) => Math.abs(x) < 24 && Math.abs(z) < 390;
+
+// ================= 렌더러 / 장면 =================
+const renderer = new THREE.WebGLRenderer({ canvas: $('c'), antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(isTouch ? 1.5 : 2, devicePixelRatio || 1));
+renderer.setSize(innerWidth, innerHeight);
+const scene = new THREE.Scene();
+const HORIZON = 0xcfe2f2;
+scene.background = new THREE.Color(HORIZON);
+scene.fog = new THREE.Fog(HORIZON, 600, 3800);
+const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.5, 8000);
+scene.add(new THREE.HemisphereLight(0xe4f0ff, 0x4f5f3c, 0.78));
+const sun = new THREE.DirectionalLight(0xfff0dc, 0.8); sun.position.set(500, 900, 300); scene.add(sun);
+
+const sky = (() => {
+  const g = new THREE.SphereGeometry(7000, 24, 14), pos = g.attributes.position, col = [], top = new THREE.Color(0x2f6fc0), hor = new THREE.Color(HORIZON), c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) { const t = Math.pow(clamp(pos.getY(i) / 7000, 0, 1), 0.55); c.copy(hor).lerp(top, t); col.push(c.r, c.g, c.b); }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
+  m.renderOrder = -10; scene.add(m); return m;
+})();
+
+(() => {
+  const S = 6400, N = isTouch ? 170 : 220, g = new THREE.PlaneGeometry(S, S, N, N); g.rotateX(-Math.PI / 2);
+  const pos = g.attributes.position, col = [], c = new THREE.Color();
+  const sand = new THREE.Color(0xd9cb92), g1 = new THREE.Color(0x6aa64c), g2 = new THREE.Color(0x467a34), dry = new THREE.Color(0x7b8048), rock = new THREE.Color(0x857d70), snow = new THREE.Color(0xf4f4f4);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i), h = groundH(x, z); pos.setY(i, h);
+    const n = Math.sin(x * 0.03) * Math.cos(z * 0.027) * 0.5 + 0.5;
+    if (h < 2.5) c.copy(sand);
+    else if (h < 48) c.copy(g1).lerp(g2, n);
+    else if (h < 85) c.copy(g2).lerp(dry, (h - 48) / 37);
+    else if (h < 125) c.copy(dry).lerp(rock, (h - 85) / 40);
+    else c.copy(rock).lerp(snow, clamp((h - 125) / 25, 0, 1));
+    const k = 0.94 + Math.random() * 0.1; col.push(c.r * k, c.g * k, c.b * k);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
+  scene.add(new THREE.Mesh(g, new THREE.MeshPhongMaterial({ vertexColors: true, flatShading: true, shininess: 4 })));
+  const w = new THREE.Mesh(new THREE.PlaneGeometry(S, S).rotateX(-Math.PI / 2), new THREE.MeshPhongMaterial({ color: 0x2a6fa8, transparent: true, opacity: 0.84, shininess: 90, specular: 0x8fb4d6 }));
+  w.position.y = WATER; scene.add(w);
+})();
+
+(() => {
+  const B = new THREE.Group(); scene.add(B);
+  const mat = (c, s = 20) => new THREE.MeshPhongMaterial({ color: c, shininess: s, flatShading: true });
+  const asphalt = mat(0x3a3d42), white = new THREE.MeshBasicMaterial({ color: 0xeeeeee }), concrete = mat(0x9a9a92);
+  const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); B.add(o); return o; };
+  add(new THREE.BoxGeometry(46, 0.4, 800), asphalt, 0, BASE_H - 0.18, 0);
+  add(new THREE.BoxGeometry(120, 0.3, 220), concrete, 85, BASE_H - 0.13, -90);
+  for (let z = -370; z <= 370; z += 40) add(new THREE.BoxGeometry(1.2, 0.05, 16), white, 0, BASE_H + 0.03, z);
+  for (const sx of [-1, 1]) add(new THREE.BoxGeometry(0.8, 0.05, 790), white, sx * 21, BASE_H + 0.03, 0);
+  for (let i = -8; i <= 8; i += 2) add(new THREE.BoxGeometry(2, 0.05, 10), white, i * 1.8, BASE_H + 0.03, -385);
+  const hangar = mat(0x8c949b, 40);
+  for (const z of [-160, -90, -20]) {
+    const h = add(new THREE.CylinderGeometry(13, 13, 32, 16, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).rotateY(Math.PI / 2), hangar, 92, BASE_H, z);
+    h.rotation.y = Math.PI / 2;
+    add(new THREE.BoxGeometry(0.4, 12, 22), mat(0x2b2f33), 75.8, BASE_H + 5, z);
+  }
+  add(new THREE.BoxGeometry(7, 20, 7), mat(0xd8d2c4), -70, BASE_H + 10, 40);
+  add(new THREE.BoxGeometry(10, 4, 10), new THREE.MeshPhongMaterial({ color: 0x223344, shininess: 120, specular: 0x88aacc }), -70, BASE_H + 22, 40);
+  add(new THREE.BoxGeometry(11, 0.8, 11), mat(0x5a5f66), -70, BASE_H + 24.4, 40);
+  for (let i = 0; i < 3; i++) add(new THREE.CylinderGeometry(5, 5, 8, 14), mat(0xe2e2dc, 40), -66 + i * 12, BASE_H + 4, -120);
+  const lamp = new THREE.MeshBasicMaterial({ color: 0xffe6a0 });
+  for (let z = -380; z <= 380; z += 38) for (const sx of [-1, 1]) add(new THREE.BoxGeometry(0.6, 0.5, 0.6), lamp, sx * 24, BASE_H + 0.2, z);
+})();
+
+const decor = new THREE.Group(); scene.add(decor);
+(() => {
+  const M = window.MODELS3D;
+  let placed = 0, tries = 0;
+  while (placed < (isTouch ? 36 : 60) && tries++ < 2000) {
+    const a = Math.random() * Math.PI * 2, r = rnd(200, 900), x = Math.cos(a) * r, z = Math.sin(a) * r, h = groundH(x, z);
+    if (h < 3 || inBase(x, z)) continue;
+    const t = M.tree({ type: Math.random() < 0.65 ? 'pine' : 'round', height: rnd(9, 16), seed: placed + 1 });
+    t.position.set(x, h - 0.3, z); t.rotation.y = Math.random() * 6; decor.add(t); placed++;
+  }
+  placed = 0; tries = 0;
+  while (placed < 18 && tries++ < 1000) {
+    const x = rnd(-1500, 1500), z = rnd(-1500, 1500), h = groundH(x, z);
+    if (h < 4 || inBase(x, z)) continue;
+    const r = M.rock({ size: rnd(5, 12), seed: placed + 3, moss: Math.random() < 0.5 });
+    r.position.set(x, h - 1, z); r.rotation.y = Math.random() * 6; decor.add(r); placed++;
+  }
+  const N = isTouch ? 500 : 900;
+  const leaf = new THREE.InstancedMesh(new THREE.ConeGeometry(4.5, 15, 6).translate(0, 10, 0), new THREE.MeshPhongMaterial({ color: 0x3d6e33, flatShading: true }), N);
+  const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.6, 0.8, 4, 5).translate(0, 2, 0), new THREE.MeshPhongMaterial({ color: 0x5a4030, flatShading: true }), N);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new V3();
+  let n = 0; tries = 0;
+  while (n < N && tries++ < 20000) {
+    const x = rnd(-2600, 2600), z = rnd(-2600, 2600), h = groundH(x, z);
+    if (h < 4 || h > 95 || inBase(x, z) || Math.hypot(x, z) < 250) continue;
+    const s = rnd(0.7, 1.4); q.setFromAxisAngle(new V3(0, 1, 0), Math.random() * 6); sc.set(s, s, s);
+    m4.compose(new V3(x, h - 0.5, z), q, sc); leaf.setMatrixAt(n, m4); trunk.setMatrixAt(n, m4); n++;
+  }
+  leaf.count = trunk.count = n; scene.add(leaf, trunk);
+})();
+
+(() => {
+  const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x777777, flatShading: true, transparent: true, opacity: 0.92 });
+  const geo = new THREE.IcosahedronGeometry(1, 1);
+  for (let i = 0; i < (isTouch ? 30 : 46); i++) {
+    const g = new THREE.Group(), x = rnd(-2800, 2800), z = rnd(-2800, 2800), y = rnd(320, 560);
+    const n = 3 + Math.floor(Math.random() * 4);
+    for (let k = 0; k < n; k++) { const m = new THREE.Mesh(geo, mat), s = rnd(22, 45); m.scale.set(s * 1.4, s * 0.7, s); m.position.set(rnd(-50, 50), rnd(-8, 10), rnd(-40, 40)); g.add(m); }
+    g.position.set(x, y, z); scene.add(g);
+  }
+})();
+
+// ================= 이펙트 =================
+const fx = new FX3D(scene, { look: 'toon', unit: 1, quality: isTouch ? 0.6 : 1 });
+const SMOKE = [0xffffff, 0xe2e2e2, 0xc4c4c4], DARK = [0x3a3633, 0x55504b, 0x77716a];
+function sparkFx(p, s) {
+  fx.flash(p, { color: 0xffc040, size: 2.2 * s, life: 0.12 });
+  for (let i = 0; i < 4; i++) fx.emit(p, { vel: { x: rnd(-9, 9) * s, y: rnd(-3, 9) * s, z: rnd(-9, 9) * s }, gravity: 12, drag: 2.5, life: rnd(0.25, 0.45), size: 0.35 * s, stretch: 0.06, ramp: FX3D.RAMPS.ember, shape: 'spark' });
+}
+function puff(p, size, ramp, life) { fx.emit(p, { vel: { x: rnd(-0.6, 0.6), y: rnd(0.3, 1.2), z: rnd(-0.6, 0.6) }, life: life || rnd(0.9, 1.4), size: size * 0.5, size2: size * 1.6, ramp: ramp || SMOKE, shape: 'puff', alpha: 0.9, fadeAt: 0.35 }); }
+function bigBoom(p, s, floor) {
+  const fl = floor != null ? floor : surf(p.x, p.z);
+  fx.explosion(p, { size: s, floor: fl });
+  fx.flash(p, { color: 0xfff2c0, size: 7 * s, life: 0.2 });
+  for (let i = 0; i < 8; i++) fx.emit(p, { vel: { x: rnd(-14, 14), y: rnd(4, 18), z: rnd(-14, 14) }, gravity: 14, drag: 0.6, life: rnd(1, 1.8), size: rnd(0.5, 0.9), ramp: [0x2b2b2b, 0x4a4440], shape: 'square', spin: rnd(-10, 10), floor: fl });
+}
+
+// ================= 소리 =================
+const AU = { ctx: null, master: null, nbuf: null, muted: false };
+function audioInit() {
+  if (AU.ctx) { if (AU.ctx.state === 'suspended' && gameState !== 'pause') AU.ctx.resume(); return; }
+  try {
+    const C = new (window.AudioContext || window.webkitAudioContext)(); AU.ctx = C;
+    AU.master = C.createGain(); AU.master.gain.value = AU.muted ? 0 : 0.55; AU.master.connect(C.destination);
+    const b = C.createBuffer(1, C.sampleRate * 2, C.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; AU.nbuf = b;
+    const src = C.createBufferSource(); src.buffer = b; src.loop = true;
+    AU.engF = C.createBiquadFilter(); AU.engF.type = 'bandpass'; AU.engF.frequency.value = 300; AU.engF.Q.value = 0.8;
+    AU.engG = C.createGain(); AU.engG.gain.value = 0; src.connect(AU.engF).connect(AU.engG).connect(AU.master); src.start();
+    AU.osc = C.createOscillator(); AU.osc.type = 'sawtooth'; AU.osc.frequency.value = 60;
+    const lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500;
+    AU.oscG = C.createGain(); AU.oscG.gain.value = 0; AU.osc.connect(lp).connect(AU.oscG).connect(AU.master); AU.osc.start();
+  } catch (e) { AU.ctx = null; }
+}
+function sNoise(dur, freq, vol, type, q) {
+  if (!AU.ctx || AU.muted || vol < 0.004) return;
+  const C = AU.ctx, s = C.createBufferSource(), f = C.createBiquadFilter(), g = C.createGain(), t = C.currentTime;
+  s.buffer = AU.nbuf; s.playbackRate.value = rnd(0.9, 1.1); f.type = type || 'lowpass'; f.frequency.value = freq; if (q) f.Q.value = q;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  s.connect(f).connect(g).connect(AU.master); s.start(t, Math.random()); s.stop(t + dur + 0.05);
+}
+function sTone(f1, f2, dur, vol, type) {
+  if (!AU.ctx || AU.muted) return;
+  const C = AU.ctx, o = C.createOscillator(), g = C.createGain(), t = C.currentTime;
+  o.type = type || 'square'; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  o.connect(g).connect(AU.master); o.start(t); o.stop(t + dur + 0.05);
+}
+const sBoom = (d) => { const v = 0.9 / (1 + d / 220); sNoise(1.4, 380, v); sNoise(0.35, 1500, v * 0.5); };
+function setEngine(speed, thr, boost) {
+  if (!AU.ctx || !P.def) return;
+  const t = AU.ctx.currentTime, alive = P.alive && gameState === 'play';
+  if (P.def.engine === 'jet') {
+    AU.engF.frequency.setTargetAtTime(220 + speed * 3 + (boost ? 500 : 0), t, 0.1);
+    AU.engG.gain.setTargetAtTime(alive ? 0.12 + thr * 0.1 + (boost ? 0.12 : 0) : 0, t, 0.15);
+    AU.oscG.gain.setTargetAtTime(0, t, 0.1);
+  } else {
+    AU.osc.frequency.setTargetAtTime(48 + speed * 0.9 + (boost ? 25 : 0), t, 0.1);
+    AU.oscG.gain.setTargetAtTime(alive ? 0.07 + thr * 0.04 : 0, t, 0.15);
+    AU.engF.frequency.setTargetAtTime(500, t, 0.1); AU.engG.gain.setTargetAtTime(alive ? 0.04 : 0, t, 0.15);
+  }
+}
+
+// ================= 전체화면 =================
+function isFS() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function toggleFS() {
+  const el = document.documentElement;
+  try {
+    if (isFS()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!req) { fsFail(); return; }
+    const p = req.call(el, { navigationUI: 'hide' });
+    if (p && p.catch) p.catch(fsFail);
+  } catch (e) { fsFail(); }
+}
+function fsFail() {
+  const msg = '이 화면에선 전체화면이 막혀 있어요. 브라우저에서 열거나, 아이폰은 공유 → 홈 화면에 추가로 열어 보세요';
+  if (gameState === 'play') feed(msg, '#ffd0a0'); else banner('전체화면 불가', msg);
+}
+function fsIcon() { document.querySelectorAll('.fsBtn').forEach((b) => (b.textContent = isFS() ? '🗗' : '⛶')); }
+document.addEventListener('fullscreenchange', fsIcon); document.addEventListener('webkitfullscreenchange', fsIcon);
+document.querySelectorAll('.fsBtn').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); toggleFS(); }));
+
+// ================= 입력 =================
+const K = {}, TB = { gun: false, boost: false, brake: false }, edge = { missile: false, flare: false, ability: false }, stick = { x: 0, y: 0, id: null, cx: 0, cy: 0 };
+addEventListener('keydown', (e) => {
+  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+  if (!K[e.code]) {
+    if (e.code === 'KeyE' || e.code === 'Enter') edge.missile = true;
+    if (e.code === 'KeyF') edge.flare = true;
+    if (e.code === 'KeyQ') edge.ability = true;
+    if ((e.code === 'KeyP' || e.code === 'Escape') && (gameState === 'play' || gameState === 'pause')) togglePause();
+  }
+  K[e.code] = true; audioInit();
+});
+addEventListener('keyup', (e) => { K[e.code] = false; });
+$('c').addEventListener('mousedown', () => { if (!isTouch) { K.Mouse = true; audioInit(); } });
+addEventListener('mouseup', () => { K.Mouse = false; });
+addEventListener('blur', () => { for (const k in K) K[k] = false; TB.gun = TB.boost = TB.brake = false; if (gameState === 'play') togglePause(); });
+document.querySelectorAll('.tb').forEach((b) => {
+  const k = b.dataset.k;
+  const down = (e) => { e.preventDefault(); b.classList.add('down'); if (k in edge) edge[k] = true; else TB[k] = true; audioInit(); };
+  const up = () => { b.classList.remove('down'); if (k in TB) TB[k] = false; };
+  b.addEventListener('pointerdown', down); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+});
+(() => {
+  const zone = $('stickzone'), st = $('stick'), knob = $('knob');
+  zone.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); audioInit(); stick.id = e.pointerId; zone.setPointerCapture(e.pointerId);
+    const r = zone.getBoundingClientRect(); stick.cx = e.clientX; stick.cy = e.clientY;
+    st.style.left = (e.clientX - r.left - 58) + 'px'; st.style.bottom = (r.bottom - e.clientY - 58) + 'px';
+  });
+  zone.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== stick.id) return;
+    let dx = (e.clientX - stick.cx) / 46, dy = (e.clientY - stick.cy) / 46; const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; }
+    stick.x = dx; stick.y = dy; knob.style.transform = `translate(${dx * 34}px,${dy * 34}px)`;
+  });
+  const end = (e) => { if (e.pointerId !== stick.id) return; stick.id = null; stick.x = stick.y = 0; knob.style.transform = ''; st.style.left = '24px'; st.style.bottom = '44px'; };
+  zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
+})();
+function readInput() {
+  return {
+    up: K.KeyW || K.ArrowUp || stick.y < -0.35, down: K.KeyS || K.ArrowDown || stick.y > 0.35,
+    left: K.KeyA || K.ArrowLeft || stick.x < -0.35, right: K.KeyD || K.ArrowRight || stick.x > 0.35,
+    gun: K.Space || K.KeyJ || K.Mouse || TB.gun, boost: K.ShiftLeft || K.ShiftRight || TB.boost, brake: K.KeyB || K.KeyX || TB.brake,
+  };
+}
+
+// ================= 상태 =================
+let gameState = 'menu', pick = 'falcon', T = 0, SC = 1, RS = 1, shake = 0, radarOn = false;
+const P = { obj: null, fc: null, def: null, alive: false, vel: new V3(), prev: new V3(), center: new V3(), fwd: new V3(0, 0, 1), up: new V3(0, 1, 0) };
+const S = { score: 0, wave: 0, kills: 0, waveT: 0, best: 0, base: 100 };
+try { S.best = +localStorage.getItem('skyfront-best') || 0; } catch (e) {}
+const enemies = [], bullets = [], missiles = [], flares = [], wrecks = [], bombs = [];
+const KIND = {
+  prop: { name: '적 프로펠러기', hp: 40, radius: 6, score: 100, cy: 1.5, air: true },
+  jet: { name: '적 제트기', hp: 70, radius: 8, score: 150, cy: 1.9, air: true },
+  inter: { name: '적 요격기', hp: 55, radius: 8, score: 170, cy: 2.0, air: true },
+  ace: { name: '에이스 전투기', hp: 420, radius: 8, score: 1000, cy: 1.9, air: true, label: '에이스', boss: true },
+  bomber: { name: '폭격기', hp: 260, radius: 15, score: 300, cy: 3.4, air: true, label: '폭격기' },
+  heli: { name: '공격 헬기', hp: 80, radius: 7, score: 180, cy: 2.3, air: true },
+  drone: { name: '자폭 드론', hp: 12, radius: 3.5, score: 40, cy: 0.6, air: true },
+  tank: { name: '적 전차', hp: 45, radius: 5.5, score: 80, cy: 1.8, air: false },
+  sam: { name: '대공 미사일 기지', hp: 60, radius: 6.5, score: 120, cy: 2.2, air: false },
+  flak: { name: '대공포', hp: 50, radius: 5, score: 100, cy: 1.8, air: false },
+  boat: { name: '경비정', hp: 70, radius: 7, score: 130, cy: 2.0, air: false },
+  radar: { name: '레이더 기지', hp: 60, radius: 7, score: 150, cy: 4, air: false },
+};
+const FCFG = {
+  prop: { k: 0.62, turn: 0.78, gun: 0.22, spread: 0.03, misWave: 99 },
+  jet: { k: 0.84, turn: 0.62, gun: 0.16, spread: 0.025, misWave: 3, misCd: [12, 18] },
+  inter: { k: 1.18, turn: 0.52, gun: 0.2, spread: 0.03, misWave: 1, misCd: [8, 12] },
+  ace: { k: 1.02, turn: 0.82, gun: 0.1, spread: 0.012, misWave: 1, misCd: [6, 9], evade: 0.15 },
+};
+const tmp = new V3(), tmp2 = new V3(), tmp3 = new V3(), tmp4 = new V3();
+
+// ================= 지상 적 모델 =================
+const GM = {
+  olive: new THREE.MeshPhongMaterial({ color: 0x6b6a3a, flatShading: true, shininess: 10 }),
+  olive2: new THREE.MeshPhongMaterial({ color: 0x55542e, flatShading: true, shininess: 10 }),
+  dark: new THREE.MeshPhongMaterial({ color: 0x26261f, flatShading: true }),
+  grey: new THREE.MeshPhongMaterial({ color: 0x6f7468, flatShading: true }),
+  navy: new THREE.MeshPhongMaterial({ color: 0x5b6670, flatShading: true, shininess: 30 }),
+  navy2: new THREE.MeshPhongMaterial({ color: 0x3b444c, flatShading: true }),
+  white: new THREE.MeshPhongMaterial({ color: 0xe8e8e2, flatShading: true }),
+  red: new THREE.MeshPhongMaterial({ color: 0xb8322a, flatShading: true }),
+  burnt: new THREE.MeshPhongMaterial({ color: 0x1e1b19, flatShading: true }),
+};
+function gbox(p, w, h, d, m, x, y, z) { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); p.add(o); return o; }
+function gcyl(p, r1, r2, h, seg, m, x, y, z) { const o = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, seg), m); o.position.set(x, y, z); p.add(o); return o; }
+function barrelMesh(r, len, m) { return new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.15, len, 8).rotateX(Math.PI / 2).translate(0, 0, len / 2), m); }
+function makeTank() {
+  const g = new THREE.Group();
+  gbox(g, 3.4, 1.0, 6.4, GM.olive, 0, 1.25, 0);
+  const nose = gbox(g, 3.4, 0.7, 1.4, GM.olive2, 0, 1.1, 3.4); nose.rotation.x = 0.5;
+  for (const sx of [-1, 1]) { gbox(g, 1.0, 1.15, 7.0, GM.dark, sx * 2.0, 0.6, 0); for (let i = -2; i <= 2; i++) gbox(g, 1.05, 0.7, 0.7, GM.grey, sx * 2.0, 0.5, i * 1.4); }
+  const turret = new THREE.Group(); turret.position.set(0, 1.75, -0.3); g.add(turret);
+  gbox(turret, 2.6, 0.9, 3.0, GM.olive2, 0, 0.45, 0); gbox(turret, 0.7, 0.3, 0.7, GM.dark, 0.6, 1.0, -0.5);
+  const barrel = new THREE.Group(); barrel.position.set(0, 0.5, 1.4); turret.add(barrel); barrel.add(barrelMesh(0.15, 4.6, GM.dark));
+  g.userData.turret = turret; g.userData.barrel = barrel; return g;
+}
+function makeSam() {
+  const g = new THREE.Group();
+  gbox(g, 3.2, 1.3, 6.5, GM.olive, 0, 1.2, 0); gbox(g, 3.0, 1.6, 1.8, GM.olive2, 0, 2.0, 2.6);
+  for (const sx of [-1, 1]) for (const z of [-2.2, 0, 2.2]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.5, 10).rotateZ(Math.PI / 2), GM.dark); w.position.set(sx * 1.6, 0.55, z); g.add(w); }
+  const plat = new THREE.Group(); plat.position.set(0, 1.9, -1.0); g.add(plat);
+  const rack = new THREE.Group(); rack.rotation.x = -0.6; rack.position.y = 0.4; plat.add(rack);
+  for (const sx of [-0.45, 0.45]) for (const sy of [0, 0.75]) { gbox(rack, 0.6, 0.6, 4.2, GM.grey, sx, sy, 0.6); gbox(rack, 0.5, 0.5, 0.2, GM.red, sx, sy, 2.75); }
+  const dish = gcyl(g, 0.9, 0.2, 0.3, 10, GM.grey, 0, 3.3, 2.4); dish.rotation.x = 1.2;
+  g.userData.plat = plat; g.userData.dish = dish; return g;
+}
+function makeFlak() {
+  const g = new THREE.Group();
+  gcyl(g, 3.2, 3.6, 1.0, 10, GM.grey, 0, 0.5, 0);
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; gbox(g, 1.6, 1.2, 1.0, GM.olive2, Math.cos(a) * 4.2, 0.6, Math.sin(a) * 4.2).rotation.y = -a; }
+  const turret = new THREE.Group(); turret.position.set(0, 1.2, 0); g.add(turret);
+  gbox(turret, 2.4, 1.2, 2.4, GM.olive, 0, 0.6, 0);
+  const barrel = new THREE.Group(); barrel.position.set(0, 1.0, 0.6); turret.add(barrel);
+  for (const sx of [-0.45, 0.45]) { const b = barrelMesh(0.13, 4.2, GM.dark); b.position.x = sx; barrel.add(b); }
+  g.userData.turret = turret; g.userData.barrel = barrel; return g;
+}
+function makeBoat() {
+  const g = new THREE.Group();
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(4.2, 2.0, 15), GM.navy); hull.position.y = 0.4; g.add(hull);
+  const pos = hull.geometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) { const z = pos.getZ(i), y = pos.getY(i); if (z > 5) pos.setX(i, pos.getX(i) * (1 - (z - 5) / 3.2)); if (y < 0) pos.setX(i, pos.getX(i) * 0.7); }
+  hull.geometry.computeVertexNormals();
+  gbox(g, 3.0, 2.0, 4.5, GM.white, 0, 2.4, -2.0); gbox(g, 2.6, 0.6, 1.6, GM.navy2, 0, 3.7, -1.4);
+  gcyl(g, 0.12, 0.12, 3, 6, GM.navy2, 0, 5, -2.6); gbox(g, 1.6, 0.15, 0.15, GM.navy2, 0, 6, -2.6);
+  const turret = new THREE.Group(); turret.position.set(0, 1.5, 3.4); g.add(turret);
+  gcyl(turret, 0.9, 1.0, 0.8, 10, GM.navy2, 0, 0.4, 0);
+  const barrel = new THREE.Group(); barrel.position.set(0, 0.7, 0.3); turret.add(barrel);
+  for (const sx of [-0.25, 0.25]) { const b = barrelMesh(0.09, 2.6, GM.dark); b.position.x = sx; barrel.add(b); }
+  g.userData.turret = turret; g.userData.barrel = barrel; return g;
+}
+function makeRadar() {
+  const g = new THREE.Group();
+  gbox(g, 8, 4, 6, GM.white, 0, 2, 0); gbox(g, 8.4, 0.4, 6.4, GM.grey, 0, 4.2, 0);
+  gcyl(g, 0.4, 0.6, 5, 8, GM.grey, 0, 6.6, 0);
+  const head = new THREE.Group(); head.position.set(0, 9.2, 0); g.add(head);
+  const dish = gbox(head, 9, 3.2, 0.35, GM.white, 0, 0.6, 0.6); dish.rotation.x = -0.35;
+  gbox(head, 0.4, 0.4, 2.2, GM.grey, 0, 0.3, 1.6); gbox(head, 0.6, 0.6, 0.6, GM.red, 0, 0.3, 2.8);
+  g.userData.head = head; return g;
+}
+
+// ================= 미사일 / 폭탄 / 총알 =================
+const MG = {
+  body: new THREE.CylinderGeometry(0.17, 0.17, 3, 8).rotateX(Math.PI / 2),
+  nose: new THREE.ConeGeometry(0.17, 0.6, 8).rotateX(Math.PI / 2).translate(0, 0, 1.8),
+  fin1: new THREE.BoxGeometry(1.0, 0.05, 0.55).translate(0, 0, -1.2), fin2: new THREE.BoxGeometry(0.05, 1.0, 0.55).translate(0, 0, -1.2),
+  flame: new THREE.ConeGeometry(0.24, 1.8, 8, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -2.4),
+  bomb: new THREE.CylinderGeometry(0.32, 0.32, 1.8, 8).rotateX(Math.PI / 2), bombNose: new THREE.ConeGeometry(0.32, 0.6, 8).rotateX(Math.PI / 2).translate(0, 0, 1.2),
+};
+const MM = {
+  white: new THREE.MeshPhongMaterial({ color: 0xeeeeee, shininess: 60 }), red: new THREE.MeshPhongMaterial({ color: 0xc83228 }),
+  grey: new THREE.MeshPhongMaterial({ color: 0x5c6066 }), bomb: new THREE.MeshPhongMaterial({ color: 0x3e4636 }),
+  flame: new THREE.MeshBasicMaterial({ color: 0xffb040, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }),
+};
+function missileMesh(enemy, scale) {
+  const g = new THREE.Group(), body = enemy ? MM.grey : MM.white;
+  g.add(new THREE.Mesh(MG.body, body), new THREE.Mesh(MG.nose, enemy ? MM.red : MM.grey), new THREE.Mesh(MG.fin1, body), new THREE.Mesh(MG.fin2, body), new THREE.Mesh(MG.flame, MM.flame));
+  g.scale.setScalar(scale || 1.6); return g;
+}
+const BG = new THREE.BoxGeometry(0.22, 0.22, 7);
+const BM = { p: new THREE.MeshBasicMaterial({ color: 0xffe070, fog: false }), e: new THREE.MeshBasicMaterial({ color: 0xff5a40, fog: false }), s: new THREE.MeshBasicMaterial({ color: 0xffa020, fog: false }) };
+function fireBullet(from, dir, speed, enemy, dmg, life, shell) {
+  let b = null;
+  for (const x of bullets) if (!x.alive) { b = x; break; }
+  if (!b) { if (bullets.length > 700) return; b = { mesh: new THREE.Mesh(BG, BM.p), pos: new V3(), vel: new V3(), a: new V3() }; scene.add(b.mesh); bullets.push(b); }
+  b.alive = true; b.enemy = enemy; b.dmg = dmg; b.life = life; b.shell = !!shell;
+  b.mesh.material = shell ? BM.s : enemy ? BM.e : BM.p; b.mesh.scale.set(shell ? 4 : 1, shell ? 4 : 1, shell ? 0.5 : 1);
+  b.pos.copy(from); b.vel.copy(dir).multiplyScalar(speed); b.mesh.visible = true; b.mesh.position.copy(from);
+  b.mesh.lookAt(tmp4.copy(from).add(dir));
+}
+function segDist2(a, b, c) {
+  const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z, L = abx * abx + aby * aby + abz * abz || 1e-6;
+  const t = clamp(((c.x - a.x) * abx + (c.y - a.y) * aby + (c.z - a.z) * abz) / L, 0, 1);
+  const dx = a.x + abx * t - c.x, dy = a.y + aby * t - c.y, dz = a.z + abz * t - c.z; return dx * dx + dy * dy + dz * dz;
+}
+// 적이 플레이어를 노릴 때 오차 (스패로는 잘 피하고, 레이더가 있으면 정확해져요)
+const aimSpread = (s) => s * (P.def && P.def.dodge ? P.def.dodge : 1) * (radarOn ? 0.65 : 1);
+const detectK = () => (P.def && P.def.detect ? P.def.detect : 1) * (radarOn ? 1.3 : 1);
+const hidden = () => P.cloakT > 0;
+
+// ================= 플레이어 =================
+function forwardOf(fc, out) { const cp = Math.cos(fc.pitch); return out.set(Math.sin(fc.heading) * cp, Math.sin(fc.pitch), Math.cos(fc.heading) * cp); }
+function makePlayer(id) {
+  if (P.obj) scene.remove(P.obj);
+  const def = PLANES[id], o = def.make();
+  scene.add(o); P.obj = o; P.def = def; P.id = id;
+  P.fc = new A3.FlightController(o, { groundHeight: groundH, waterLevel: WATER, ceiling: 950 });
+  P.fc.reset(0, -360, 0);
+  P.fc.onCrash = (why) => playerDie(why === 'water' ? '바다에 추락했어요' : '땅에 추락했어요');
+  P.fc.onTakeoff = () => feed('이륙!', '#9fe8ff');
+  P.fc.onLand = () => feed('착륙', '#9fe8ff');
+  Object.assign(P, {
+    alive: true, maxHp: def.hp, maxMis: def.mis, maxFl: def.fl, radius: def.radius, cy: def.cy, len: def.len,
+    boost: 1, gunCd: 0, misCd: 0, flCd: 0, lockT: 0, lockCand: null, locked: null, oob: 0, regen: 0, side: 1, repairT: 0,
+    abCd: 0, dashT: 0, cloakT: 0, frenzyT: 0, bombQ: 0, bombT: 0, smokeT: 0,
+  });
+  P.hp = P.maxHp; P.missiles = P.maxMis; P.flares = P.maxFl;
+  SC = def.sc; RS = 0.5 + 0.5 * SC;
+  P.prev.copy(o.position); P.vel.set(0, 0, 0); P.cloakMats = null;
+  updatePlayerFrame();
+  $('abBtn').innerHTML = '⭐ ' + def.ab.name;
+}
+function updatePlayerFrame() {
+  const o = P.obj; forwardOf(P.fc, P.fwd); P.up.set(0, 1, 0).applyQuaternion(o.quaternion);
+  P.center.copy(P.up).multiplyScalar(P.cy).add(o.position);
+}
+function gunOrigin(out) { return out.copy(P.center).addScaledVector(P.fwd, P.len); }
+function damagePlayer(n, by) {
+  if (!P.alive || gameState !== 'play') return;
+  if (P.dashT > 0) { sparkFx(P.center, 0.6); return; }
+  P.hp -= n; hurtFlash(Math.min(1, n / 25)); shake = Math.max(shake, Math.min(1.2, n / 15));
+  sNoise(0.15, 1200, 0.25, 'bandpass', 1.5);
+  if (P.hp <= 0) { P.hp = 0; playerDie(by || '격추당했어요'); }
+}
+function playerDie(why) {
+  if (!P.alive) return;
+  P.alive = false; P.fc.dead = true; P.obj.visible = false; P.deathPos = P.center.clone(); P.deathWhy = why;
+  bigBoom(P.center, 6); sBoom(0); gameState = 'dying'; S.dieT = 2.6; shake = 1.5;
+  $('touch').style.display = 'none';
+}
+// 투명 위장: 기체 재질을 반투명으로 바꿔요
+const CLOAK = new THREE.MeshPhongMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.18, depthWrite: false, shininess: 120, specular: 0xffffff });
+function setCloak(on) {
+  P.obj.traverse((m) => {
+    if (!m.isMesh) return;
+    if (on) { if (!m.userData.orig) m.userData.orig = m.material; m.material = CLOAK; }
+    else if (m.userData.orig) { m.material = m.userData.orig; m.userData.orig = null; }
+  });
+}
+// 고유 능력
+function useAbility() {
+  if (!P.alive || gameState !== 'play') return;
+  const ab = P.def.ab;
+  if (P.abCd > 0) { feed(`${ab.name} 충전 중 (${Math.ceil(P.abCd)}초)`, '#aab4c0'); return; }
+  const air = !P.fc.onGround;
+  switch (ab.key) {
+    case 'salvo': {
+      if (!air) return feed('공중에서 쓸 수 있어요', '#aab4c0');
+      const g0 = gunOrigin(tmp2), list = [];
+      for (const e of enemies) {
+        if (!e.alive) continue; const d = e.center.distanceTo(g0); if (d > 2200 * RS) continue;
+        const a = Math.acos(clamp(tmp.copy(e.center).sub(g0).divideScalar(d).dot(P.fwd), -1, 1)); if (a < 0.7) list.push([a, e]);
+      }
+      if (!list.length) return feed('앞쪽에 적이 없어요', '#aab4c0');
+      list.sort((a, b) => a[0] - b[0]);
+      for (let i = 0; i < 4; i++) {
+        const t = list[i % list.length][1], side = i % 2 ? 1 : -1;
+        const from = P.center.clone().addScaledVector(P.up, -1.2 - (i >> 1) * 0.6).addScaledVector(tmp.set(1, 0, 0).applyQuaternion(P.obj.quaternion), side * (2 + (i >> 1)));
+        const dir = P.fwd.clone().addScaledVector(P.up, 0.05 * (i >> 1)).addScaledVector(tmp.set(1, 0, 0).applyQuaternion(P.obj.quaternion), side * 0.08);
+        launchMissile('player', from, dir, P.fc.speed, t);
+      }
+      break;
+    }
+    case 'dash':
+      if (!air) return feed('공중에서 쓸 수 있어요', '#aab4c0');
+      P.dashT = 4; P.fc.speed = Math.max(P.fc.speed, P.fc.f.vmax * 1.7); shake = 0.6;
+      for (const m of missiles) if (m.alive && m.target === 'player') m.target = null;
+      fx.ring(P.center, { color: 0x9fe8ff, to: 18, life: 0.5, width: 0.12, flat: false });
+      sNoise(1.2, 700, 0.5, 'bandpass', 0.6);
+      break;
+    case 'bombs':
+      if (!air) return feed('공중에서 쓸 수 있어요', '#aab4c0');
+      P.bombQ = 6; P.bombT = 0; break;
+    case 'cloak':
+      P.cloakT = 8; setCloak(true);
+      for (const m of missiles) if (m.alive && m.target === 'player') m.target = null;
+      fx.sparkle(P.center, { ramp: FX3D.RAMPS.magic, count: 24, radius: 8 });
+      sTone(1200, 300, 0.6, 0.08, 'sine');
+      break;
+    case 'frenzy': P.frenzyT = 6; sTone(300, 900, 0.3, 0.08, 'sawtooth'); break;
+    case 'repair':
+      if (!air) return feed('공중에서 쓸 수 있어요 (땅에서는 활주로 정비)', '#aab4c0');
+      P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.4); P.flares = P.maxFl;
+      fx.sparkle(P.center, { ramp: FX3D.RAMPS.heal, count: 30, radius: 6 });
+      sTone(500, 1000, 0.4, 0.08, 'sine');
+      break;
+  }
+  P.abCd = ab.cd; feed('⭐ ' + ab.name + '!', '#ffd23a');
+}
+
+// ================= 적 생성 =================
+function enemyFlight(k, turn) { k *= SC; return { vmax: 150 * k, vfast: 200 * k, acc: 30 * k, stall: 42 * k, rot: 52 * k, climb: 0.45, cruise: 110 * k, turn }; }
+function airSpawnPos(minR, maxR, alt) {
+  const a = Math.random() * Math.PI * 2, r = rnd(minR, maxR) * RS;
+  let x = P.obj.position.x + Math.cos(a) * r, z = P.obj.position.z + Math.sin(a) * r; const l = Math.hypot(x, z); if (l > WORLD - 300) { x *= (WORLD - 300) / l; z *= (WORLD - 300) / l; }
+  return new V3(x, surf(x, z) + alt, z);
+}
+function mkEnemy(kind, obj) {
+  const K0 = KIND[kind];
+  const e = { kind, obj, hp: K0.hp, maxHp: K0.hp, radius: K0.radius, cy: K0.cy, air: K0.air, alive: true, center: new V3(), vel: new V3(), prev: obj.position.clone(), smokeT: 0 };
+  enemyCenter(e); enemies.push(e); return e;
+}
+function spawnFighter(kind) {
+  const cfg = FCFG[kind];
+  const o = kind === 'jet' ? A3.jet({ body: 0x8f3b33, dark: 0x2b2120, canopy: 0x1d2c3c })
+    : kind === 'inter' ? A3.interceptor({ body: 0x6d2a2a, dark: 0x241616, stripe: 0xe8e8e8, canopy: 0x1d2c3c })
+    : kind === 'ace' ? A3.stealth({ body: 0x1c1c22, dark: 0x8a1020, canopy: 0xd02020 })
+    : A3.lightPlane({ body: 0x4a5532, stripe: 0xd8a21c });
+  const p = airSpawnPos(1400, 2000, rnd(220, 360)); o.position.copy(p); scene.add(o);
+  const fc = new A3.FlightController(o, { groundHeight: groundH, waterLevel: WATER, ceiling: 900, flight: enemyFlight(cfg.k, cfg.turn) });
+  fc.onGround = false; fc.speed = fc.f.cruise; fc.heading = Math.atan2(P.obj.position.x - p.x, P.obj.position.z - p.z);
+  const e = mkEnemy(kind, o); Object.assign(e, { fc, cfg, gunCd: rnd(1, 3), misCd: rnd(5, 10), altOff: rnd(-50, 80), evade: 0, evadeDir: 1, patrol: new V3(rnd(-1500, 1500), 300, rnd(-1500, 1500)) });
+  fc.onCrash = () => killEnemy(e, false);
+  o.rotation.set(0, fc.heading, 0, 'YXZ');
+  if (kind === 'ace') { banner('⚠ 에이스 등장!', '빨간 스텔스기 — 체력이 아주 많고 미사일을 자주 쏴요'); e.smokeH = fx.trail(o, { ramp: [0xff4060, 0x801020], size: 0.8, life: 0.6, rate: 30 }); }
+}
+function spawnBomber() {
+  const o = A3.bomber();
+  const a = Math.random() * Math.PI * 2, r = 2300, x = Math.cos(a) * r, z = Math.sin(a) * r;
+  o.position.set(x, surf(x, z) + 320, z); scene.add(o);
+  const fc = new A3.FlightController(o, { groundHeight: groundH, waterLevel: WATER, ceiling: 900, flight: { vmax: 75 * SC + 10, vfast: 90, acc: 10, stall: 22 * SC, rot: 35, climb: 0.3, cruise: 62 * SC + 8, turn: 0.35 } });
+  fc.onGround = false; fc.speed = fc.f.cruise; fc.heading = Math.atan2(-x, -z);
+  const e = mkEnemy('bomber', o); Object.assign(e, { fc, phase: 'run', wp: new V3(), bombT: 0, gunCd: 1, burst: 0, dropped: 0 });
+  fc.onCrash = () => killEnemy(e, false);
+  o.rotation.set(0, fc.heading, 0, 'YXZ');
+}
+function spawnHeli() {
+  const o = A3.helicopter(); const p = airSpawnPos(1200, 1800, 0); p.y = surf(p.x, p.z) + rnd(70, 120); o.position.copy(p); scene.add(o);
+  const e = mkEnemy('heli', o); Object.assign(e, { v: new V3(), yaw: Math.random() * 6, fireCd: rnd(3, 6), salvo: 0, salvoT: 0, gunCd: 2, patrol: new V3(rnd(-1500, 1500), 0, rnd(-1500, 1500)) });
+}
+function spawnDrones(n) {
+  const c = airSpawnPos(1500, 2100, rnd(150, 250));
+  for (let i = 0; i < n; i++) {
+    const o = A3.drone(); o.scale.setScalar(1.6); o.position.copy(c).add(new V3(rnd(-40, 40), rnd(-15, 15), rnd(-40, 40))); scene.add(o);
+    const e = mkEnemy('drone', o); Object.assign(e, { dir: tmp.copy(P.center).sub(o.position).normalize().clone(), spd: (150 * SC + 15) * rnd(0.95, 1.1) });
+  }
+}
+function landSpot(minR, maxR, water) {
+  for (let i = 0; i < 600; i++) {
+    const a = Math.random() * Math.PI * 2, r = rnd(minR, maxR), x = Math.cos(a) * r, z = Math.sin(a) * r, h = groundH(x, z);
+    if (inBase(x, z)) continue;
+    if (water ? h < WATER - 6 : h > WATER + 4 && h < 95) return [x, z];
+  }
+  return null;
+}
+function spawnGround(kind) {
+  const water = kind === 'boat', spot = landSpot(500, 2300, water); if (!spot) return;
+  const [x, z] = spot;
+  const o = kind === 'tank' ? makeTank() : kind === 'sam' ? makeSam() : kind === 'flak' ? makeFlak() : kind === 'boat' ? makeBoat() : makeRadar();
+  o.position.set(x, water ? WATER : groundH(x, z), z); scene.add(o);
+  const e = mkEnemy(kind, o); Object.assign(e, { h: Math.random() * 6, turnT: rnd(2, 6), spd: water ? rnd(7, 10) : rnd(4, 6.5), fireCd: rnd(2, 5), burst: 0, burstT: 0 });
+  e.targetH = e.h; o.rotation.set(0, e.h, 0, 'YXZ');
+}
+function enemyCenter(e) {
+  if (e.air) e.center.set(0, e.cy * e.obj.scale.y, 0).applyQuaternion(e.obj.quaternion).add(e.obj.position);
+  else e.center.copy(e.obj.position).y += e.cy;
+}
+function damageEnemy(e, n, at) {
+  if (!e.alive) return;
+  e.hp -= n; sparkFx(at || e.center, e.air ? 1.2 : 1);
+  if (e.hp <= 0) killEnemy(e, true);
+}
+function killEnemy(e, byPlayer) {
+  if (!e.alive) return;
+  e.alive = false; const K0 = KIND[e.kind], d = camera.position.distanceTo(e.center);
+  const big = e.kind === 'bomber' || e.kind === 'ace' ? 9 : e.kind === 'drone' ? 3 : e.air ? 5 : 4.5;
+  bigBoom(e.center, big); sBoom(d); if (d < 150) shake = Math.max(shake, 0.6);
+  if (e.smokeH) e.smokeH.stop();
+  if (e.air) scene.remove(e.obj);
+  else {
+    e.obj.traverse((m) => { if (m.isMesh) m.material = GM.burnt; });
+    const wp = e.obj.position;
+    fx.fire({ x: wp.x, y: wp.y + 2, z: wp.z }, { size: 3, duration: 9 });
+    fx.smoke({ x: wp.x, y: wp.y + 3, z: wp.z }, { size: 8, rate: 3, duration: 14, ramp: DARK, wind: 1 });
+    wrecks.push({ obj: e.obj, t: 16, sink: e.kind === 'boat' });
+  }
+  if (byPlayer) {
+    S.score += K0.score; S.kills++; feed(`${K0.name} 격파 +${K0.score}`, K0.boss ? '#ff9af0' : '#ffd23a');
+    fx.text({ x: e.center.x, y: e.center.y + 6, z: e.center.z }, '+' + K0.score, { color: '#ffd23a', size: clamp(d * 0.035, 4, 40), life: 1.4, rise: clamp(d * 0.02, 3, 20) });
+    if (e.kind === 'radar') feed('레이더 파괴! 적 명중률이 떨어져요', '#9fe8ff');
+  }
+  if (P.locked === e) P.locked = null; if (P.lockCand === e) P.lockCand = null;
+}
+
+// ================= 적 업데이트 =================
+function seesPlayer(e, range) {
+  if (!P.alive || gameState !== 'play' || hidden()) return false;
+  const d = e.center.distanceTo(P.center);
+  return d < range * detectK();
+}
+function steerFC(e, tx, ty, tz, extra) {
+  const fc = e.fc, p = e.obj.position;
+  let desired = Math.atan2(tx - p.x, tz - p.z);
+  if (e.evade > 0) { e.evade -= 1 / 60; desired += e.evadeDir * 1.3; }
+  if (Math.hypot(p.x, p.z) > WORLD - 200) desired = Math.atan2(-p.x, -p.z);
+  const diff = wrapA(desired - fc.heading), sg = surf(p.x, p.z);
+  const wantY = clamp(ty, sg + 90 * RS, 760);
+  const inp = Object.assign({ throttle: true, left: diff > 0.08, right: diff < -0.08, up: p.y < wantY - 15, down: p.y > wantY + 25 }, extra || {});
+  const ah = surf(p.x + Math.sin(fc.heading) * 260 * RS, p.z + Math.cos(fc.heading) * 260 * RS);
+  if (p.y - sg < 70 * RS || ah + 70 * RS > p.y) { inp.up = true; inp.down = false; }
+  return inp;
+}
+function updateFighter(e, dt) {
+  const fc = e.fc, o = e.obj, p = o.position, cfg = e.cfg;
+  if (fc.dead) return;
+  e.prev.copy(p);
+  const range = P.alive && P.fc.onGround ? 1000 * RS : e.kind === 'ace' ? 5000 : 2600 * RS;
+  const chase = seesPlayer(e, range);
+  let tx, ty, tz;
+  if (chase) { const lead = P.center.distanceTo(p) / (500 * RS) * 0.6; tx = P.center.x + P.vel.x * lead; ty = P.center.y + e.altOff * (e.kind === 'ace' ? 0.2 : 1); tz = P.center.z + P.vel.z * lead; }
+  else { if (Math.hypot(e.patrol.x - p.x, e.patrol.z - p.z) < 200) e.patrol.set(rnd(-1800, 1800), 300, rnd(-1800, 1800)); tx = e.patrol.x; ty = e.patrol.y; tz = e.patrol.z; }
+  if (e.evade <= 0 && Math.random() < dt * (cfg.evade || 0.06)) { e.evade = rnd(1.2, 2.6); e.evadeDir = Math.random() < 0.5 ? -1 : 1; }
+  const dist = Math.hypot(tx - p.x, tz - p.z);
+  fc.update(dt, steerFC(e, tx, ty, tz, { boost: (e.kind !== 'prop') && dist > 1400 * RS }));
+  e.vel.copy(p).sub(e.prev).divideScalar(dt); enemyCenter(e);
+  if (e.hp < e.maxHp * 0.5 && (e.smokeT -= dt) <= 0) { e.smokeT = 0.06; puff(e.center, 2.5, DARK, 1.6); }
+  if (!chase) return;
+  const fwd = forwardOf(fc, tmp2), to = tmp3.copy(P.center).sub(e.center), d = to.length(); to.divideScalar(d);
+  const dot = fwd.dot(to);
+  e.gunCd -= dt;
+  if (d < 650 * RS && dot > 0.985 && e.gunCd <= 0) {
+    const s = aimSpread(cfg.spread), from = tmp.copy(e.center).addScaledVector(fwd, 9);
+    for (let i = 0; i < 2; i++) fireBullet(from, tmp4.copy(to).add({ x: rnd(-s, s), y: rnd(-s, s), z: rnd(-s, s) }).normalize(), 520 * RS + fc.speed, true, Math.min(7, 3 + S.wave * 0.4) * (e.kind === 'ace' ? 1.3 : 1), 1.8);
+    e.gunCd = cfg.gun; if (Math.random() < 0.08) e.gunCd = rnd(1, 2.2);
+    if (d < 400) sNoise(0.05, 1800, 0.06 * (1 - d / 400), 'bandpass', 1);
+  }
+  e.misCd -= dt;
+  if (S.wave >= cfg.misWave && d < 1300 * RS && dot > 0.9 && e.misCd <= 0) {
+    launchMissile('enemy', tmp.copy(e.center).addScaledVector(fwd, 6), fwd, fc.speed, 'player');
+    e.misCd = rnd(cfg.misCd[0], cfg.misCd[1]) * (radarOn ? 0.75 : 1);
+  }
+}
+function updateBomber(e, dt) {
+  const fc = e.fc, o = e.obj, p = o.position;
+  if (fc.dead) return;
+  e.prev.copy(p);
+  const dB = Math.hypot(p.x, p.z);
+  let tx = 0, tz = 0;
+  if (e.phase === 'run') {
+    // 떨어지는 동안 앞으로 날아가는 거리만큼 미리 떨어뜨려요
+    const tf = Math.sqrt(2 * Math.max(1, p.y - BASE_H) / 9.8), ix = p.x + e.vel.x * tf, iz = p.z + e.vel.z * tf;
+    if (inBase(ix * 0.9, iz * 0.9) && (e.bombT -= dt) <= 0 && S.base > 0) {
+      e.bombT = 0.45; e.dropped++;
+      dropBomb(tmp.set(0, 1.5, -1).applyQuaternion(o.quaternion).add(p), e.vel, 'enemy');
+    }
+    if (dB < 90 || e.dropped >= 10) {
+      e.phase = 'away'; e.dropped = 0;
+      const a = fc.heading + rnd(-0.5, 0.5); e.wp.set(Math.sin(a) * 1500, 0, Math.cos(a) * 1500);
+    }
+  } else {
+    tx = e.wp.x; tz = e.wp.z;
+    if (Math.hypot(e.wp.x - p.x, e.wp.z - p.z) < 250) e.phase = 'run';
+  }
+  fc.update(dt, steerFC(e, tx, 300, tz));
+  e.vel.copy(p).sub(e.prev).divideScalar(dt); enemyCenter(e);
+  if (e.hp < e.maxHp * 0.5 && (e.smokeT -= dt) <= 0) { e.smokeT = 0.05; puff(tmp.set(rnd(-11, 11), 3.4, 1).applyQuaternion(o.quaternion).add(p), 3, DARK, 1.8); }
+  // 꼬리 기관총
+  if (!seesPlayer(e, 700 * RS)) return;
+  e.gunCd -= dt;
+  if (e.gunCd <= 0) {
+    const from = o.localToWorld(tmp.copy(o.userData.tailGun)), to = tmp2.copy(P.center).sub(from), d = to.length(); to.divideScalar(d);
+    const s = aimSpread(0.045);
+    fireBullet(from, to.add({ x: rnd(-s, s), y: rnd(-s, s), z: rnd(-s, s) }).normalize(), 480 * RS, true, 3, 1.6);
+    if (++e.burst >= 6) { e.burst = 0; e.gunCd = rnd(1.2, 2); } else e.gunCd = 0.13;
+  }
+}
+function updateHeli(e, dt) {
+  const o = e.obj, p = o.position;
+  e.prev.copy(p);
+  const chase = seesPlayer(e, 2000 * RS);
+  let tx, tz, ty;
+  if (chase) {
+    const dx = p.x - P.center.x, dz = p.z - P.center.z, l = Math.hypot(dx, dz) || 1, R = 380 * RS;
+    tx = P.center.x + dx / l * R; tz = P.center.z + dz / l * R;
+    ty = clamp(P.center.y, surf(p.x, p.z) + 60, surf(p.x, p.z) + 240);
+  } else {
+    if (Math.hypot(e.patrol.x - p.x, e.patrol.z - p.z) < 120) e.patrol.set(rnd(-1800, 1800), 0, rnd(-1800, 1800));
+    tx = e.patrol.x; tz = e.patrol.z; ty = surf(p.x, p.z) + 100;
+  }
+  const want = tmp.set(tx - p.x, (ty - p.y) * 0.6, tz - p.z), wl = want.length(), vmax = 40 * RS + 5;
+  if (wl > 1) want.multiplyScalar(Math.min(vmax, wl * 0.5) / wl);
+  e.v.lerp(want, 1 - Math.exp(-dt * 0.8));
+  p.addScaledVector(e.v, dt); p.y = Math.max(p.y, surf(p.x, p.z) + 25);
+  const faceYaw = chase ? Math.atan2(P.center.x - p.x, P.center.z - p.z) : Math.atan2(e.v.x, e.v.z);
+  if (Math.hypot(e.v.x, e.v.z) > 2 || chase) e.yaw += clamp(wrapA(faceYaw - e.yaw), -1.1 * dt, 1.1 * dt);
+  const fs = e.v.x * Math.sin(e.yaw) + e.v.z * Math.cos(e.yaw), ss = e.v.x * Math.cos(e.yaw) - e.v.z * Math.sin(e.yaw);
+  o.rotation.set(clamp(fs / 45, -0.3, 0.3), e.yaw, clamp(ss / 60, -0.3, 0.3), 'YXZ');
+  o.userData.animate(dt, {});
+  e.vel.copy(p).sub(e.prev).divideScalar(dt); enemyCenter(e);
+  if (e.hp < e.maxHp * 0.5 && (e.smokeT -= dt) <= 0) { e.smokeT = 0.07; puff(e.center, 2.2, DARK, 1.5); }
+  if (!chase) return;
+  const to = tmp3.copy(P.center).sub(e.center), d = to.length(); to.divideScalar(d);
+  const facing = Math.abs(wrapA(Math.atan2(to.x, to.z) - e.yaw)) < 0.3;
+  if ((e.fireCd -= dt) <= 0 && d < 1000 * RS && facing) { e.salvo = 4; e.salvoT = 0; e.fireCd = rnd(5, 8); }
+  if (e.salvo > 0 && (e.salvoT -= dt) <= 0) {
+    e.salvo--; e.salvoT = 0.18;
+    const pod = o.userData.pods[e.salvo % 2], from = o.localToWorld(tmp.copy(pod));
+    const t = d / (240 * RS), aim = tmp2.copy(P.center).addScaledVector(P.vel, t * 0.8).sub(from).normalize();
+    const s = aimSpread(0.03); aim.add({ x: rnd(-s, s), y: rnd(-s, s), z: rnd(-s, s) }).normalize();
+    launchMissile('enemy', from, aim, 240 * RS, null, { rocket: true });
+  }
+  if ((e.gunCd -= dt) <= 0 && d < 600 * RS) {
+    const from = o.localToWorld(tmp.copy(o.userData.chinGun)), s = aimSpread(0.04);
+    fireBullet(from, tmp2.copy(P.center).sub(from).normalize().add({ x: rnd(-s, s), y: rnd(-s, s), z: rnd(-s, s) }).normalize(), 480 * RS, true, 3, 1.6);
+    e.gunCd = Math.random() < 0.15 ? 1.5 : 0.15;
+  }
+}
+function updateDrone(e, dt) {
+  const o = e.obj, p = o.position;
+  e.prev.copy(p);
+  const chase = seesPlayer(e, 3000 * RS);
+  const tgt = chase ? tmp.copy(P.center).addScaledVector(P.vel, Math.min(2, P.center.distanceTo(p) / e.spd) * 0.7) : tmp.set(0, 250, 0);
+  const want = tgt.sub(p).normalize(); const sg = surf(p.x, p.z);
+  if (p.y < sg + 30) want.y = Math.max(want.y, 0.4);
+  const ang = Math.acos(clamp(e.dir.dot(want), -1, 1)); if (ang > 1e-4) e.dir.lerp(want, Math.min(1, 1.7 * dt / ang)).normalize();
+  p.addScaledVector(e.dir, e.spd * dt);
+  o.lookAt(tmp2.copy(p).add(e.dir)); o.userData.animate(dt, { throttle: 1, speed: e.spd });
+  e.vel.copy(e.dir).multiplyScalar(e.spd); enemyCenter(e);
+  if (P.alive && gameState === 'play' && e.center.distanceTo(P.center) < 13 + P.radius * 0.5) { killEnemy(e, false); damagePlayer(24, '자폭 드론에 맞았어요'); }
+  if (p.y < sg + 3) killEnemy(e, false);
+}
+function fireShell(from, sp, dmg) {
+  const d = from.distanceTo(P.center), tt = clamp(d / sp, 0.4, 4.5);
+  const s = aimSpread(0.08), aim = tmp2.copy(P.center).addScaledVector(P.vel, tt * rnd(1 - s, 1 + s * 0.3)).sub(from); const ad = aim.length(); aim.divideScalar(ad);
+  fireBullet(from, aim, ad / tt, true, dmg, tt, true);
+}
+function updateGround(e, dt) {
+  const o = e.obj, p = o.position, ud = o.userData;
+  e.prev.copy(p);
+  if (e.kind === 'tank' || e.kind === 'boat') {
+    const boat = e.kind === 'boat';
+    if ((e.turnT -= dt) <= 0) { e.targetH = rnd(-Math.PI, Math.PI); e.turnT = rnd(4, 9); }
+    e.h += clamp(wrapA(e.targetH - e.h), -0.6 * dt, 0.6 * dt);
+    const nx = p.x + Math.sin(e.h) * e.spd * dt, nz = p.z + Math.cos(e.h) * e.spd * dt, nh = groundH(nx, nz);
+    const ok = boat ? nh < WATER - 4 : !(nh < WATER + 2 || nh > 110);
+    if (!ok || Math.hypot(nx, nz) > WORLD - 200 || inBase(nx, nz)) { e.targetH = e.h + Math.PI; e.turnT = rnd(3, 6); }
+    else { p.x = nx; p.z = nz; }
+    if (boat) {
+      p.y = WATER + Math.sin(T * 1.6 + e.h) * 0.3;
+      o.rotation.set(Math.sin(T * 1.3) * 0.04, e.h, Math.sin(T * 1.1 + 1) * 0.05, 'YXZ');
+      if (Math.random() < dt * 8) fx.emit({ x: p.x - Math.sin(e.h) * 7, y: WATER + 0.3, z: p.z - Math.cos(e.h) * 7 }, { vel: { x: rnd(-1, 1), y: rnd(0.5, 1.5), z: rnd(-1, 1) }, life: 0.8, size: 0.6, size2: 1.6, ramp: [0xffffff, 0xdcefff], shape: 'puff', fadeAt: 0.4 });
+    } else {
+      p.y = groundH(p.x, p.z);
+      const fx0 = Math.sin(e.h) * 3, fz0 = Math.cos(e.h) * 3, pitch = Math.atan2(groundH(p.x + fx0, p.z + fz0) - groundH(p.x - fx0, p.z - fz0), 6);
+      o.rotation.set(-pitch, e.h, 0, 'YXZ');
+    }
+  }
+  if (e.kind === 'radar') ud.head.rotation.y += dt * 1.5;
+  if (e.kind === 'sam') ud.dish.rotation.z += dt * 2;
+  enemyCenter(e);
+  e.vel.copy(p).sub(e.prev).divideScalar(Math.max(dt, 1e-4));
+  if (e.kind === 'radar') return;
+  const airborne = P.alive && !P.fc.onGround && P.fc.altitude > 20;
+  const to = tmp3.copy(P.center).sub(e.center), d = to.length(), hd = Math.hypot(to.x, to.z), yaw = Math.atan2(to.x, to.z);
+  const range = { tank: 1000, sam: 1600, flak: 1150, boat: 850 }[e.kind] * RS;
+  const sees = airborne && seesPlayer(e, range);
+  if (ud.turret && sees) {
+    ud.turret.rotation.y += clamp(wrapA(yaw - o.rotation.y - ud.turret.rotation.y), -1.4 * dt, 1.4 * dt);
+    ud.barrel.rotation.x = -clamp(Math.atan2(to.y, hd), 0.05, 1.35);
+  }
+  if (!sees) return;
+  e.fireCd -= dt;
+  if (e.kind === 'tank' && e.fireCd <= 0) {
+    e.fireCd = rnd(2.8, 4.5) - Math.min(1.5, S.wave * 0.15);
+    const tip = ud.barrel.localToWorld(tmp.set(0, 0, 4.8)); fireShell(tip, 260 * RS, 12);
+    fx.flash(tip, { color: 0xffc060, size: 3, life: 0.12 }); puff(tip, 2, DARK, 1.2); sNoise(0.4, 600, 0.35 / (1 + d / 300));
+  } else if (e.kind === 'flak') {
+    if (e.fireCd <= 0) { e.burst = 3; e.fireCd = rnd(2, 3); }
+    if (e.burst > 0 && (e.burstT -= dt) <= 0) {
+      e.burst--; e.burstT = 0.3;
+      const tip = ud.barrel.localToWorld(tmp.set(e.burst % 2 ? 0.45 : -0.45, 0, 4.4)); fireShell(tip, 300 * RS, 9);
+      fx.flash(tip, { color: 0xffc060, size: 2.4, life: 0.1 }); sNoise(0.25, 900, 0.3 / (1 + d / 300));
+    }
+  } else if (e.kind === 'boat') {
+    if (e.fireCd <= 0) { e.burst = 8; e.fireCd = rnd(2.5, 4); }
+    if (e.burst > 0 && (e.burstT -= dt) <= 0) {
+      e.burst--; e.burstT = 0.12;
+      const tip = ud.barrel.localToWorld(tmp.set(0, 0, 2.8)), t = d / (520 * RS), s = aimSpread(0.035);
+      const aim = tmp2.copy(P.center).addScaledVector(P.vel, t).sub(tip).normalize().add({ x: rnd(-s, s), y: rnd(-s, s), z: rnd(-s, s) }).normalize();
+      fireBullet(tip, aim, 520 * RS, true, 4, 2);
+    }
+  } else if (e.kind === 'sam') {
+    ud.plat.rotation.y += clamp(wrapA(yaw - o.rotation.y - ud.plat.rotation.y), -0.8 * dt, 0.8 * dt);
+    if (e.fireCd <= 0 && Math.abs(wrapA(yaw - o.rotation.y - ud.plat.rotation.y)) < 0.3) {
+      e.fireCd = rnd(7, 10) - Math.min(3, S.wave * 0.3);
+      const from = tmp.copy(p); from.y += 6; const dir = tmp2.copy(to).normalize(); dir.y = Math.max(dir.y, 0.5); dir.normalize();
+      launchMissile('enemy', from, dir, 20 * SC, 'player'); puff(from, 4, SMOKE, 2);
+    }
+  }
+}
+
+// ================= 미사일 =================
+function launchMissile(owner, pos, dir, speed, target, opt = {}) {
+  const enemy = owner === 'enemy', rocket = !!opt.rocket, m = missileMesh(enemy, rocket ? 1.0 : 1.6); m.position.copy(pos); scene.add(m);
+  missiles.push({
+    obj: m, pos: pos.clone(), dir: dir.clone().normalize(), speed, target, owner, alive: true, smokeT: 0, age: 0, rocket,
+    maxSpeed: rocket ? 270 * RS : enemy ? 205 * SC + 10 : 330 * SC + 60, acc: rocket ? 300 : enemy ? 120 * SC : 200 * SC, turn: enemy ? 1.35 : 2.6,
+    life: rocket ? 4.5 : enemy ? 10 : 7, prev: pos.clone(), beepT: 0,
+  });
+  const d = camera.position.distanceTo(pos); sNoise(rocket ? 0.4 : 0.9, 900, 0.5 / (1 + d / 150), 'bandpass', 0.7);
+  if (enemy && !rocket) feed('⚠ 적 미사일 발사!', '#ff6a5a');
+}
+function missileTarget(m) {
+  const t = m.target; if (!t) return null;
+  if (t === 'player') return P.alive && !hidden() ? P.center : null;
+  if (t.isFlare) return t.alive ? t.pos : null;
+  return t.alive ? t.center : null;
+}
+function updateMissiles(dt) {
+  for (const m of missiles) {
+    if (!m.alive) continue;
+    m.age += dt; m.prev.copy(m.pos);
+    m.speed = Math.min(m.maxSpeed, m.speed + m.acc * dt);
+    const tp = m.rocket ? null : missileTarget(m);
+    if (tp && m.age > 0.25) {
+      const d = tp.distanceTo(m.pos), tv = m.target === 'player' ? P.vel : m.target.vel;
+      const aim = tmp.copy(tp); if (tv) aim.addScaledVector(tv, Math.min(2, d / m.speed) * 0.6); aim.sub(m.pos).normalize();
+      const ang = Math.acos(clamp(m.dir.dot(aim), -1, 1));
+      if (ang > 1e-4) m.dir.lerp(aim, Math.min(1, (m.turn * dt) / ang)).normalize();
+    } else if (!tp && m.target) m.target = null;
+    m.pos.addScaledVector(m.dir, m.speed * dt);
+    m.obj.position.copy(m.pos); m.obj.lookAt(tmp.copy(m.pos).add(m.dir));
+    if ((m.smokeT -= dt) <= 0) { m.smokeT = (isTouch ? 0.045 : 0.03) * (m.rocket ? 1.6 : 1); puff(tmp.copy(m.pos).addScaledVector(m.dir, -4), m.rocket ? 1.1 : 1.6, SMOKE, rnd(0.8, 1.4)); }
+    let hit = false;
+    if (m.owner === 'player') {
+      for (const e of enemies) if (e.alive && segDist2(m.prev, m.pos, e.center) < (e.radius + 3) ** 2) { hit = true; break; }
+    } else {
+      if (P.alive && segDist2(m.prev, m.pos, P.center) < (P.radius + 2.5) ** 2) hit = true;
+      if (m.target && m.target.isFlare && m.target.alive && m.target.pos.distanceTo(m.pos) < 8) hit = true;
+      if (m.target === 'player' && (m.beepT -= dt) <= 0) { const d = m.pos.distanceTo(P.center); m.beepT = clamp(d / 900, 0.08, 0.6); sTone(1400, 1400, 0.05, 0.05); }
+    }
+    if (hit || m.pos.y < surf(m.pos.x, m.pos.z) || m.age > m.life) explodeMissile(m, hit || m.age <= m.life);
+  }
+  for (let i = missiles.length - 1; i >= 0; i--) if (!missiles[i].alive) missiles.splice(i, 1);
+}
+function explodeMissile(m, boom) {
+  m.alive = false; scene.remove(m.obj);
+  const p = m.pos, d = camera.position.distanceTo(p);
+  if (p.y < WATER + 1 && groundH(p.x, p.z) < WATER) fx.splash({ x: p.x, y: WATER, z: p.z }, { size: 6 });
+  bigBoom(p, boom ? (m.rocket ? 2 : 3) : 2); sBoom(d * 1.5);
+  if (m.owner === 'player') {
+    for (const e of enemies) { if (!e.alive) continue; const dd = e.center.distanceTo(p); if (dd < 26) damageEnemy(e, dd < e.radius + 4 ? 120 : 60 * (1 - dd / 26), e.center); }
+  } else if (P.alive) {
+    const dd = P.center.distanceTo(p), R = m.rocket ? 13 : 16;
+    if (dd < R) damagePlayer(m.rocket ? 16 * (1 - dd / R) + 4 : dd < P.radius + 3 ? 34 : 18 * (1 - dd / R), m.rocket ? '로켓에 맞았어요' : '미사일에 맞았어요');
+  }
+}
+
+// ================= 폭탄 =================
+function dropBomb(pos, vel, owner) {
+  const g = new THREE.Group(); g.add(new THREE.Mesh(MG.bomb, MM.bomb), new THREE.Mesh(MG.bombNose, MM.bomb)); g.scale.setScalar(owner === 'enemy' ? 1.8 : 1.3);
+  g.position.copy(pos); scene.add(g);
+  bombs.push({ obj: g, pos: pos.clone(), vel: vel.clone().add(new V3(rnd(-2, 2), -2, rnd(-2, 2))), owner, alive: true });
+  sTone(900, 250, 0.7, 0.03, 'sine');
+}
+function updateBombs(dt) {
+  for (const b of bombs) {
+    if (!b.alive) continue;
+    b.vel.y -= 9.8 * dt; b.vel.multiplyScalar(Math.exp(-dt * 0.05)); b.pos.addScaledVector(b.vel, dt);
+    b.obj.position.copy(b.pos); b.obj.lookAt(tmp.copy(b.pos).add(b.vel));
+    let hit = b.pos.y <= surf(b.pos.x, b.pos.z);
+    if (!hit && b.owner === 'player') for (const e of enemies) if (e.alive && e.center.distanceTo(b.pos) < e.radius + 3) { hit = true; break; }
+    if (!hit) continue;
+    b.alive = false; scene.remove(b.obj);
+    const p = b.pos, d = camera.position.distanceTo(p), fl = surf(p.x, p.z);
+    if (groundH(p.x, p.z) < WATER) fx.splash({ x: p.x, y: WATER, z: p.z }, { size: 8 });
+    bigBoom(p, 4, fl); sBoom(d); if (d < 120) shake = Math.max(shake, 0.5);
+    if (b.owner === 'player') {
+      for (const e of enemies) { if (!e.alive) continue; const dd = e.center.distanceTo(p); if (dd < 34) damageEnemy(e, 160 * (1 - dd / 34) + 20, e.center); }
+    } else {
+      if (inBase(p.x, p.z) && gameState === 'play') {
+        S.base = Math.max(0, S.base - 5); feed('기지가 폭격당하고 있어요!', '#ff8a7a');
+        fx.fire({ x: p.x, y: fl + 1, z: p.z }, { size: 4, duration: 8 }); fx.smoke({ x: p.x, y: fl + 3, z: p.z }, { size: 8, rate: 3, duration: 12, ramp: DARK, wind: 1 });
+        if (S.base <= 0) baseDestroyed();
+      }
+      if (P.alive) { const dd = P.center.distanceTo(p); if (dd < 22) damagePlayer(30 * (1 - dd / 22), '폭탄에 맞았어요'); }
+    }
+  }
+  for (let i = bombs.length - 1; i >= 0; i--) if (!bombs[i].alive) bombs.splice(i, 1);
+}
+function baseDestroyed() {
+  for (let i = 0; i < 6; i++) setTimeout(() => { const p = new V3(rnd(-80, 100), BASE_H + 4, rnd(-300, 300)); bigBoom(p, 8); sBoom(300); }, i * 250);
+  P.deathWhy = '기지가 파괴됐어요'; P.deathPos = new V3(0, BASE_H + 10, 0);
+  if (P.alive) { P.alive = false; P.fc.dead = true; P.obj.visible = false; }
+  gameState = 'dying'; S.dieT = 3.5; $('touch').style.display = 'none';
+}
+
+// ================= 플레어 =================
+const FLG = new THREE.SphereGeometry(0.9, 8, 6), FLM = new THREE.MeshBasicMaterial({ color: 0xfff3c0, fog: false });
+function dropFlares() {
+  if (!P.alive || P.flares <= 0 || P.flCd > 0 || P.fc.onGround) return;
+  P.flares--; P.flCd = 0.5; const made = [];
+  for (let k = 0; k < 4; k++) {
+    const f = { isFlare: true, alive: true, pos: P.center.clone().addScaledVector(P.fwd, -P.len), life: 3.5, mesh: new THREE.Mesh(FLG, FLM), smokeT: 0 };
+    f.vel = P.vel.clone().multiplyScalar(0.45).add(new V3(rnd(-18, 18), rnd(-14, 4), rnd(-18, 18))); f.center = f.pos;
+    scene.add(f.mesh); flares.push(f); made.push(f);
+  }
+  let fooled = 0;
+  for (const m of missiles) if (m.alive && m.owner === 'enemy' && m.target === 'player' && m.pos.distanceTo(P.center) < 1500 * RS && Math.random() < 0.8) { m.target = made[Math.floor(Math.random() * made.length)]; fooled++; }
+  if (fooled) feed('플레어로 미사일을 속였어요!', '#9fe8ff');
+  sNoise(0.3, 3000, 0.25, 'highpass');
+}
+function updateFlares(dt) {
+  for (const f of flares) {
+    if (!f.alive) continue;
+    f.life -= dt; f.vel.y -= 7 * dt; f.vel.multiplyScalar(Math.exp(-dt * 0.8)); f.pos.addScaledVector(f.vel, dt); f.mesh.position.copy(f.pos);
+    f.mesh.scale.setScalar(0.8 + Math.random() * 0.6);
+    if ((f.smokeT -= dt) <= 0) { f.smokeT = 0.07; puff(f.pos, 1.2, SMOKE, 1.2); fx.emit(f.pos, { life: 0.12, size: 3, ramp: [0xffffff, 0xfff0a0], shape: 'circle', glow: true }); }
+    if (f.life <= 0 || f.pos.y < surf(f.pos.x, f.pos.z)) { f.alive = false; scene.remove(f.mesh); }
+  }
+  for (let i = flares.length - 1; i >= 0; i--) if (!flares[i].alive) flares.splice(i, 1);
+}
+
+// ================= 총알 업데이트 =================
+function updateBullets(dt) {
+  for (const b of bullets) {
+    if (!b.alive) continue;
+    b.life -= dt; b.a.copy(b.pos); b.pos.addScaledVector(b.vel, dt); b.mesh.position.copy(b.pos);
+    if (b.enemy) {
+      if (P.alive && !hidden() && segDist2(b.a, b.pos, P.center) < P.radius * P.radius) { damagePlayer(b.dmg, b.shell ? '대공포에 맞았어요' : '총알에 맞았어요'); sparkFx(b.pos, 0.8); b.alive = false; b.mesh.visible = false; continue; }
+      if (b.shell && b.life <= 0) {
+        fx.flash(b.pos, { color: 0xffb040, size: 6, life: 0.12 }); for (let i = 0; i < 3; i++) puff(tmp.copy(b.pos).add({ x: rnd(-3, 3), y: rnd(-3, 3), z: rnd(-3, 3) }), 4, DARK, 1.4);
+        const d = b.pos.distanceTo(P.center); if (P.alive && !hidden() && d < 20) damagePlayer(b.dmg * (1 - d / 20) + 2, '대공포에 맞았어요');
+        sNoise(0.4, 500, 0.4 / (1 + d / 150));
+      }
+    } else {
+      for (const e of enemies) if (e.alive && segDist2(b.a, b.pos, e.center) < e.radius * e.radius) { damageEnemy(e, b.dmg * (!e.air && P.def.groundMul ? P.def.groundMul : 1), b.pos); b.life = -1; break; }
+    }
+    if (b.life <= 0) { b.alive = false; b.mesh.visible = false; continue; }
+    const gh = groundH(b.pos.x, b.pos.z);
+    if (b.pos.y < gh || b.pos.y < WATER) {
+      if (!b.enemy && Math.random() < 0.35) puff(tmp.copy(b.pos).setY(Math.max(gh, WATER)), 1.5, b.pos.y < WATER && gh < WATER ? [0xffffff, 0xdbefff, 0xbcdaf0] : FX3D.RAMPS.dust, 0.7);
+      b.alive = false; b.mesh.visible = false;
+    }
+  }
+}
+
+// ================= 웨이브 =================
+function startWave() {
+  S.wave++;
+  const w = S.wave, c = {
+    prop: w <= 3 ? 2 : 1, jet: Math.min(4, Math.floor(w / 2)), inter: w >= 3 ? Math.min(3, Math.floor((w - 1) / 2)) : 0,
+    heli: w >= 2 ? Math.min(3, Math.floor(w / 2)) : 0, drone: w >= 4 ? Math.min(7, 3 + Math.floor(w / 3)) : 0,
+    bomber: w >= 3 && w % 2 === 1 ? Math.min(3, Math.floor((w - 1) / 2)) : 0, ace: w % 5 === 0 ? 1 : 0,
+    tank: Math.min(6, 2 + Math.floor(w * 0.6)), sam: Math.min(4, Math.floor(w / 2)), flak: w >= 2 ? Math.min(4, Math.floor(w / 2)) : 0,
+    boat: w >= 3 ? Math.min(3, Math.floor((w - 1) / 2)) : 0, radar: w >= 4 && w % 2 === 0 ? 1 : 0,
+  };
+  for (const k of ['prop', 'jet', 'inter', 'ace']) for (let i = 0; i < c[k]; i++) spawnFighter(k);
+  for (let i = 0; i < c.bomber; i++) spawnBomber();
+  for (let i = 0; i < c.heli; i++) spawnHeli();
+  if (c.drone) spawnDrones(c.drone);
+  for (const k of ['tank', 'sam', 'flak', 'boat', 'radar']) for (let i = 0; i < c[k]; i++) spawnGround(k);
+  const air = c.prop + c.jet + c.inter + c.heli + c.drone + c.bomber + c.ace, gr = enemies.length - air;
+  const notes = [];
+  if (c.bomber) notes.push(`폭격기 ${c.bomber}대가 기지로 와요!`);
+  if (c.drone) notes.push(`자폭 드론 ${c.drone}대`);
+  if (c.radar) notes.push('레이더 기지 (부수면 적이 덜 맞혀요)');
+  if (!c.ace) banner(`웨이브 ${w}`, `공중 ${air} · 지상 ${gr}${notes.length ? ' · ' + notes.join(' · ') : ''}`);
+  else feed(`웨이브 ${w}: 공중 ${air} · 지상 ${gr}`, '#fff');
+  $('wave').textContent = `웨이브 ${w}`;
+}
+
+// ================= HUD =================
+const feedEl = $('feed');
+function feed(text, color) {
+  const d = document.createElement('div'); d.textContent = text; d.style.color = color || '#fff'; feedEl.appendChild(d);
+  while (feedEl.children.length > 5) feedEl.removeChild(feedEl.firstChild);
+  setTimeout(() => { d.style.opacity = 0; }, 2600); setTimeout(() => d.remove(), 3500);
+}
+let bannerTO = 0;
+function banner(t, sub) { const b = $('banner'); b.innerHTML = t + (sub ? `<small>${sub}</small>` : ''); b.style.opacity = 1; clearTimeout(bannerTO); bannerTO = setTimeout(() => (b.style.opacity = 0), 2800); }
+let hurtA = 0;
+function hurtFlash(k) { hurtA = Math.min(1, hurtA + 0.4 + k * 0.6); }
+const marks = []; for (let i = 0; i < 32; i++) { const d = document.createElement('div'); d.className = 'mk'; $('marks').appendChild(d); marks.push(d); }
+const rc = $('radar').getContext('2d');
+let W = innerWidth, H = innerHeight;
+function toScreen(v, out) { tmp3.copy(v).project(camera); if (tmp3.z > 1) return false; out[0] = (tmp3.x + 1) / 2 * W; out[1] = (1 - tmp3.y) / 2 * H; return true; }
+const sp = [0, 0];
+function drawHud(dt) {
+  const hpk = P.hp / P.maxHp;
+  $('hpbar').firstChild.style.width = (hpk * 100) + '%';
+  $('hpbar').firstChild.style.background = hpk < 0.35 ? '#ff5a4a' : hpk < 0.6 ? '#ffd23a' : '#5be37a';
+  $('boostbar').firstChild.style.width = (P.boost * 100) + '%';
+  $('basebar').firstChild.style.width = S.base + '%'; $('basebar').firstChild.style.background = S.base < 35 ? '#ff5a4a' : '#5ab4ff';
+  const ab = P.def.ab, al = $('abline'), abBtn = $('abBtn');
+  const active = P.dashT > 0 || P.cloakT > 0 || P.frenzyT > 0;
+  if (active) { al.textContent = `⭐ ${ab.name} 사용 중 ${Math.ceil(Math.max(P.dashT, P.cloakT, P.frenzyT))}초`; al.className = ''; }
+  else if (P.abCd > 0) { al.textContent = `⭐ ${ab.name} ${Math.ceil(P.abCd)}초`; al.className = 'cool'; }
+  else { al.textContent = `⭐ ${ab.name} 준비!${isTouch ? '' : ' (Q)'}`; al.className = ''; }
+  abBtn.classList.toggle('cool', P.abCd > 0); abBtn.innerHTML = P.abCd > 0 ? `⭐ ${Math.ceil(P.abCd)}초` : '⭐ ' + ab.name;
+  $('score').textContent = S.score.toLocaleString();
+  $('spd').textContent = Math.round(P.fc.speed * 3.6); $('alt').textContent = Math.max(0, Math.round(P.fc.altitude));
+  $('mis').textContent = P.missiles; $('flr').textContent = P.flares;
+  hurtA = Math.max(0, hurtA - dt * 1.6); $('hurt').style.opacity = hurtA;
+  const xh = $('xh');
+  if (P.alive && toScreen(gunOrigin(tmp).addScaledVector(P.fwd, 350), sp)) { xh.style.display = ''; xh.style.left = sp[0] + 'px'; xh.style.top = sp[1] + 'px'; } else xh.style.display = 'none';
+  let mi = 0;
+  for (const e of enemies) {
+    if (!e.alive || mi >= marks.length) continue;
+    const d = e.center.distanceTo(camera.position); if (d > 3600) continue;
+    if (!toScreen(e.center, sp) || sp[0] < 0 || sp[0] > W || sp[1] < 0 || sp[1] > H) continue;
+    const K0 = KIND[e.kind], m = marks[mi++]; m.style.display = 'block'; m.className = K0.boss ? 'mk boss' : e.air ? 'mk' : 'mk g';
+    m.style.left = sp[0] + 'px'; m.style.top = (sp[1] - 4) + 'px';
+    m.textContent = (K0.label ? K0.label + ' ' : '') + (d > 999 ? (d / 1000).toFixed(1) + 'km' : Math.round(d) + 'm');
+  }
+  for (; mi < marks.length; mi++) marks[mi].style.display = 'none';
+  const lk = $('lock'), c = P.locked || P.lockCand;
+  if (P.alive && c && c.alive && toScreen(c.center, sp)) {
+    const d = c.center.distanceTo(camera.position), s = clamp(5000 / d, 28, 90);
+    lk.style.display = 'block'; lk.style.left = sp[0] + 'px'; lk.style.top = sp[1] + 'px'; lk.style.width = lk.style.height = s + 'px';
+    lk.className = P.locked ? 'on' : ''; lk.firstChild.textContent = P.locked ? 'LOCK' : '조준 중 ' + Math.round(Math.min(1, P.lockT / 0.8) * 100) + '%';
+  } else lk.style.display = 'none';
+  let warn = '';
+  const blink = (T * 3) % 1 < 0.6;
+  if (P.alive) {
+    if (missiles.some((m) => m.alive && m.target === 'player')) warn = blink ? '⚠ 미사일 접근! 플레어 / 부스트' : '';
+    else if (!P.fc.onGround && P.fc.speed < P.fc.f.stall * 1.12) warn = '실속! 속도를 올리세요';
+    else if (!P.fc.onGround && P.fc.altitude < 45 && P.fc.vy < -6) warn = blink ? '고도 낮음! 기수를 올리세요' : '';
+    else if (Math.hypot(P.obj.position.x, P.obj.position.z) > WORLD) warn = '작전 지역을 벗어났어요. 돌아가세요';
+    else if (enemies.some((e) => e.kind === 'bomber' && e.alive && e.phase === 'run' && Math.hypot(e.obj.position.x, e.obj.position.z) < 1300)) warn = blink ? '⚠ 폭격기가 기지로 접근 중!' : '';
+  }
+  $('warn').textContent = warn;
+  let st = '';
+  if (P.fc.onGround) st = P.repairT > 0 ? '🔧 정비 중…' : P.fc.speed < P.fc.f.rot ? '활주 중… ' + Math.round(P.fc.speed / P.fc.f.rot * 100) + '%' : (isTouch ? '조이스틱 위로 → 이륙!' : 'W 를 눌러 이륙!');
+  else if (P.hp < P.maxHp * 0.5) st = '활주로에 착륙하면 정비해요';
+  $('state').textContent = st;
+  drawRadar();
+}
+function drawRadar() {
+  const g = rc, Wd = 232, R = 112, C = Wd / 2, range = 2600 * RS, sc = R / range, h = P.fc.heading, ch = Math.cos(h), sh = Math.sin(h), px = P.obj.position.x, pz = P.obj.position.z;
+  g.clearRect(0, 0, Wd, Wd);
+  g.strokeStyle = 'rgba(120,255,160,.25)'; g.lineWidth = 2;
+  for (const k of [0.33, 0.66]) { g.beginPath(); g.arc(C, C, R * k, 0, 7); g.stroke(); }
+  g.beginPath(); g.moveTo(C, C - R); g.lineTo(C, C + R); g.moveTo(C - R, C); g.lineTo(C + R, C); g.stroke();
+  const plot = (x, z, draw) => {
+    const dx = x - px, dz = z - pz; let rx = (-dx * ch + dz * sh) * sc, fy = (dx * sh + dz * ch) * sc; const l = Math.hypot(rx, fy), edge = l > R - 6;
+    if (edge) { rx *= (R - 6) / l; fy *= (R - 6) / l; }
+    draw(C + rx, C - fy, edge);
+  };
+  plot(0, 0, (x, y) => { g.fillStyle = S.base < 35 ? '#ff6a5a' : '#5ab4ff'; g.fillRect(x - 3, y - 9, 6, 18); });
+  g.strokeStyle = 'rgba(255,90,70,.5)'; g.beginPath();
+  for (let i = 0; i <= 48; i++) { const a = (i / 48) * Math.PI * 2, dx = Math.cos(a) * WORLD - px, dz = Math.sin(a) * WORLD - pz, rx = (-dx * ch + dz * sh) * sc, fy = (dx * sh + dz * ch) * sc; if (Math.hypot(rx, fy) > R) { g.moveTo(C + rx, C - fy); continue; } i ? g.lineTo(C + rx, C - fy) : g.moveTo(C + rx, C - fy); }
+  g.stroke();
+  for (const e of enemies) if (e.alive) plot(e.obj.position.x, e.obj.position.z, (x, y, edge) => {
+    g.globalAlpha = edge ? 0.55 : 1;
+    const k = e.kind;
+    if (k === 'bomber') { g.fillStyle = '#c070ff'; g.beginPath(); g.moveTo(x, y - 9); g.lineTo(x + 8, y + 6); g.lineTo(x - 8, y + 6); g.fill(); }
+    else if (k === 'ace') { g.fillStyle = '#ff2bd0'; g.beginPath(); g.moveTo(x, y - 8); g.lineTo(x + 7, y + 6); g.lineTo(x - 7, y + 6); g.fill(); }
+    else if (k === 'heli') { g.fillStyle = '#ff5a4a'; g.beginPath(); g.arc(x, y, 4.5, 0, 7); g.fill(); }
+    else if (k === 'drone') { g.fillStyle = '#ff8a7a'; g.fillRect(x - 2, y - 2, 4, 4); }
+    else if (e.air) { g.fillStyle = '#ff5a4a'; g.beginPath(); g.moveTo(x, y - 6); g.lineTo(x + 5, y + 4); g.lineTo(x - 5, y + 4); g.fill(); }
+    else if (k === 'boat') { g.fillStyle = '#7fd3ff'; g.beginPath(); g.moveTo(x, y - 5); g.lineTo(x + 5, y); g.lineTo(x, y + 5); g.lineTo(x - 5, y); g.fill(); }
+    else if (k === 'radar') { g.fillStyle = '#ffffff'; g.fillRect(x - 4, y - 4, 8, 8); }
+    else { g.fillStyle = '#ffa53a'; g.fillRect(x - 4, y - 4, 8, 8); }
+    if (e === P.locked) { g.strokeStyle = '#ff3b3b'; g.lineWidth = 2; g.strokeRect(x - 8, y - 8, 16, 16); }
+    g.globalAlpha = 1;
+  });
+  for (const m of missiles) if (m.alive && !m.rocket) plot(m.pos.x, m.pos.z, (x, y) => { g.fillStyle = m.owner === 'enemy' ? '#ffff40' : '#ffffff'; g.beginPath(); g.arc(x, y, 3, 0, 7); g.fill(); });
+  g.fillStyle = hidden() ? '#9fd8ff' : '#9fffb4'; g.beginPath(); g.moveTo(C, C - 8); g.lineTo(C + 6, C + 6); g.lineTo(C, C + 3); g.lineTo(C - 6, C + 6); g.fill();
+}
+
+// ================= 메인 업데이트 =================
+const camPos = new V3(0, 30, -420), camLook = new V3();
+function updateEnemies(dt) {
+  radarOn = enemies.some((e) => e.alive && e.kind === 'radar');
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    if (e.kind === 'bomber') updateBomber(e, dt);
+    else if (e.kind === 'heli') updateHeli(e, dt);
+    else if (e.kind === 'drone') updateDrone(e, dt);
+    else if (e.fc) updateFighter(e, dt);
+    else updateGround(e, dt);
+  }
+}
+function update(dt) {
+  const inp = readInput(), playing = gameState === 'play';
+  let boost = false;
+  if (P.alive && playing) {
+    // 능력 타이머
+    P.abCd = Math.max(0, P.abCd - dt);
+    if (P.cloakT > 0 && (P.cloakT -= dt) <= 0) { setCloak(false); feed('위장이 풀렸어요', '#aab4c0'); }
+    if (P.frenzyT > 0) P.frenzyT -= dt;
+    boost = (inp.boost && P.boost > 0.03 && !inp.brake) || P.dashT > 0;
+    if (P.dashT <= 0) P.boost = inp.boost && boost ? Math.max(0, P.boost - dt * 0.22) : Math.min(1, P.boost + dt * 0.08);
+    P.prev.copy(P.obj.position);
+    P.fc.update(dt, { throttle: !inp.brake, up: inp.up, down: inp.down, left: inp.left, right: inp.right, boost, brake: inp.brake && P.dashT <= 0 });
+    if (P.dashT > 0) {
+      P.dashT -= dt; if (!P.fc.onGround) P.fc.speed = Math.max(P.fc.speed, P.fc.f.vmax * 1.6);
+      fx.emit(gunOrigin(tmp).addScaledVector(P.fwd, -P.len * 2), { life: 0.35, size: 1.4, size2: 0.2, ramp: [0xffffff, 0x9fe8ff, 0x4aa8ff], shape: 'circle', glow: true });
+    }
+    if (P.alive) {
+      P.vel.copy(P.obj.position).sub(P.prev).divideScalar(dt); updatePlayerFrame();
+      P.repairT = 0;
+      if (P.fc.onGround && onRunway(P.obj.position.x, P.obj.position.z) && P.fc.speed < 32) {
+        P.repairT = 1; P.hp = Math.min(P.maxHp, P.hp + dt * 22); P.boost = Math.min(1, P.boost + dt * 0.3);
+        if ((P.regen += dt) > 0.4) { P.regen = 0; if (P.missiles < P.maxMis) P.missiles++; P.flares = Math.min(P.maxFl, P.flares + 2); }
+      } else if ((P.regen += dt) > 22) { P.regen = 0; if (P.missiles < P.maxMis) { P.missiles++; feed('미사일 1발 보충', '#cfe8ff'); } }
+      if (Math.hypot(P.obj.position.x, P.obj.position.z) > WORLD) { P.oob += dt; if (P.oob > 4) damagePlayer(9 * dt, '작전 지역을 벗어났어요'); } else P.oob = 0;
+      if (P.hp < P.maxHp * 0.4 && (P.smokeT -= dt) <= 0) { P.smokeT = 0.08; puff(tmp.copy(P.center).addScaledVector(P.fwd, -P.len), 2, DARK, 1.4); }
+      // 폭탄 투하 (워트호그)
+      if (P.bombQ > 0 && (P.bombT -= dt) <= 0) { P.bombQ--; P.bombT = 0.11; dropBomb(tmp.copy(P.center).addScaledVector(P.up, -1.5), P.vel, 'player'); }
+    }
+  }
+  if (P.alive && playing) {
+    let best = null, bestA = 0.3; const g0 = gunOrigin(tmp2);
+    for (const e of enemies) {
+      if (!e.alive) continue; const d = e.center.distanceTo(g0); if (d > 1800 * RS || d < 30) continue;
+      const a = Math.acos(clamp(tmp.copy(e.center).sub(g0).divideScalar(d).dot(P.fwd), -1, 1)); if (a < bestA) { bestA = a; best = e; }
+    }
+    if (best !== P.lockCand) { P.lockCand = best; P.lockT = 0; P.locked = null; }
+    else if (best) { P.lockT += dt; if (P.lockT > 0.8 && !P.locked) { P.locked = best; sTone(1800, 1800, 0.12, 0.06); } else if (!P.locked && (T * 8) % 1 < dt * 8) sTone(900, 900, 0.04, 0.03); }
+    P.gunCd -= dt;
+    if (inp.gun && P.gunCd <= 0) {
+      const fr = P.frenzyT > 0;
+      P.gunCd = P.def.gunRate / (fr ? 2.5 : 1); P.side = -P.side;
+      const from = gunOrigin(tmp2).addScaledVector(tmp.set(1, 0, 0).applyQuaternion(P.obj.quaternion), P.side * P.def.gunX);
+      const bs = 760 * RS, dir = tmp3.copy(P.fwd);
+      const c = P.lockCand;
+      if (c && c.alive) {
+        const d = c.center.distanceTo(from), t = d / (bs + P.fc.speed); const aim = tmp.copy(c.center).addScaledVector(c.vel, t).sub(from).normalize();
+        if (d < 1100 * RS && aim.dot(P.fwd) > Math.cos(0.11)) dir.copy(aim);
+      }
+      dir.x += rnd(-0.006, 0.006); dir.y += rnd(-0.006, 0.006); dir.normalize();
+      fireBullet(from, dir, bs + P.fc.speed, false, P.def.gunDmg * (fr ? 1.5 : 1), 1.6);
+      fx.emit(from, { life: 0.05, size: fr ? 1.4 : 0.9, ramp: [0xffffff, fr ? 0xff8040 : 0xffd060], shape: 'star', rot: Math.random() * 3 });
+      sNoise(0.07, P.def.engine === 'prop' ? 1500 : 2200, 0.13, 'bandpass', 1.2);
+    }
+    P.misCd -= dt;
+    if (edge.missile) {
+      if (P.missiles > 0 && P.misCd <= 0 && !P.fc.onGround) {
+        P.missiles--; P.misCd = 0.45;
+        const from = P.center.clone().addScaledVector(P.up, -1.2).addScaledVector(tmp.set(1, 0, 0).applyQuaternion(P.obj.quaternion), P.side * 2.2);
+        launchMissile('player', from, P.fwd, P.fc.speed, P.locked || null);
+        if (!P.locked) feed('락온 없이 발사 (직진)', '#cfe8ff');
+      } else if (P.missiles <= 0) feed('미사일이 없어요 — 활주로에서 정비', '#ffb0a0');
+    }
+    P.flCd -= dt;
+    if (edge.flare) dropFlares();
+    if (edge.ability) useAbility();
+  }
+  edge.missile = edge.flare = edge.ability = false;
+  updateEnemies(dt);
+  if (P.alive && playing && !P.fc.onGround) for (const e of enemies) if (e.alive && e.air && e.kind !== 'drone' && e.center.distanceTo(P.center) < e.radius + P.radius - 2) { killEnemy(e, true); damagePlayer(e.kind === 'bomber' ? 90 : 55, '적기와 충돌했어요'); }
+  for (let i = enemies.length - 1; i >= 0; i--) if (!enemies[i].alive) enemies.splice(i, 1);
+  for (let i = wrecks.length - 1; i >= 0; i--) {
+    const w = wrecks[i]; w.t -= dt; if (w.sink) { w.obj.position.y -= dt * 0.5; w.obj.rotation.z += dt * 0.05; }
+    if (w.t <= 0) { scene.remove(w.obj); wrecks.splice(i, 1); }
+  }
+  updateBullets(dt); updateMissiles(dt); updateFlares(dt); updateBombs(dt);
+  if (playing) {
+    if (enemies.length === 0) {
+      if (S.waveT <= 0) {
+        S.waveT = 4;
+        if (S.wave > 0) { const bonus = 300 * S.wave; S.score += bonus; banner('웨이브 클리어!', `보너스 +${bonus} · 체력 +25 · 기지 +15`); P.hp = Math.min(P.maxHp, P.hp + 25); S.base = Math.min(100, S.base + 15); }
+      } else if ((S.waveT -= dt) <= 0) startWave();
+    } else S.waveT = 0;
+  }
+  if (gameState === 'dying' && (S.dieT -= dt) <= 0) gameOver();
+  updateCamera(dt, boost);
+  setEngine(P.fc ? P.fc.speed : 0, playing && !inp.brake ? 1 : 0, boost);
+}
+function updateCamera(dt, boost) {
+  if (P.alive) {
+    const L = P.def.cam[0], Hh = P.def.cam[1];
+    const back = tmp.set(Math.sin(P.fc.heading), Math.sin(P.fc.pitch * 0.6), Math.cos(P.fc.heading)).normalize();
+    const want = tmp2.copy(P.center).addScaledVector(back, -L); want.y += Hh;
+    camPos.lerp(want, 1 - Math.exp(-dt * (P.fc.onGround ? 8 : 5)));
+    camLook.copy(P.center).addScaledVector(P.fwd, 40);
+  } else if (P.deathPos) {
+    const a = T * 0.3, R = P.deathWhy === '기지가 파괴됐어요' ? 260 : 60;
+    tmp.set(Math.sin(a) * R, R * 0.4, Math.cos(a) * R).add(P.deathPos); camPos.lerp(tmp, 1 - Math.exp(-dt * 2)); camLook.copy(P.deathPos);
+  }
+  camPos.y = Math.max(camPos.y, surf(camPos.x, camPos.z) + 2);
+  camera.position.copy(camPos);
+  if (shake > 0) { camera.position.add(tmp.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).multiplyScalar(shake * 0.8)); shake = Math.max(0, shake - dt * 2.5); }
+  camera.lookAt(camLook);
+  if (P.alive) camera.rotateZ(-P.fc.roll * 0.35);
+  const fov = (camera.aspect < 1 ? 82 : 68) + (boost ? 10 : 0) + (P.alive ? P.fc.speed / P.fc.f.vmax * 4 : 0);
+  if (Math.abs(camera.fov - fov) > 0.1) { camera.fov += (fov - camera.fov) * (1 - Math.exp(-dt * 4)); camera.updateProjectionMatrix(); }
+}
+
+// ================= 메뉴 =================
+function buildMenu() {
+  const box = $('planes'); box.innerHTML = '';
+  for (const id in PLANES) {
+    const d = PLANES[id], b = document.createElement('button'); b.className = 'pc' + (id === pick ? ' sel' : ''); b.dataset.id = id;
+    b.innerHTML = `<b>${d.name}</b><div class="ps">${d.sub}</div>` + d.stats.map((v, i) => `<div class="st"><span>${STAT_NAMES[i]}</span><i style="--w:${v * 20}%"></i></div>`).join('') + `<div class="pa">⭐ ${d.ab.name}</div>`;
+    b.onclick = () => { pick = id; document.querySelectorAll('.pc').forEach((x) => x.classList.toggle('sel', x.dataset.id === id)); showInfo(); showcase(id); };
+    box.appendChild(b);
+  }
+  showInfo();
+}
+function showInfo() { const d = PLANES[pick]; $('pinfo').innerHTML = `<b>${d.name}</b> — ${d.passive}<br><b>⭐ ${d.ab.name}</b> (${d.ab.cd}초마다): ${d.ab.desc}<br><span style="opacity:.8">체력 ${d.hp} · 미사일 ${d.mis} · 플레어 ${d.fl}</span>`; }
+
+// ================= 화면 전환 =================
+function clearWorld() {
+  for (const e of enemies) { scene.remove(e.obj); if (e.smokeH) e.smokeH.stop(); } enemies.length = 0;
+  for (const m of missiles) scene.remove(m.obj); missiles.length = 0;
+  for (const f of flares) scene.remove(f.mesh); flares.length = 0;
+  for (const w of wrecks) scene.remove(w.obj); wrecks.length = 0;
+  for (const b of bombs) scene.remove(b.obj); bombs.length = 0;
+  for (const b of bullets) { b.alive = false; b.mesh.visible = false; }
+}
+function startGame() {
+  audioInit(); clearWorld();
+  Object.assign(S, { score: 0, wave: 0, kills: 0, waveT: 2.5, base: 100 });
+  makePlayer(pick); P.deathPos = null; P.deathWhy = null;
+  camPos.copy(P.center).add(new V3(0, 8, -32)); camLook.copy(P.center);
+  $('menu').style.display = $('over').style.display = $('pause').style.display = 'none';
+  $('hud').style.display = 'block'; if (isTouch) $('touch').style.display = 'block';
+  $('wave').textContent = '출격 준비'; gameState = 'play'; T = 0;
+  banner(P.def.name + ' 출격!', isTouch ? '속도가 붙으면 조이스틱을 위로' : '속도가 붙으면 W 로 이륙');
+}
+function gameOver() {
+  gameState = 'over'; $('touch').style.display = 'none';
+  const nb = S.score > S.best; if (nb) { S.best = S.score; try { localStorage.setItem('skyfront-best', S.best); } catch (e) {} }
+  $('overTitle').textContent = P.deathWhy || '격추당했어요';
+  $('overStats').innerHTML = `${P.def.name} · 점수 <b>${S.score.toLocaleString()}</b>${nb ? ' 🏆 최고 기록!' : ''}<br>웨이브 ${Math.max(1, S.wave)} · 격파 ${S.kills}<br><span style="opacity:.75">최고 점수 ${S.best.toLocaleString()}</span>`;
+  $('over').style.display = 'flex';
+}
+function togglePause() {
+  if (gameState === 'play') { gameState = 'pause'; $('pause').style.display = 'flex'; if (AU.ctx) AU.ctx.suspend(); }
+  else if (gameState === 'pause') { gameState = 'play'; $('pause').style.display = 'none'; if (AU.ctx) AU.ctx.resume(); }
+}
+function toMenu() {
+  clearWorld(); gameState = 'menu'; $('hud').style.display = 'none'; $('touch').style.display = 'none';
+  $('over').style.display = $('pause').style.display = 'none'; $('menu').style.display = 'flex'; showcase(pick);
+}
+$('startBtn').onclick = startGame; $('againBtn').onclick = startGame; $('menuBtn').onclick = toMenu;
+$('pauseBtn').onclick = togglePause; $('resumeBtn').onclick = togglePause; $('quitBtn').onclick = toMenu;
+$('muteBtn').onclick = () => { AU.muted = !AU.muted; $('muteBtn').textContent = AU.muted ? '🔇' : '🔊'; if (AU.master) AU.master.gain.value = AU.muted ? 0 : 0.55; };
+document.addEventListener('visibilitychange', () => { if (document.hidden && gameState === 'play') togglePause(); });
+function showcase(id) { makePlayer(id); P.alive = false; P.obj.visible = true; }
+buildMenu(); showcase(pick);
+
+addEventListener('resize', () => { W = innerWidth; H = innerHeight; renderer.setSize(W, H); camera.aspect = W / H; camera.updateProjectionMatrix(); });
+
+// ================= 루프 =================
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, Math.max(0.0001, (now - last) / 1000)); last = now;
+  if (gameState === 'play' || gameState === 'dying') { T += dt; update(dt); fx.update(dt, camera); drawHud(dt); }
+  else if (gameState === 'menu' || gameState === 'over') {
+    T += dt;
+    if (gameState === 'menu') {
+      const a = T * 0.25, c = P.center, R = P.def.cam[0] * 0.85; camera.position.set(c.x + Math.sin(a) * R, c.y + R * 0.25, c.z + Math.cos(a) * R); camera.lookAt(c.x, c.y + 0.5, c.z);
+      if (P.obj.userData.animate) P.obj.userData.animate(dt, { throttle: 0.3, onGround: true, speed: 0 });
+    } else { updateCamera(dt, false); }
+    updateEnemies(dt); updateBullets(dt); updateMissiles(dt); updateBombs(dt); fx.update(dt, camera);
+  }
+  sky.position.copy(camera.position);
+  window.MODELS3D.updateAll(decor, T, dt);
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(frame);
+
+window.__game = { P, S, enemies, missiles, bullets, bombs, startGame, useAbility, spawnFighter, spawnBomber, spawnHeli, spawnDrones, spawnGround, get state() { return gameState; }, K, edge, fx };
+})();
+</script>
+</body>
+</html>
