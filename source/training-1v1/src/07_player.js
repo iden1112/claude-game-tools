@@ -20,7 +20,7 @@ const vmSleeve = new THREE.MeshStandardMaterial({ color: 0x3b4652, roughness: 0.
 function buildViewmodel() {
   const p = PLAYER;
   while (VM.root.children.length) VM.root.remove(VM.root.children[0]);
-  VM.arms = new THREE.Group();
+  VM.arms = new THREE.Group(); VM.lhand = null; VM.lfore = null;
   if (p.mode === 'fist') { // 맨손: 양 주먹
     const g = new THREE.Group(); VM.gun = g; VM.info = null; VM.fists = [];
     for (const s of [-1, 1]) {
@@ -38,16 +38,21 @@ function buildViewmodel() {
     VM.arms.add(new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), vmGlove));
     g.add(VM.arms);
   } else {
+    VM.lhand = null; VM.lfore = null;
     const info = buildGunModel(p.w.id, p.w.att); VM.gun = info.group; VM.info = info;
     VM.root.add(info.group);
     const hg = p.w.stats.cat === 'HG';
     const rH = new V3(0, -0.06, 0.04), lH = hg ? new V3(0.0, -0.075, 0.02) : new V3(0, -0.02, -0.2);
     const rg = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), vmGlove); rg.position.copy(rH); rg.scale.set(1, 1.2, 1.3);
-    const lg = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), vmGlove); lg.position.copy(lH); lg.scale.set(1.2, 1, 1.4);
-    VM.arms.add(rg, lg);
+    // 왼손 + 왼팔은 한 덩어리로 움직여요 (장전할 때 탄창을 빼고 넣는 손)
+    const L = new THREE.Group(); L.position.copy(lH);
+    const lg = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), vmGlove); lg.scale.set(1.2, 1, 1.4); L.add(lg);
+    const elbow = hg ? new V3(-0.12, -0.25, 0.3) : new V3(-0.16, -0.2, 0.12);
+    const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 1, 8), vmSleeve); // 아래팔: 손을 따라 늘었다 줄었다
+    if (!hg) VM.arms.add(limbMesh(elbow, new V3(-0.2, -0.3, 0.45), 0.045, 0.05, vmSleeve));
+    VM.lhand = L; VM.lhome = lH.clone(); VM.lfore = fore; VM.lelbow = elbow;
+    VM.arms.add(rg, L, fore); fitForearm();
     VM.arms.add(limbMesh(rH, new V3(0.1, -0.22, 0.35), 0.035, 0.045, vmSleeve));
-    VM.arms.add(limbMesh(lH, hg ? new V3(-0.12, -0.25, 0.3) : new V3(-0.16, -0.2, 0.12), 0.035, 0.045, vmSleeve));
-    if (!hg) VM.arms.add(limbMesh(new V3(-0.16, -0.2, 0.12), new V3(-0.2, -0.3, 0.45), 0.045, 0.05, vmSleeve));
     info.group.add(VM.arms);
   }
   VM.root.traverse(o => { o.castShadow = false; o.frustumCulled = false; });
@@ -80,7 +85,7 @@ function createPlayer() {
     VM.kick = Math.min(VM.kick + 0.055 * (p.w.stats.cat === 'SR' || p.w.stats.cat === 'SG' ? 2.2 : 1), 0.16);
     VM.kickRot = Math.min(VM.kickRot + v * 2.8, 0.35);
     CAM.kickP += v * 0.9;
-    G.shake = Math.max(G.shake, p.w.stats.cat === 'SR' ? 0.35 : p.w.stats.cat === 'SG' ? 0.3 : 0.08);
+    G.shake = Math.max(G.shake, (p.w.stats.cat === 'SR' ? 0.35 : p.w.stats.cat === 'SG' ? 0.3 : 0.08) * (p.w.stats.shake || 1));
 
   };
   p.onFire = (st) => {
@@ -145,6 +150,14 @@ function playerInput(dt) {
   if (P.Digit1) p.equip(0); if (P.Digit2) p.equip(1); if (P.Digit3) p.equip(2);
   if (P.Digit5 || P.KeyG) p.equipThrow();
   if (P.KeyX) p.holster(); // 총 넣기 → 맨손
+  if ((P.PageUp || P.PageDown) && p.mode === 'gun' && p.w && p.adsT > 0.5) { // 배그처럼 조준점 모양 바꾸기
+    const sid = effScopeId(p.w);
+    if (sid && sid !== 'iron') {
+      SETTINGS.ret = SETTINGS.ret || {}; const n = ((SETTINGS.ret[sid] || 0) + (P.PageUp ? 1 : 3)) % 4; SETTINGS.ret[sid] = n; saveSettings();
+      const tip = $('rettip'); tip.textContent = `조준점 모양 ${n + 1}/4 (PgUp/PgDn)`; tip.style.opacity = 1; clearTimeout(tip._t); tip._t = setTimeout(() => tip.style.opacity = 0, 1200);
+      AU.click(0.1, 2400);
+    }
+  }
   // 조준경 휠 줌 (3배율 이상)
   const zw = p.w && p.mode === 'gun' ? p.w : null;
   if (INPUT.wheel && zw && p.adsT > 0.5 && zw.stats.scopeZoom >= 3) {
@@ -304,11 +317,12 @@ function updateViewmodel(dt, hsp) {
   pos.x -= VM.sprintT * 0.06; pos.y -= VM.sprintT * 0.05; ry += VM.sprintT * 0.7; rx -= VM.sprintT * 0.25;
   // 재장전 동작
   if (p.reloadT > 0) {
-    const k = 1 - p.reloadT / p.reloadDur, e = Math.sin(clamp(k, 0, 1) * Math.PI);
-    rz += e * 0.5; rx += e * 0.25; pos.y -= e * 0.06; pos.x -= e * 0.03;
-    if (info.xbBolt) { info.xbBolt.visible = k > 0.7; info.xbBolt.position.z = info.magHome.z + (k < 0.9 ? 0.25 * (0.9 - k) : 0); }
-    else if (info.magMesh) { const out = k > 0.25 && k < 0.7 ? 1 : 0; info.magMesh.position.y = info.magHome.y - out * 0.25; info.magMesh.visible = !(k > 0.35 && k < 0.6); }
-  } else if (info.magMesh) { info.magMesh.position.copy(info.magHome); info.magMesh.visible = !info.xbBolt || p.w.mag > 0; }
+    const k = clamp(1 - p.reloadT / p.reloadDur, 0, 1), r = reloadPose(k, p, info);
+    rz += r.rz; rx += r.rx; ry += r.ry; pos.x += r.x; pos.y += r.y; pos.z += r.z;
+  } else {
+    if (info.magMesh) { info.magMesh.position.copy(info.magHome); info.magMesh.rotation.x = info.magRot0 !== undefined ? info.magRot0 : info.magMesh.rotation.x; info.magMesh.visible = !info.xbBolt || p.w.mag > 0; }
+    if (VM.lhand) VM.lhand.position.copy(VM.lhome);
+  }
   // 볼트 당기기
   if (p.boltT > 0 && p.w.stats.def.interval > 0.5) { const k = 1 - p.boltT / p.w.stats.def.interval, e = Math.sin(clamp((k - 0.08) / 0.85, 0, 1) * Math.PI); rz -= e * 0.42; ry -= e * 0.12; pos.y -= e * 0.035; pos.z += e * 0.05; pos.x -= e * 0.02; }
   // 파쿠르: 총을 내리고 옆으로 비킴 (손으로 짚는 느낌)
@@ -317,6 +331,71 @@ function updateViewmodel(dt, hsp) {
   // 기울이기
   rz += p.lean * 0.05;
   g.position.copy(pos); g.rotation.set(rx, ry, rz);
+  fitForearm();
+}
+
+function fitForearm() { // 아래팔을 손 → 팔꿈치로 맞추기 (손이 아래로 가면 팔꿈치도 조금 따라감)
+  const f = VM.lfore, L = VM.lhand; if (!f || !L) return;
+  const off = _rv.copy(L.position).sub(VM.lhome);
+  const e = _rv2.copy(VM.lelbow).addScaledVector(off, 1.0);
+  const d = new V3().copy(e).sub(L.position), len = d.length();
+  f.position.copy(L.position).addScaledVector(d, 0.5); f.scale.set(1, len, 1);
+  f.quaternion.setFromUnitVectors(new V3(0, 1, 0), d.normalize());
+  f.visible = off.y > -0.16; L.visible = off.y > -0.3; // 화면 아래로 내려간 팔은 숨겨요 (카메라 앞을 가리지 않게)
+}
+// ================= 배그 같은 장전 동작 =================
+// k: 0→1 진행. 총을 기울이고 → 왼손으로 탄창 빼서 버리고 → 새 탄창 꺼내 끼우고 → (다 쏜 뒤면) 장전 손잡이 당기기
+const _rv = new V3(), _rv2 = new V3();
+const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+function reloadPose(k, p, info) {
+  const out = { rx: 0, ry: 0, rz: 0, x: 0, y: 0, z: 0 };
+  const tilt = sstep(0, 0.12, k) * (1 - sstep(0.86, 1, k));
+  const L = VM.lhand, H0 = VM.lhome, mag = info.magMesh, M0 = info.magHome;
+  if (info.magRot0 === undefined && mag) info.magRot0 = mag.rotation.x;
+  const setHand = (v) => { if (L) L.position.copy(v); };
+  if (info.xbBolt) { // 석궁: 손으로 화살을 얹어요
+    out.rz = tilt * 0.3; out.rx = tilt * 0.15; out.y = -tilt * 0.05;
+    info.xbBolt.visible = k > 0.55; info.xbBolt.position.z = M0.z + (k < 0.85 ? 0.25 * (0.85 - k) : 0);
+    if (L) setHand(_rv.copy(H0).lerp(_rv2.set(0, 0.04, M0.z + 0.1), Math.sin(clamp(k, 0, 1) * Math.PI)));
+    return out;
+  }
+  if (info.loadType === 'mag' && mag) {
+    out.rz = tilt * 0.34; out.rx = -tilt * 0.04; out.ry = tilt * 0.1; out.y = tilt * 0.03; out.x = -tilt * 0.02; out.z = -tilt * 0.1;
+    const below = _rv2.copy(M0); below.y -= 0.13;
+    const grip = (m) => _rv.copy(m).add(new V3(0, -0.055, 0.0));
+    const Hdown = new V3(-0.04, -0.42, -0.25);
+    mag.visible = true; mag.rotation.x = info.magRot0;
+    if (k < 0.1) { setHand(_rv.copy(H0).lerp(grip(M0), sstep(0, 0.1, k))); mag.position.copy(M0); }
+    else if (k < 0.22) { const t = sstep(0.1, 0.22, k); mag.position.copy(M0).lerp(below, t); setHand(grip(mag.position)); }
+    else if (k < 0.4) { // 빈 탄창은 떨어지고, 손은 새 탄창을 가지러 아래로
+      const t = (k - 0.22) / 0.18; mag.position.copy(below); mag.position.y -= 1.6 * t * t; mag.position.x -= 0.05 * t; mag.rotation.x = info.magRot0 + t * 1.4; mag.visible = t < 0.7;
+      setHand(_rv.copy(grip(below)).lerp(Hdown, sstep(0.22, 0.36, k)));
+    } else if (k < 0.56) { // 새 탄창을 들고 올라와요
+      const t = sstep(0.4, 0.56, k); setHand(_rv.copy(Hdown).lerp(grip(below), t));
+      mag.position.copy(L ? L.position : below).add(new V3(0, 0.055, 0)); mag.visible = t > 0.15;
+    } else if (k < 0.66) { // 끼우기 (탁!)
+      const t = sstep(0.56, 0.64, k); mag.position.copy(below).lerp(M0, t); setHand(grip(mag.position));
+      const slap = Math.max(0, 1 - Math.abs(k - 0.645) / 0.02); out.y += slap * 0.012; out.rx += slap * 0.05;
+    } else {
+      mag.position.copy(M0);
+      if (p.reloadEmpty) { // 다 쏘고 장전: 장전 손잡이 당겼다 놓기
+        const B0 = info.boltPos, pull = _rv2.copy(B0); pull.z += 0.06;
+        if (k < 0.74) setHand(_rv.copy(grip(M0)).lerp(B0, sstep(0.66, 0.74, k)));
+        else if (k < 0.8) { setHand(_rv.copy(B0).lerp(pull, sstep(0.74, 0.79, k))); }
+        else { setHand(_rv.copy(pull).lerp(H0, sstep(0.8, 0.92, k))); const kick = Math.max(0, 1 - Math.abs(k - 0.8) / 0.025); out.z += kick * 0.015; out.rz += kick * 0.06; }
+        out.rz += sstep(0.66, 0.72, k) * (1 - sstep(0.82, 0.9, k)) * -0.25; // 손잡이 쪽이 보이게
+      } else setHand(_rv.copy(grip(M0)).lerp(H0, sstep(0.66, 0.86, k)));
+    }
+    return out;
+  }
+  // 한 발씩 넣는 총 (산탄총·볼트액션): 총을 옆으로 돌리고 손으로 여러 번 넣기
+  out.rz = -tilt * 0.6; out.rx = tilt * 0.12; out.y = -tilt * 0.04; out.x = tilt * 0.02;
+  const port = new V3(0.03, 0.02, 0.0), Hd = new V3(0.02, -0.3, 0.12);
+  const n = 3, a = 0.12, b = 0.86, cyc = clamp((k - a) / (b - a), 0, 0.999) * n, ph = cyc % 1;
+  if (k < a) setHand(_rv.copy(H0).lerp(Hd, sstep(0, a, k)));
+  else if (k < b) { const up = ph < 0.5 ? sstep(0, 0.45, ph) : 1 - sstep(0.55, 1, ph); setHand(_rv.copy(Hd).lerp(port, up)); const push = Math.max(0, 1 - Math.abs(ph - 0.5) / 0.08); out.y += push * 0.006; }
+  else setHand(_rv.copy(Hd).lerp(H0, sstep(b, 1, k)));
+  return out;
 }
 
 // 조준경 흔들림도 실제 조준에 들어가게 (카메라 회전에 포함됨)

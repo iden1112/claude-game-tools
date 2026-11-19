@@ -3,7 +3,7 @@ const ARENA = 50;
 const ARENA_BOUNDS = { minX: -ARENA, maxX: ARENA, minZ: -ARENA, maxZ: ARENA };
 const WORLD = { boxes: [], half: 50, smokes: [], bounds: ARENA_BOUNDS, map: null };
 // 맵 여러 개: 같은 자리(가운데)에 만들어 두고, 쓰는 맵만 보이게 + 충돌 상자 바꾸기
-const MAPS = {}; let BUILD = null;
+const MAPS = {}, MAP_DEFS = {}; let BUILD = null;
 function WADD(o) { (BUILD ? BUILD.group : scene).add(o); }
 
 // 상자 하나: 바닥 높이 y0 에서 시작
@@ -103,6 +103,7 @@ function buildWorld() {
   TEX.ground.repeat.set(120, 120);
   scene.add(g);
   const scenery = new THREE.Group(); scene.add(scenery); BUILD = { id: null, group: scenery };
+  const sceneryTrees = new THREE.Group(); scene.add(sceneryTrees);
   // 경기장 밖 풍경: 언덕과 나무 (멀리 흐릿하게)
   const hillMat = new THREE.MeshStandardMaterial({ color: 0x6f7d58, roughness: 1, flatShading: true });
   for (let i = 0; i < 30; i++) {
@@ -120,12 +121,30 @@ function buildWorld() {
     const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 3, 6), trunkMat); tr.position.y = 1.5; t.add(tr);
     const s = rand(0.8, 1.6);
     for (let k = 0; k < 3; k++) { const c = new THREE.Mesh(new THREE.ConeGeometry(2.6 - k * 0.6, 3.2, 7), treeMat); c.position.y = 3.6 + k * 1.8; c.castShadow = false; t.add(c); }
-    t.scale.setScalar(s); t.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); WADD(t);
+    t.scale.setScalar(s); t.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); sceneryTrees.add(t);
   }
-  BUILD = null; mergeStatic(scenery);
-  buildMap('arena', ARENA_BOUNDS, -46.5, [[16, 20], [0, 17], [-19, 13], [6, 8], [-8, 9.5], [30, 14], [-22, 6], [13, 6.5], [0, 7.2]], buildArena);
-  buildMap('duel', DUEL_BOUNDS, -32.5, [[0, 4], [6.5, 9.5], [-8, 15], [8, 21], [-3, 26], [10, 2.5], [-10.5, 4.5]], buildDuel);
-  setMap('arena');
+  BUILD = null; mergeStatic(scenery); mergeStatic(sceneryTrees);
+  window.SCENERY = { hillMat, trees: sceneryTrees };
+  // 예전 두 맵 (만드는 함수와 AI 자리)
+  MAP_DEFS.arena.build = () => { buildArena(); return [[16, 20], [0, 17], [-19, 13], [6, 8], [-8, 9.5], [30, 14], [-22, 6], [13, 6.5], [0, 7.2]]; };
+  MAP_DEFS.duel.build = () => { buildDuel(); return [[0, 4], [6.5, 9.5], [-8, 15], [8, 21], [-3, 26], [10, 2.5], [-10.5, 4.5]]; };
+  setMap('duel');
+}
+// 맵은 처음 쓸 때 만들어요
+function ensureMap(id) {
+  if (MAPS[id]) return MAPS[id];
+  const D = MAP_DEFS[id] || MAP_DEFS.duel;
+  if (MAPS[D.id]) return MAPS[D.id];
+  let spots = [];
+  buildMap(D.id, D.bounds, D.spawnZ, null, () => {
+    spots = D.build() || [];
+    // AI 자리가 벽 속이면 조금씩 뒤로 옮기기
+    const B = D.bounds, v = new V3();
+    spots = spots.map(([x, z]) => { for (let k = 0; k < 6; k++) { v.set(x, 1, z); if (!pointInBoxes(v, 0.5)) break; z += 1.5; } return [clamp(x, B.minX + 2, B.maxX - 2), clamp(z, 1, B.maxZ - 6)]; });
+  });
+  MAPS[D.id].spots = spots.length ? spots : [[0, 8]];
+  MAPS[D.id].def = D;
+  return MAPS[D.id];
 }
 // ================= 최적화: 안 움직이는 물체를 재질별로 한 덩어리로 합치기 =================
 // (상자 수백 개를 하나씩 그리면 느려서, 같은 재질끼리 묶어 한 번에 그려요)
@@ -178,13 +197,14 @@ function buildMap(id, bounds, spawnZ, spots, fn) {
   WORLD.boxes = saved; BUILD = null;
 }
 function setMap(id) {
-  const M = MAPS[id]; if (!M) return;
+  const M = ensureMap(id); id = M.id;
   const extra = WORLD.boxes.filter(b => !b.map);
   WORLD.boxes = M.boxes.concat(extra);
   for (const k in MAPS) MAPS[k].group.visible = k === id;
   NAV.grid = M.nav.grid; NAV.cover = M.nav.cover;
   WORLD.map = M; WORLD.bounds = M.bounds;
-  setShadowArea(id === 'duel' ? 46 : 70);
+  const B = M.bounds; setShadowArea(Math.min(80, Math.max(B.maxX, B.maxZ) + 12));
+  if (typeof applyTheme === 'function') applyTheme(M.def ? M.def.theme : 'base');
 }
 function buildArena() {
   // 경기장 안쪽 바닥(콘크리트 패드)
@@ -526,7 +546,7 @@ function buildDuel() {
 }
 
 // ================= AI 길찾기 격자 =================
-const NAV = { size: 1, n: 100, off: 50, grid: null, cover: null };
+const NAV = { size: 1, n: 120, off: 60, grid: null, cover: null };
 function buildNav(B = ARENA_BOUNDS) {
   const n = NAV.n; NAV.grid = new Uint8Array(n * n);
   const r = 0.45;

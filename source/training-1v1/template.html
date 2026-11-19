@@ -20,8 +20,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:"Pr
 #heading{font-size:12px;color:#ffd24a;font-weight:700}
 /* 조준선 */
 #cross{position:absolute;left:50%;top:50%}
-#cross i{position:absolute;background:#fff;box-shadow:0 0 2px rgba(0,0,0,.9)}
-#ch-t,#ch-b{width:2px;height:10px;left:0}#ch-l,#ch-r{height:2px;width:10px;top:0}
+#cross i{position:absolute;background:var(--xc,#fff);box-shadow:0 0 0 var(--xo,1px) rgba(0,0,0,.85)}
+#ch-t,#ch-b{width:var(--xt,2px);height:var(--xl,10px);margin-left:calc(var(--xt,2px) / -2)}#ch-l,#ch-r{height:var(--xt,2px);width:var(--xl,10px);margin-top:calc(var(--xt,2px) / -2)}
+#ch-d{width:var(--xd,0px);height:var(--xd,0px);margin:calc(var(--xd,0px) / -2)}
+#assist{position:absolute;left:50%;top:62%;transform:translate(-50%,8px);opacity:0;transition:opacity .25s,transform .25s;font-size:15px;color:#fff;text-shadow:0 1px 3px #000;pointer-events:none}#assist b{color:#ffd24a;margin-right:6px}
 #sgc{position:absolute;left:50%;top:50%;display:none;pointer-events:none}
 #sgc .r{position:absolute;border-radius:50%;border:2px solid rgba(70,255,120,.85);box-shadow:0 0 4px rgba(40,220,90,.7),inset 0 0 3px rgba(40,220,90,.5)}
 #sgc .d{position:absolute;border-radius:50%;border:2px dotted rgba(70,255,120,.55)}
@@ -41,6 +43,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:"Pr
 #ret.r-2x::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 50%,transparent 0,transparent 42vh,rgba(0,0,0,.18) 60vh,rgba(0,0,0,.32) 90vh)}
 #ret.r-2x::after{content:"";position:absolute;width:4px;height:4px;margin:-2px;border-radius:50%;background:#ff2a1a;box-shadow:0 0 5px #ff2a1a}
 /* 고배율 조준경 */
+/* PgUp/PgDn 조준점 모양 바꾸기 */
+#ret.r-reddot.rv1::after{width:0;height:0;margin:-1px -5px;border-radius:0;background:none;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:8px solid #ff2a1a;box-shadow:none;filter:drop-shadow(0 0 3px #ff2a1a)}
+#ret.r-reddot.rv2::before,#ret.r-holo.rv3::before{content:"";position:absolute;width:16px;height:16px;margin:-8px;border:1.5px solid rgba(255,40,30,.95);border-radius:50%;box-shadow:0 0 4px #ff2a1a}
+#ret.r-reddot.rv3::after,#ret.r-holo.rv1::after{width:14px;height:14px;margin:-7px;border-radius:0;box-shadow:none;background:linear-gradient(#ff2a1a,#ff2a1a) center/2px 100% no-repeat,linear-gradient(#ff2a1a,#ff2a1a) center/100% 2px no-repeat;filter:drop-shadow(0 0 3px #ff2a1a)}
+#ret.r-holo.rv2::before{width:46px;height:46px;margin:-23px;border-style:dashed}
+#ret.r-holo.rv2::after{width:0;height:0;margin:-1px -5px;border-radius:0;background:none;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:8px solid #ff2a1a;box-shadow:none}
+#scope.rv1 .cross4,#scope.rv1 .dot2{display:block!important}#scope.rv1 .chev,#scope.rv1 .bdc{display:none!important}
+#scope.rv2 .chev{display:block!important}#scope.rv2 .cross4,#scope.rv2 .bdc,#scope.rv2 .dot2{display:none!important}
+#scope.rv3 .dot2,#scope.rv3 .bdc{display:block!important}#scope.rv3 .cross4,#scope.rv3 .chev{display:none!important}
+#rettip{position:absolute;left:50%;top:58%;transform:translateX(-50%);font-size:12px;color:#fff;text-shadow:0 1px 2px #000;opacity:0;transition:opacity .3s;pointer-events:none}
 #scope{position:absolute;inset:0;display:none}
 #scope .ring{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,transparent 0,transparent 38.6vh,rgba(10,12,14,.75) 39vh,rgba(10,12,14,.25) 40.5vh,rgba(10,12,14,.18) 100%);-webkit-backdrop-filter:blur(14px) saturate(.7);backdrop-filter:blur(14px) saturate(.7);-webkit-mask-image:radial-gradient(circle at 50% 50%,transparent 38.4vh,#000 38.8vh);mask-image:radial-gradient(circle at 50% 50%,transparent 38.4vh,#000 38.8vh)}
 #scope .glass{position:absolute;left:50%;top:50%;width:78vh;height:78vh;margin:-39vh;border-radius:50%;box-shadow:inset 0 0 4vh rgba(0,0,0,.55),0 0 0 0.5vh rgba(8,9,10,.9)}
@@ -107,6 +119,10 @@ h1 small{display:block;font-size:14px;color:#9aa4ad;letter-spacing:0;font-weight
 .keys kbd{display:inline-block;min-width:22px;text-align:center;background:#2c3238;border:1px solid #444b52;border-bottom-width:2px;border-radius:3px;padding:0 5px;font-size:12px;color:#fff;font-family:inherit;margin-right:3px}
 #settings{font-size:13px;display:grid;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:center}
 #settings select,#settings input[type=range]{width:100%;accent-color:#ffd24a}
+.xh-h{grid-column:1/-1;margin:8px 0 0;font-size:13px;color:#ffd24a}
+#xh-prev{grid-row:span 2;width:84px;height:62px;background:#55606a url() center/cover;border-radius:4px;position:relative;background:linear-gradient(135deg,#6b7b86,#3c464f)}
+.xh{position:absolute;left:50%;top:50%}.xh i{position:absolute;background:var(--xc,#fff);box-shadow:0 0 0 var(--xo,1px) rgba(0,0,0,.85)}
+#xh-colors{display:flex;gap:5px}#xh-colors b{width:18px;height:18px;border-radius:3px;cursor:pointer;border:2px solid transparent}#xh-colors b.on{border-color:#fff}
 #settings select{background:#2c3238;color:#fff;border:1px solid #444b52;padding:4px;border-radius:3px;font-family:inherit}
 h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
 /* 총 고르기 */
@@ -135,6 +151,9 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
 .modes{font-size:12px;color:#aab;margin-top:6px}
 .attrow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:5px 0}
 .attrow span{width:58px;font-size:12px;color:#9aa4ad}
+.airow{display:flex;align-items:center;gap:6px;margin:-4px 0 12px;font-size:13px;color:#9aa4ad;flex-wrap:wrap}.airow button{background:#262b30;border:1px solid #3a4047;color:#ddd;font-size:12px;padding:4px 10px;border-radius:3px;cursor:pointer}.airow button.on{background:#f2c94c;color:#111;border-color:#f2c94c;font-weight:700}.airow select{background:#1d2126;color:#ddd;border:1px solid #3a4047;padding:3px 6px;border-radius:3px}.airow span:nth-child(3){margin-left:10px}
+.attfx{font-size:11.5px;color:#9fe3a8;margin:-2px 0 6px 63px}
+.sb b{margin-left:4px}.sb b.good{color:#7ee08a}.sb b.bad{color:#ff8a7a}
 .attrow button{background:#262b30;border:1px solid #3a4047;color:#ddd;font-size:12px;padding:4px 9px;border-radius:3px}
 .attrow button.on{background:#ffd24a;color:#111;border-color:#ffd24a;font-weight:700}
 #lo-foot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:12px;color:#9aa4ad}
@@ -199,7 +218,9 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
   <div id="compassWrap"><canvas id="compass" width="460" height="30"></canvas><div id="heading">0</div></div>
   <div id="premenu"><kbd>~</kbd> 총 바꾸기 (풀파츠) · 시작하면 바꿀 수 없어요</div>
   <canvas id="dmgdir" width="300" height="300"></canvas>
-  <div id="cross"><i id="ch-t"></i><i id="ch-b"></i><i id="ch-l"></i><i id="ch-r"></i></div>
+  <div id="cross"><i id="ch-t"></i><i id="ch-b"></i><i id="ch-l"></i><i id="ch-r"></i><i id="ch-d"></i></div>
+  <div id="rettip"></div>
+  <div id="assist"></div>
   <div id="sgc"><div class="d" id="sgc-d"></div><div class="r" id="sgc-r"></div><div class="c"></div></div>
   <div id="dot"></div>
   <div id="ret"></div>
@@ -229,6 +250,7 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
     <h1>훈련장 1v1 <span id="verlabel" style="font-size:13px;color:#9aa4ad;font-weight:600;letter-spacing:0"></span><small>배틀그라운드 훈련장 스타일 1대1 · AI 대전 · 친구와 온라인 대전 · 사격 훈련장 · 7점 선승 · PC 전용</small></h1>
     <div class="nickrow"><label>닉네임</label><input id="start-nick" maxlength="12" placeholder="닉네임을 정하세요" autocomplete="off"></div>
     <div class="row"><button class="btn" id="btn-start">AI 대전</button><button class="btn" id="btn-mp">친구와 대전</button><button class="btn" id="btn-range">훈련장</button><button class="btn sub" id="btn-loadout">총 고르기 (~)</button></div>
+    <div class="airow"><span>AI 대전</span><span id="ai-size"></span><span>맵</span><select id="ai-map"></select></div>
     <div class="cols">
       <div class="keys">
         <h3 class="sec">조작</h3>
@@ -260,6 +282,15 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
   <label>그래픽 품질</label><select id="set-quality"><option value="high">높음 (예쁘게)</option><option value="mid">보통</option><option value="low">낮음 (빠르게)</option></select><span></span>
   <label>달리기 (Shift)</label><select id="set-sprint"><option value="hold">누르는 동안</option><option value="toggle">토글</option></select><span></span>
   <label>화면</label><button class="btn sub small" id="set-full" type="button">전체화면 켜기</button><span></span>
+  <h4 class="xh-h">조준선 (발로란트처럼 바꾸기)</h4>
+  <label>모양</label><select id="xh-preset"><option value="pubg">배그 기본</option><option value="valo">발로란트 기본</option><option value="dot">점만</option><option value="tiny">작은 십자</option><option value="big">큰 십자</option><option value="custom">직접 만들기</option></select><div id="xh-prev"><div class="xh" id="xh-pv"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div></div>
+  <label>색</label><div id="xh-colors"></div><span></span>
+  <label>선 길이</label><input type="range" id="xh-len" min="0" max="20" step="1"><span id="v-xh-len"></span>
+  <label>선 두께</label><input type="range" id="xh-th" min="1" max="6" step="1"><span id="v-xh-th"></span>
+  <label>가운데 간격</label><input type="range" id="xh-gap" min="0" max="20" step="1"><span id="v-xh-gap"></span>
+  <label>가운데 점</label><select id="xh-dot"><option value="0">없음</option><option value="2">작게</option><option value="4">크게</option></select><span></span>
+  <label>테두리</label><select id="xh-out"><option value="1">켜기</option><option value="0">끄기</option></select><span></span>
+  <label>쏘면 벌어짐</label><select id="xh-dyn"><option value="1">켜기 (배그처럼)</option><option value="0">끄기 (발로란트처럼 고정)</option></select><span></span>
 </div>
 <div id="pause" class="overlay" style="display:none"><div class="panel" style="max-width:520px">
   <h2 id="pause-title">일시정지</h2><p style="color:#9aa4ad;font-size:13px;margin-bottom:14px">화면을 누르거나 아래 버튼을 누르면 계속해요.</p>

@@ -1,5 +1,5 @@
 'use strict';
-const GAME_BUILD = 29; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 30; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -14,6 +14,7 @@ const _v1 = new V3(), _v2 = new V3(), _v3 = new V3(), _v4 = new V3();
 const SETTINGS = {
   sens: 1.0, adsSens: 0.8, fov: 75, difficulty: 1, armor: 2, volume: 0.8,
   aimMode: 'pubg', crouchMode: 'toggle', leanMode: 'hold', sprintMode: 'hold', nick: '', quality: 'mid',
+  xh: { preset: 'pubg', color: '#ffffff', len: 10, th: 2, gap: 4, dot: 0, out: 1, dyn: 1 }, ret: {},
 };
 try { Object.assign(SETTINGS, JSON.parse(localStorage.getItem('tg1v1_settings') || '{}')); } catch (e) {}
 function saveSettings() { try { localStorage.setItem('tg1v1_settings', JSON.stringify(SETTINGS)); } catch (e) {} }
@@ -487,8 +488,9 @@ const AU = (() => {
       if (id && !suppressed && SND_W[id] && !BUF[id]) prepGun(id, cat);
       const bk = (!suppressed && id && BUF[id]) || BUF[(SND[cat] ? cat : 'AR') + (suppressed ? '_s' : '')];
       const gv = (!suppressed && id && SND_W[id] && SND_W[id].vol) || 1;
+      const sw = id && SND_W[id], gr = sw && sw.body ? clamp(0.86 + (sw.body - 700) / 1800 * 0.32, 0.84, 1.14) : 1; // 총마다 음높이도 조금씩 달라요
       if (bk) {
-        const b = pick(bk), rate = rand(0.95, 1.05) * (suppressed ? 1 : 1);
+        const b = pick(bk), rate = rand(0.97, 1.03) * (suppressed ? 1 : gr);
         // 멀리서 쏘면 앞소리는 작아지고 메아리 비율이 커져요
         playBuf(out, b.dry, T0, gv * (suppressed ? (SND[cat] && SND[cat].sub >= 0.6 ? 0.68 : 0.5) : 0.8) * V, rate);
         let n = 1, tailEnd = T0 + b.dry.duration;

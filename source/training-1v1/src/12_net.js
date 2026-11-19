@@ -6,7 +6,7 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 8; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 9; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 const STANCE_CODE = { stand: 0, crouch: 1, prone: 2 }, STANCE_NAME = ['stand', 'crouch', 'prone'];
@@ -200,9 +200,9 @@ function hostRecv(m) {
     if (L.players.find(p => p.id === m.from)) { rawSend(m.from, { t: 'welcome', from: 'h', to: m.from }); rawSend(m.from, { t: 'lobby', lobby: L, from: 'h', to: m.from }); return; }
     if (NET.active) { rawSend(m.from, { t: 'reject', from: 'h', to: m.from, why: '이미 게임이 시작됐어요' }); return; }
     const humans = (t) => L.players.filter(p => p.team === t && !p.bot).length;
-    if (L.players.length >= 6) {
+    if (L.players.length >= 8) {
       const bot = L.players.find(p => p.bot);
-      if (!bot) { rawSend(m.from, { t: 'reject', from: 'h', to: m.from, why: '방이 꽉 찼어요 (최대 6명)' }); return; }
+      if (!bot) { rawSend(m.from, { t: 'reject', from: 'h', to: m.from, why: '방이 꽉 찼어요 (최대 8명)' }); return; }
       L.players = L.players.filter(p => p !== bot);
     }
     const t0 = L.players.filter(p => p.team === 0).length, t1 = L.players.filter(p => p.team === 1).length;
@@ -220,17 +220,17 @@ function hostRecv(m) {
   }
   hostRoute(m);
 }
-function autoSize() { const L = NET.lobby; L.size = Math.max(L.size, Math.min(3, Math.max(...[0, 1].map(t => L.players.filter(p => p.team === t).length)))); }
+function autoSize() { const L = NET.lobby; L.size = Math.max(L.size, Math.min(4, Math.max(...[0, 1].map(t => L.players.filter(p => p.team === t).length)))); }
 function addBot(team) {
   const L = NET.lobby;
-  if (L.players.length >= 6 || L.players.filter(p => p.team === team).length >= L.size) return;
+  if (L.players.length >= 8 || L.players.filter(p => p.team === team).length >= L.size) return;
   NET.botN++;
   L.players.push({ id: 'b' + NET.botN, name: 'AI ' + NET.botN, team, bot: true });
   broadcastLobby();
 }
 function fillBots() {
   const L = NET.lobby;
-  for (const t of [0, 1]) while (L.players.filter(p => p.team === t).length < L.size && L.players.length < 6) { NET.botN++; L.players.push({ id: 'b' + NET.botN, name: 'AI ' + NET.botN, team: t, bot: true }); }
+  for (const t of [0, 1]) while (L.players.filter(p => p.team === t).length < L.size && L.players.length < 8) { NET.botN++; L.players.push({ id: 'b' + NET.botN, name: 'AI ' + NET.botN, team: t, bot: true }); }
   broadcastLobby();
 }
 function removeBot(id) {
@@ -329,17 +329,19 @@ function renderLobby() {
   const box = $('mp-lobby');
   if (!L.players.length) { box.style.display = 'none'; return; }
   box.style.display = 'block';
-  const sizeBtns = [1, 2, 3].map(n => `<button class="${L.size === n ? 'on' : ''}" data-size="${n}" ${host ? '' : 'disabled'}>${n}대${n}</button>`).join('');
+  const sizeBtns = [1, 2, 3, 4].map(n => `<button class="${L.size === n ? 'on' : ''}" data-size="${n}" ${host ? '' : 'disabled'}>${n}대${n}</button>`).join('');
   const col = (team) => {
     const ps = L.players.filter(p => p.team === team);
     let h = `<div class="tcol t${team}"><h4 style="color:${TEAM_COLOR[team]}">${TEAM_NAME[team]} 팀 <small>${ps.length}/${L.size}</small></h4>`;
     for (const p of ps) h += `<div class="pl">${p.id === 'h' ? '👑 ' : p.bot ? '🤖 ' : ''}${esc(p.name)}${p.id === me ? ' <em>(나)</em>' : ''}${host ? (p.bot ? `<button data-kick="${p.id}">AI 빼기</button>` : '') + `<button data-swap="${p.id}">팀 바꾸기</button>` : ''}</div>`;
-    for (let i = ps.length; i < L.size; i++) h += `<div class="pl empty">빈 자리${host && L.players.length < 6 ? `<button data-addbot="${team}">＋ AI 넣기</button>` : ''}</div>`;
+    for (let i = ps.length; i < L.size; i++) h += `<div class="pl empty">빈 자리${host && L.players.length < 8 ? `<button data-addbot="${team}">＋ AI 넣기</button>` : ''}</div>`;
     return h + '</div>';
   };
   const t0 = L.players.filter(p => p.team === 0).length, t1 = L.players.length - t0;
   const ok = t0 >= 1 && t1 >= 1 && t0 <= L.size && t1 <= L.size;
-  box.innerHTML = `<div class="attrow"><span>경기 방식</span>${sizeBtns}</div><div class="teams">${col(0)}${col(1)}</div>`
+  const maps = MAP_LIST[L.size] || [], cur = L.map && maps.includes(L.map) ? L.map : 'random';
+  const mapBtns = [`<button class="${cur === 'random' ? 'on' : ''}" data-map="random" ${host ? '' : 'disabled'}>랜덤</button>`].concat(maps.map(id => `<button class="${cur === id ? 'on' : ''}" data-map="${id}" ${host ? '' : 'disabled'}>${MAP_DEFS[id].name}</button>`)).join('');
+  box.innerHTML = `<div class="attrow"><span>경기 방식</span>${sizeBtns}</div><div class="attrow"><span>맵</span>${mapBtns}</div><div class="teams">${col(0)}${col(1)}</div>`
     + (host ? `<div class="row" style="margin:12px 0 0"><button class="btn" id="mp-startgame" ${ok ? '' : 'disabled'}>게임 시작</button><button class="btn sub" id="mp-fillbots">빈자리 모두 AI로 채우기</button><span class="hint">${ok ? '팀원이 적은 쪽도 그대로 시작할 수 있어요' : '양쪽 팀에 한 명 이상, 정한 인원 이하로 맞춰 주세요'}</span></div>`
       : `<div class="hint" style="margin-top:10px">방장이 게임을 시작하면 바로 들어가요</div>`);
 }
@@ -358,12 +360,14 @@ function removeRemote(id) {
   const i = ACTORS.indexOf(r); if (i >= 0) ACTORS.splice(i, 1);
   delete REMOTES[id];
 }
-function actorById(id) { return id === NET.id ? PLAYER : REMOTES[id] || null; }
+function actorById(id) { return id === NET.id ? PLAYER : REMOTES[id] || NET.bots[id] || null; }
 function myLoadoutMsg() { return { t: 'lo', list: PLAYER.weapons.map(w => ({ id: w.id, att: w.att })) }; }
 
 // ---------- 라운드 (방장이 정함) ----------
 function netStartGame() {
   const L = NET.lobby;
+  const maps = MAP_LIST[L.size] || ['arena'];
+  NET.matchMap = L.map && maps.includes(L.map) ? L.map : maps[(Math.random() * maps.length) | 0];
   NET.active = true; G.mode = 'mp';
   G.score = [0, 0]; G.round = 0; G.time = 0;
   netNextRound();
@@ -371,11 +375,12 @@ function netStartGame() {
 function netNextRound() {
   const L = NET.lobby, round = G.round + 1;
   const flip = round % 2 === 0;
-  const spawns = {}, map = L.size === 1 ? 'duel' : 'arena', SZ = Math.abs(MAPS[map].spawnZ);
+  const map = NET.matchMap || (L.size === 1 ? 'duel' : 'arena'), D = MAP_DEFS[map] || MAP_DEFS.arena;
+  const spawns = {}, SZ = Math.abs(D.spawnZ), gap = Math.min(5, (D.bounds.maxX - 4) * 2 / Math.max(1, L.size));
   for (const team of [0, 1]) {
     const ps = L.players.filter(p => p.team === team);
     const z = (team === 0) !== flip ? -SZ : SZ;
-    ps.forEach((p, i) => { const x = (i - (ps.length - 1) / 2) * 6 + rand(-1, 1); spawns[p.id] = [+x.toFixed(2), z, z < 0 ? Math.PI : 0]; });
+    ps.forEach((p, i) => { const x = (i - (ps.length - 1) / 2) * gap + rand(-0.5, 0.5); spawns[p.id] = [+x.toFixed(2), z, z < 0 ? Math.PI : 0]; });
   }
   const m = { t: 'round', round, score: G.score, spawns, players: L.players, armor: SETTINGS.armor, winTo: G.winTo, map };
   netSend(m); applyRound(m);
@@ -483,6 +488,7 @@ function netRecv(m) {
       r.deaths = (r.deaths || 0) + 1;
       if (killer !== r) { killer.kills = (killer.kills || 0) + 1; if (m.head) killer.heads = (killer.heads || 0) + 1; }
       if (killer === PLAYER) HUD.hitMarker(true, m.head);
+      for (const id of m.as || []) { const a = actorById(id); if (a && a !== killer) giveAssist(a, r); }
       GAME.onKill(killer, r, { weapon: m.weapon, head: m.head, dist: m.dist, net: true });
       break;
     }
@@ -568,6 +574,7 @@ function setupMP() {
       for (const tm of [0, 1]) { let ps = L.players.filter(p => p.team === tm); while (ps.length > L.size && ps.some(p => p.bot)) { const bt = ps.filter(p => p.bot).pop(); L.players = L.players.filter(p => p !== bt); ps = L.players.filter(p => p.team === tm); } }
       broadcastLobby();
     }
+    if (t.dataset.map) { L.map = t.dataset.map; broadcastLobby(); }
     if (t.dataset.swap) { const p = L.players.find(x => x.id === t.dataset.swap); if (p) { p.team = 1 - p.team; autoSize(); broadcastLobby(); } }
     if (t.dataset.addbot !== undefined) addBot(+t.dataset.addbot);
     if (t.dataset.kick) { L.players = L.players.filter(x => x.id !== t.dataset.kick); broadcastLobby(); }

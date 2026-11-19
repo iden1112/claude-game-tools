@@ -20,8 +20,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:"Pr
 #heading{font-size:12px;color:#ffd24a;font-weight:700}
 /* 조준선 */
 #cross{position:absolute;left:50%;top:50%}
-#cross i{position:absolute;background:#fff;box-shadow:0 0 2px rgba(0,0,0,.9)}
-#ch-t,#ch-b{width:2px;height:10px;left:0}#ch-l,#ch-r{height:2px;width:10px;top:0}
+#cross i{position:absolute;background:var(--xc,#fff);box-shadow:0 0 0 var(--xo,1px) rgba(0,0,0,.85)}
+#ch-t,#ch-b{width:var(--xt,2px);height:var(--xl,10px);margin-left:calc(var(--xt,2px) / -2)}#ch-l,#ch-r{height:var(--xt,2px);width:var(--xl,10px);margin-top:calc(var(--xt,2px) / -2)}
+#ch-d{width:var(--xd,0px);height:var(--xd,0px);margin:calc(var(--xd,0px) / -2)}
+#assist{position:absolute;left:50%;top:62%;transform:translate(-50%,8px);opacity:0;transition:opacity .25s,transform .25s;font-size:15px;color:#fff;text-shadow:0 1px 3px #000;pointer-events:none}#assist b{color:#ffd24a;margin-right:6px}
 #sgc{position:absolute;left:50%;top:50%;display:none;pointer-events:none}
 #sgc .r{position:absolute;border-radius:50%;border:2px solid rgba(70,255,120,.85);box-shadow:0 0 4px rgba(40,220,90,.7),inset 0 0 3px rgba(40,220,90,.5)}
 #sgc .d{position:absolute;border-radius:50%;border:2px dotted rgba(70,255,120,.55)}
@@ -41,6 +43,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:"Pr
 #ret.r-2x::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 50%,transparent 0,transparent 42vh,rgba(0,0,0,.18) 60vh,rgba(0,0,0,.32) 90vh)}
 #ret.r-2x::after{content:"";position:absolute;width:4px;height:4px;margin:-2px;border-radius:50%;background:#ff2a1a;box-shadow:0 0 5px #ff2a1a}
 /* 고배율 조준경 */
+/* PgUp/PgDn 조준점 모양 바꾸기 */
+#ret.r-reddot.rv1::after{width:0;height:0;margin:-1px -5px;border-radius:0;background:none;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:8px solid #ff2a1a;box-shadow:none;filter:drop-shadow(0 0 3px #ff2a1a)}
+#ret.r-reddot.rv2::before,#ret.r-holo.rv3::before{content:"";position:absolute;width:16px;height:16px;margin:-8px;border:1.5px solid rgba(255,40,30,.95);border-radius:50%;box-shadow:0 0 4px #ff2a1a}
+#ret.r-reddot.rv3::after,#ret.r-holo.rv1::after{width:14px;height:14px;margin:-7px;border-radius:0;box-shadow:none;background:linear-gradient(#ff2a1a,#ff2a1a) center/2px 100% no-repeat,linear-gradient(#ff2a1a,#ff2a1a) center/100% 2px no-repeat;filter:drop-shadow(0 0 3px #ff2a1a)}
+#ret.r-holo.rv2::before{width:46px;height:46px;margin:-23px;border-style:dashed}
+#ret.r-holo.rv2::after{width:0;height:0;margin:-1px -5px;border-radius:0;background:none;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:8px solid #ff2a1a;box-shadow:none}
+#scope.rv1 .cross4,#scope.rv1 .dot2{display:block!important}#scope.rv1 .chev,#scope.rv1 .bdc{display:none!important}
+#scope.rv2 .chev{display:block!important}#scope.rv2 .cross4,#scope.rv2 .bdc,#scope.rv2 .dot2{display:none!important}
+#scope.rv3 .dot2,#scope.rv3 .bdc{display:block!important}#scope.rv3 .cross4,#scope.rv3 .chev{display:none!important}
+#rettip{position:absolute;left:50%;top:58%;transform:translateX(-50%);font-size:12px;color:#fff;text-shadow:0 1px 2px #000;opacity:0;transition:opacity .3s;pointer-events:none}
 #scope{position:absolute;inset:0;display:none}
 #scope .ring{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,transparent 0,transparent 38.6vh,rgba(10,12,14,.75) 39vh,rgba(10,12,14,.25) 40.5vh,rgba(10,12,14,.18) 100%);-webkit-backdrop-filter:blur(14px) saturate(.7);backdrop-filter:blur(14px) saturate(.7);-webkit-mask-image:radial-gradient(circle at 50% 50%,transparent 38.4vh,#000 38.8vh);mask-image:radial-gradient(circle at 50% 50%,transparent 38.4vh,#000 38.8vh)}
 #scope .glass{position:absolute;left:50%;top:50%;width:78vh;height:78vh;margin:-39vh;border-radius:50%;box-shadow:inset 0 0 4vh rgba(0,0,0,.55),0 0 0 0.5vh rgba(8,9,10,.9)}
@@ -107,6 +119,10 @@ h1 small{display:block;font-size:14px;color:#9aa4ad;letter-spacing:0;font-weight
 .keys kbd{display:inline-block;min-width:22px;text-align:center;background:#2c3238;border:1px solid #444b52;border-bottom-width:2px;border-radius:3px;padding:0 5px;font-size:12px;color:#fff;font-family:inherit;margin-right:3px}
 #settings{font-size:13px;display:grid;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:center}
 #settings select,#settings input[type=range]{width:100%;accent-color:#ffd24a}
+.xh-h{grid-column:1/-1;margin:8px 0 0;font-size:13px;color:#ffd24a}
+#xh-prev{grid-row:span 2;width:84px;height:62px;background:#55606a url() center/cover;border-radius:4px;position:relative;background:linear-gradient(135deg,#6b7b86,#3c464f)}
+.xh{position:absolute;left:50%;top:50%}.xh i{position:absolute;background:var(--xc,#fff);box-shadow:0 0 0 var(--xo,1px) rgba(0,0,0,.85)}
+#xh-colors{display:flex;gap:5px}#xh-colors b{width:18px;height:18px;border-radius:3px;cursor:pointer;border:2px solid transparent}#xh-colors b.on{border-color:#fff}
 #settings select{background:#2c3238;color:#fff;border:1px solid #444b52;padding:4px;border-radius:3px;font-family:inherit}
 h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
 /* 총 고르기 */
@@ -135,6 +151,9 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
 .modes{font-size:12px;color:#aab;margin-top:6px}
 .attrow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:5px 0}
 .attrow span{width:58px;font-size:12px;color:#9aa4ad}
+.airow{display:flex;align-items:center;gap:6px;margin:-4px 0 12px;font-size:13px;color:#9aa4ad;flex-wrap:wrap}.airow button{background:#262b30;border:1px solid #3a4047;color:#ddd;font-size:12px;padding:4px 10px;border-radius:3px;cursor:pointer}.airow button.on{background:#f2c94c;color:#111;border-color:#f2c94c;font-weight:700}.airow select{background:#1d2126;color:#ddd;border:1px solid #3a4047;padding:3px 6px;border-radius:3px}.airow span:nth-child(3){margin-left:10px}
+.attfx{font-size:11.5px;color:#9fe3a8;margin:-2px 0 6px 63px}
+.sb b{margin-left:4px}.sb b.good{color:#7ee08a}.sb b.bad{color:#ff8a7a}
 .attrow button{background:#262b30;border:1px solid #3a4047;color:#ddd;font-size:12px;padding:4px 9px;border-radius:3px}
 .attrow button.on{background:#ffd24a;color:#111;border-color:#ffd24a;font-weight:700}
 #lo-foot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:12px;color:#9aa4ad}
@@ -199,7 +218,9 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
   <div id="compassWrap"><canvas id="compass" width="460" height="30"></canvas><div id="heading">0</div></div>
   <div id="premenu"><kbd>~</kbd> 총 바꾸기 (풀파츠) · 시작하면 바꿀 수 없어요</div>
   <canvas id="dmgdir" width="300" height="300"></canvas>
-  <div id="cross"><i id="ch-t"></i><i id="ch-b"></i><i id="ch-l"></i><i id="ch-r"></i></div>
+  <div id="cross"><i id="ch-t"></i><i id="ch-b"></i><i id="ch-l"></i><i id="ch-r"></i><i id="ch-d"></i></div>
+  <div id="rettip"></div>
+  <div id="assist"></div>
   <div id="sgc"><div class="d" id="sgc-d"></div><div class="r" id="sgc-r"></div><div class="c"></div></div>
   <div id="dot"></div>
   <div id="ret"></div>
@@ -229,6 +250,7 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
     <h1>훈련장 1v1 <span id="verlabel" style="font-size:13px;color:#9aa4ad;font-weight:600;letter-spacing:0"></span><small>배틀그라운드 훈련장 스타일 1대1 · AI 대전 · 친구와 온라인 대전 · 사격 훈련장 · 7점 선승 · PC 전용</small></h1>
     <div class="nickrow"><label>닉네임</label><input id="start-nick" maxlength="12" placeholder="닉네임을 정하세요" autocomplete="off"></div>
     <div class="row"><button class="btn" id="btn-start">AI 대전</button><button class="btn" id="btn-mp">친구와 대전</button><button class="btn" id="btn-range">훈련장</button><button class="btn sub" id="btn-loadout">총 고르기 (~)</button></div>
+    <div class="airow"><span>AI 대전</span><span id="ai-size"></span><span>맵</span><select id="ai-map"></select></div>
     <div class="cols">
       <div class="keys">
         <h3 class="sec">조작</h3>
@@ -260,6 +282,15 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
   <label>그래픽 품질</label><select id="set-quality"><option value="high">높음 (예쁘게)</option><option value="mid">보통</option><option value="low">낮음 (빠르게)</option></select><span></span>
   <label>달리기 (Shift)</label><select id="set-sprint"><option value="hold">누르는 동안</option><option value="toggle">토글</option></select><span></span>
   <label>화면</label><button class="btn sub small" id="set-full" type="button">전체화면 켜기</button><span></span>
+  <h4 class="xh-h">조준선 (발로란트처럼 바꾸기)</h4>
+  <label>모양</label><select id="xh-preset"><option value="pubg">배그 기본</option><option value="valo">발로란트 기본</option><option value="dot">점만</option><option value="tiny">작은 십자</option><option value="big">큰 십자</option><option value="custom">직접 만들기</option></select><div id="xh-prev"><div class="xh" id="xh-pv"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div></div>
+  <label>색</label><div id="xh-colors"></div><span></span>
+  <label>선 길이</label><input type="range" id="xh-len" min="0" max="20" step="1"><span id="v-xh-len"></span>
+  <label>선 두께</label><input type="range" id="xh-th" min="1" max="6" step="1"><span id="v-xh-th"></span>
+  <label>가운데 간격</label><input type="range" id="xh-gap" min="0" max="20" step="1"><span id="v-xh-gap"></span>
+  <label>가운데 점</label><select id="xh-dot"><option value="0">없음</option><option value="2">작게</option><option value="4">크게</option></select><span></span>
+  <label>테두리</label><select id="xh-out"><option value="1">켜기</option><option value="0">끄기</option></select><span></span>
+  <label>쏘면 벌어짐</label><select id="xh-dyn"><option value="1">켜기 (배그처럼)</option><option value="0">끄기 (발로란트처럼 고정)</option></select><span></span>
 </div>
 <div id="pause" class="overlay" style="display:none"><div class="panel" style="max-width:520px">
   <h2 id="pause-title">일시정지</h2><p style="color:#9aa4ad;font-size:13px;margin-bottom:14px">화면을 누르거나 아래 버튼을 누르면 계속해요.</p>
@@ -1013,7 +1044,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 29; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 30; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -1028,6 +1059,7 @@ const _v1 = new V3(), _v2 = new V3(), _v3 = new V3(), _v4 = new V3();
 const SETTINGS = {
   sens: 1.0, adsSens: 0.8, fov: 75, difficulty: 1, armor: 2, volume: 0.8,
   aimMode: 'pubg', crouchMode: 'toggle', leanMode: 'hold', sprintMode: 'hold', nick: '', quality: 'mid',
+  xh: { preset: 'pubg', color: '#ffffff', len: 10, th: 2, gap: 4, dot: 0, out: 1, dyn: 1 }, ret: {},
 };
 try { Object.assign(SETTINGS, JSON.parse(localStorage.getItem('tg1v1_settings') || '{}')); } catch (e) {}
 function saveSettings() { try { localStorage.setItem('tg1v1_settings', JSON.stringify(SETTINGS)); } catch (e) {} }
@@ -1501,8 +1533,9 @@ const AU = (() => {
       if (id && !suppressed && SND_W[id] && !BUF[id]) prepGun(id, cat);
       const bk = (!suppressed && id && BUF[id]) || BUF[(SND[cat] ? cat : 'AR') + (suppressed ? '_s' : '')];
       const gv = (!suppressed && id && SND_W[id] && SND_W[id].vol) || 1;
+      const sw = id && SND_W[id], gr = sw && sw.body ? clamp(0.86 + (sw.body - 700) / 1800 * 0.32, 0.84, 1.14) : 1; // 총마다 음높이도 조금씩 달라요
       if (bk) {
-        const b = pick(bk), rate = rand(0.95, 1.05) * (suppressed ? 1 : 1);
+        const b = pick(bk), rate = rand(0.97, 1.03) * (suppressed ? 1 : gr);
         // 멀리서 쏘면 앞소리는 작아지고 메아리 비율이 커져요
         playBuf(out, b.dry, T0, gv * (suppressed ? (SND[cat] && SND[cat].sub >= 0.6 ? 0.68 : 0.5) : 0.8) * V, rate);
         let n = 1, tailEnd = T0 + b.dry.duration;
@@ -1646,7 +1679,7 @@ const ARENA = 50;
 const ARENA_BOUNDS = { minX: -ARENA, maxX: ARENA, minZ: -ARENA, maxZ: ARENA };
 const WORLD = { boxes: [], half: 50, smokes: [], bounds: ARENA_BOUNDS, map: null };
 // 맵 여러 개: 같은 자리(가운데)에 만들어 두고, 쓰는 맵만 보이게 + 충돌 상자 바꾸기
-const MAPS = {}; let BUILD = null;
+const MAPS = {}, MAP_DEFS = {}; let BUILD = null;
 function WADD(o) { (BUILD ? BUILD.group : scene).add(o); }
 
 // 상자 하나: 바닥 높이 y0 에서 시작
@@ -1746,6 +1779,7 @@ function buildWorld() {
   TEX.ground.repeat.set(120, 120);
   scene.add(g);
   const scenery = new THREE.Group(); scene.add(scenery); BUILD = { id: null, group: scenery };
+  const sceneryTrees = new THREE.Group(); scene.add(sceneryTrees);
   // 경기장 밖 풍경: 언덕과 나무 (멀리 흐릿하게)
   const hillMat = new THREE.MeshStandardMaterial({ color: 0x6f7d58, roughness: 1, flatShading: true });
   for (let i = 0; i < 30; i++) {
@@ -1763,12 +1797,30 @@ function buildWorld() {
     const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 3, 6), trunkMat); tr.position.y = 1.5; t.add(tr);
     const s = rand(0.8, 1.6);
     for (let k = 0; k < 3; k++) { const c = new THREE.Mesh(new THREE.ConeGeometry(2.6 - k * 0.6, 3.2, 7), treeMat); c.position.y = 3.6 + k * 1.8; c.castShadow = false; t.add(c); }
-    t.scale.setScalar(s); t.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); WADD(t);
+    t.scale.setScalar(s); t.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); sceneryTrees.add(t);
   }
-  BUILD = null; mergeStatic(scenery);
-  buildMap('arena', ARENA_BOUNDS, -46.5, [[16, 20], [0, 17], [-19, 13], [6, 8], [-8, 9.5], [30, 14], [-22, 6], [13, 6.5], [0, 7.2]], buildArena);
-  buildMap('duel', DUEL_BOUNDS, -32.5, [[0, 4], [6.5, 9.5], [-8, 15], [8, 21], [-3, 26], [10, 2.5], [-10.5, 4.5]], buildDuel);
-  setMap('arena');
+  BUILD = null; mergeStatic(scenery); mergeStatic(sceneryTrees);
+  window.SCENERY = { hillMat, trees: sceneryTrees };
+  // 예전 두 맵 (만드는 함수와 AI 자리)
+  MAP_DEFS.arena.build = () => { buildArena(); return [[16, 20], [0, 17], [-19, 13], [6, 8], [-8, 9.5], [30, 14], [-22, 6], [13, 6.5], [0, 7.2]]; };
+  MAP_DEFS.duel.build = () => { buildDuel(); return [[0, 4], [6.5, 9.5], [-8, 15], [8, 21], [-3, 26], [10, 2.5], [-10.5, 4.5]]; };
+  setMap('duel');
+}
+// 맵은 처음 쓸 때 만들어요
+function ensureMap(id) {
+  if (MAPS[id]) return MAPS[id];
+  const D = MAP_DEFS[id] || MAP_DEFS.duel;
+  if (MAPS[D.id]) return MAPS[D.id];
+  let spots = [];
+  buildMap(D.id, D.bounds, D.spawnZ, null, () => {
+    spots = D.build() || [];
+    // AI 자리가 벽 속이면 조금씩 뒤로 옮기기
+    const B = D.bounds, v = new V3();
+    spots = spots.map(([x, z]) => { for (let k = 0; k < 6; k++) { v.set(x, 1, z); if (!pointInBoxes(v, 0.5)) break; z += 1.5; } return [clamp(x, B.minX + 2, B.maxX - 2), clamp(z, 1, B.maxZ - 6)]; });
+  });
+  MAPS[D.id].spots = spots.length ? spots : [[0, 8]];
+  MAPS[D.id].def = D;
+  return MAPS[D.id];
 }
 // ================= 최적화: 안 움직이는 물체를 재질별로 한 덩어리로 합치기 =================
 // (상자 수백 개를 하나씩 그리면 느려서, 같은 재질끼리 묶어 한 번에 그려요)
@@ -1821,13 +1873,14 @@ function buildMap(id, bounds, spawnZ, spots, fn) {
   WORLD.boxes = saved; BUILD = null;
 }
 function setMap(id) {
-  const M = MAPS[id]; if (!M) return;
+  const M = ensureMap(id); id = M.id;
   const extra = WORLD.boxes.filter(b => !b.map);
   WORLD.boxes = M.boxes.concat(extra);
   for (const k in MAPS) MAPS[k].group.visible = k === id;
   NAV.grid = M.nav.grid; NAV.cover = M.nav.cover;
   WORLD.map = M; WORLD.bounds = M.bounds;
-  setShadowArea(id === 'duel' ? 46 : 70);
+  const B = M.bounds; setShadowArea(Math.min(80, Math.max(B.maxX, B.maxZ) + 12));
+  if (typeof applyTheme === 'function') applyTheme(M.def ? M.def.theme : 'base');
 }
 function buildArena() {
   // 경기장 안쪽 바닥(콘크리트 패드)
@@ -2169,7 +2222,7 @@ function buildDuel() {
 }
 
 // ================= AI 길찾기 격자 =================
-const NAV = { size: 1, n: 100, off: 50, grid: null, cover: null };
+const NAV = { size: 1, n: 120, off: 60, grid: null, cover: null };
 function buildNav(B = ARENA_BOUNDS) {
   const n = NAV.n; NAV.grid = new Uint8Array(n * n);
   const r = 0.45;
@@ -2252,57 +2305,57 @@ function findPath(fx, fz, tx, tz) {
 // [id, 이름, 분류, 탄, 피해, 탄속(m/s), 발사간격(s), 탄창, 대용량탄창, 재장전(s), 사격모드, 수직반동(도), 수평반동, 최대조준경, 파츠칸]
 // 파츠칸: m=총구 g=손잡이 x=탄창 s=개머리판
 const WEAPON_TABLE = [
-  ['m416', 'M416', 'AR', '5.56mm', 40, 880, 0.0857, 30, 40, 2.1, 'SA', 0.42, 0.20, 7, 'mgxs'],
-  ['akm', 'AKM', 'AR', '7.62mm', 47, 715, 0.100, 30, 40, 2.7, 'SA', 0.74, 0.30, 7, 'mx'],
-  ['beryl', 'Beryl M762', 'AR', '7.62mm', 44, 715, 0.086, 30, 40, 2.9, 'SBA', 0.84, 0.38, 7, 'mgx'],
-  ['scar', 'SCAR-L', 'AR', '5.56mm', 42, 870, 0.096, 30, 40, 2.2, 'SA', 0.45, 0.22, 7, 'mgx'],
-  ['aug', 'AUG', 'AR', '5.56mm', 41, 940, 0.0857, 30, 40, 3.0, 'SA', 0.40, 0.21, 7, 'mgx'],
-  ['groza', 'Groza', 'AR', '7.62mm', 47, 715, 0.080, 30, 40, 3.0, 'SA', 0.62, 0.30, 5, 'mx'],
-  ['qbz', 'QBZ95', 'AR', '5.56mm', 42, 870, 0.092, 30, 40, 2.8, 'SA', 0.45, 0.22, 7, 'mgx'],
-  ['g36c', 'G36C', 'AR', '5.56mm', 41, 870, 0.086, 30, 40, 2.5, 'SA', 0.44, 0.22, 5, 'mgx'],
-  ['m16', 'M16A4', 'AR', '5.56mm', 43, 900, 0.075, 30, 40, 2.3, 'SB', 0.48, 0.20, 7, 'mx'],
-  ['mk47', 'Mk47 Mutant', 'AR', '7.62mm', 49, 780, 0.100, 20, 30, 2.7, 'SB', 0.70, 0.30, 7, 'mgx'],
-  ['ace32', 'ACE32', 'AR', '7.62mm', 43, 715, 0.088, 30, 40, 2.6, 'SA', 0.60, 0.26, 7, 'mgxs'],
-  ['famas', 'FAMAS', 'AR', '5.56mm', 39, 925, 0.0667, 25, 35, 2.8, 'SBA', 0.50, 0.26, 7, 'mx'],
+  ['m416', 'M416', 'AR', '5.56×45mm NATO', 40, 880, 0.0857, 30, 40, 2.1, 'SA', 0.42, 0.20, 7, 'mgxs'],
+  ['akm', 'AKM', 'AR', '7.62×39mm', 47, 715, 0.100, 30, 40, 2.7, 'SA', 0.74, 0.30, 7, 'mx'],
+  ['beryl', 'Beryl M762', 'AR', '7.62×39mm', 44, 715, 0.086, 30, 40, 2.9, 'SBA', 0.84, 0.38, 7, 'mgx'],
+  ['scar', 'SCAR-L', 'AR', '5.56×45mm NATO', 42, 870, 0.096, 30, 40, 2.2, 'SA', 0.45, 0.22, 7, 'mgx'],
+  ['aug', 'AUG', 'AR', '5.56×45mm NATO', 41, 940, 0.0857, 30, 40, 3.0, 'SA', 0.40, 0.21, 7, 'mgx'],
+  ['groza', 'Groza', 'AR', '7.62×39mm', 47, 715, 0.080, 30, 40, 3.0, 'SA', 0.62, 0.30, 5, 'mx'],
+  ['qbz', 'QBZ95', 'AR', '5.8×42mm', 42, 870, 0.092, 30, 40, 2.8, 'SA', 0.45, 0.22, 7, 'mgx'],
+  ['g36c', 'G36C', 'AR', '5.56×45mm NATO', 41, 870, 0.086, 30, 40, 2.5, 'SA', 0.44, 0.22, 5, 'mgx'],
+  ['m16', 'M16A4', 'AR', '5.56×45mm NATO', 43, 900, 0.075, 30, 40, 2.3, 'SB', 0.48, 0.20, 7, 'mx'],
+  ['mk47', 'Mk47 Mutant', 'AR', '7.62×39mm', 49, 780, 0.100, 20, 30, 2.7, 'SB', 0.70, 0.30, 7, 'mgx'],
+  ['ace32', 'ACE32', 'AR', '7.62×39mm', 43, 715, 0.088, 30, 40, 2.6, 'SA', 0.60, 0.26, 7, 'mgxs'],
+  ['famas', 'FAMAS', 'AR', '5.56×45mm NATO', 39, 925, 0.0667, 25, 35, 2.8, 'SBA', 0.50, 0.26, 7, 'mx'],
   ['ump', 'UMP45', 'SMG', '.45 ACP', 41, 360, 0.092, 25, 35, 2.4, 'SBA', 0.32, 0.15, 5, 'mgx'],
-  ['vector', 'Vector', 'SMG', '9mm', 31, 380, 0.055, 19, 33, 1.9, 'SBA', 0.42, 0.20, 3, 'mgxs'],
-  ['uzi', 'Micro UZI', 'SMG', '9mm', 26, 350, 0.048, 25, 35, 2.2, 'SA', 0.30, 0.18, 1, 'mxs'],
+  ['vector', 'Vector', 'SMG', '.45 ACP', 31, 380, 0.055, 19, 33, 1.9, 'SBA', 0.42, 0.20, 3, 'mgxs'],
+  ['uzi', 'Micro UZI', 'SMG', '9×19mm 파라벨룸', 26, 350, 0.048, 25, 35, 2.2, 'SA', 0.30, 0.18, 1, 'mxs'],
   ['tommy', 'Tommy Gun', 'SMG', '.45 ACP', 40, 280, 0.086, 30, 50, 3.0, 'SA', 0.38, 0.20, 0, 'mgx'],
-  ['bizon', 'PP-19 Bizon', 'SMG', '9mm', 35, 408, 0.086, 53, 53, 3.2, 'SA', 0.30, 0.15, 5, 'm'],
-  ['mp5k', 'MP5K', 'SMG', '9mm', 33, 400, 0.067, 30, 40, 2.4, 'SBA', 0.32, 0.15, 5, 'mgxs'],
-  ['p90', 'P90', 'SMG', '5.7mm', 35, 715, 0.060, 50, 50, 2.5, 'SA', 0.28, 0.15, 5, ''],
-  ['js9', 'JS9', 'SMG', '9mm', 34, 400, 0.067, 30, 40, 2.4, 'SA', 0.28, 0.14, 5, 'mgx'],
-  ['sks', 'SKS', 'DMR', '7.62mm', 53, 800, 0.090, 10, 20, 2.9, 'S', 1.30, 0.50, 8, 'mgxs'],
-  ['slr', 'SLR', 'DMR', '7.62mm', 56, 840, 0.100, 10, 20, 2.9, 'S', 1.60, 0.60, 8, 'mxs'],
-  ['mini14', 'Mini14', 'DMR', '5.56mm', 48, 990, 0.100, 20, 30, 2.6, 'S', 0.90, 0.35, 8, 'mxs'],
-  ['mk14', 'Mk14 EBR', 'DMR', '7.62mm', 61, 853, 0.090, 10, 20, 3.0, 'SA', 1.60, 0.60, 8, 'mxs'],
-  ['qbu', 'QBU', 'DMR', '5.56mm', 48, 945, 0.100, 10, 20, 2.6, 'S', 0.90, 0.35, 8, 'mx'],
-  ['vss', 'VSS', 'DMR', '9mm', 41, 330, 0.086, 10, 20, 2.6, 'SA', 0.45, 0.25, -1, 'gx'],
-  ['mk12', 'Mk12', 'DMR', '5.56mm', 50, 930, 0.100, 20, 30, 2.6, 'S', 1.00, 0.40, 8, 'mgxs'],
-  ['dragunov', 'Dragunov', 'DMR', '7.62mm', 60, 830, 0.150, 10, 20, 3.2, 'S', 1.70, 0.60, 8, 'mxs'],
-  ['kar98k', 'Kar98k', 'SR', '7.62mm', 79, 760, 1.90, 5, 5, 4.0, 'S', 2.5, 0.6, 8, 'mxs'],
-  ['m24', 'M24', 'SR', '7.62mm', 75, 790, 1.80, 5, 7, 3.4, 'S', 2.4, 0.6, 8, 'mxs'],
-  ['awm', 'AWM', 'SR', '.300 Magnum', 105, 945, 1.85, 5, 7, 4.0, 'S', 3.0, 0.7, 8, 'mxs'],
-  ['mosin', 'Mosin Nagant', 'SR', '7.62mm', 79, 870, 1.90, 5, 5, 4.0, 'S', 2.5, 0.6, 8, 'mxs'],
-  ['win94', 'Win94', 'SR', '.45 ACP', 66, 760, 1.30, 8, 8, 4.0, 'S', 2.2, 0.6, 2, 'm'],
-  ['lynx', 'Lynx AMR', 'SR', '.50 BMG', 118, 1000, 1.80, 5, 5, 4.5, 'S', 4.0, 0.8, 8, ''],
-  ['s1897', 'S1897', 'SG', '12 Gauge', 26, 360, 0.75, 5, 5, 3.0, 'S', 3.5, 0.8, 1, 'm'],
-  ['s686', 'S686', 'SG', '12 Gauge', 26, 370, 0.20, 2, 2, 2.2, 'S', 3.5, 0.8, 0, 'm'],
-  ['s12k', 'S12K', 'SG', '12 Gauge', 24, 350, 0.25, 5, 8, 2.6, 'S', 3.0, 0.8, 2, 'mx'],
-  ['dbs', 'DBS', 'SG', '12 Gauge', 26, 400, 0.30, 14, 14, 4.5, 'S', 3.2, 0.8, 2, ''],
-  ['o12', 'O12', 'SG', '12 Gauge', 30, 350, 0.20, 5, 8, 2.6, 'SA', 3.0, 0.8, 2, 'mx'],
-  ['sawed', 'Sawed-off', 'SG', '12 Gauge', 21, 340, 0.20, 2, 2, 2.0, 'S', 3.5, 0.8, 0, ''],
-  ['m249', 'M249', 'LMG', '5.56mm', 41, 915, 0.075, 75, 150, 6.5, 'A', 0.48, 0.22, 7, ''],
-  ['dp28', 'DP-28', 'LMG', '7.62mm', 52, 715, 0.109, 47, 47, 4.5, 'A', 0.60, 0.25, 7, ''],
-  ['mg3', 'MG3', 'LMG', '7.62mm', 42, 820, 0.060, 75, 75, 6.5, 'A', 0.60, 0.28, 7, ''],
-  ['crossbow', '석궁', 'XB', '볼트', 105, 100, 0.3, 1, 1, 3.4, 'S', 1.0, 0.25, 5, ''],
-  ['p92', 'P92', 'HG', '9mm', 34, 380, 0.135, 15, 20, 2.0, 'S', 0.9, 0.4, 2, 'mx'],
+  ['bizon', 'PP-19 Bizon', 'SMG', '9×18mm 마카로프', 35, 408, 0.086, 53, 53, 3.2, 'SA', 0.30, 0.15, 5, 'm'],
+  ['mp5k', 'MP5K', 'SMG', '9×19mm 파라벨룸', 33, 400, 0.067, 30, 40, 2.4, 'SBA', 0.32, 0.15, 5, 'mgxs'],
+  ['p90', 'P90', 'SMG', '5.7×28mm', 35, 715, 0.060, 50, 50, 2.5, 'A', 0.28, 0.15, 5, ''],
+  ['js9', 'JS9', 'SMG', '9×19mm 파라벨룸', 34, 400, 0.067, 30, 40, 2.4, 'SA', 0.28, 0.14, 5, 'mgx'],
+  ['sks', 'SKS', 'DMR', '7.62×39mm', 53, 800, 0.090, 10, 20, 2.9, 'S', 1.30, 0.50, 8, 'mgxs'],
+  ['slr', 'SLR', 'DMR', '7.62×51mm NATO', 56, 840, 0.100, 10, 20, 2.9, 'S', 1.60, 0.60, 8, 'mxs'],
+  ['mini14', 'Mini14', 'DMR', '5.56×45mm NATO', 48, 990, 0.100, 20, 30, 2.6, 'S', 0.90, 0.35, 8, 'mxs'],
+  ['mk14', 'Mk14 EBR', 'DMR', '7.62×51mm NATO', 61, 853, 0.090, 10, 20, 3.0, 'SA', 1.60, 0.60, 8, 'mxs'],
+  ['qbu', 'QBU', 'DMR', '5.8×42mm', 48, 945, 0.100, 10, 20, 2.6, 'S', 0.90, 0.35, 8, 'mx'],
+  ['vss', 'VSS', 'DMR', '9×39mm', 41, 330, 0.086, 10, 20, 2.6, 'SA', 0.45, 0.25, -1, 'gx'],
+  ['mk12', 'Mk12', 'DMR', '5.56×45mm NATO', 50, 930, 0.100, 20, 30, 2.6, 'S', 1.00, 0.40, 8, 'mgxs'],
+  ['dragunov', 'Dragunov', 'DMR', '7.62×54mmR', 60, 830, 0.150, 10, 20, 3.2, 'S', 1.70, 0.60, 8, 'mxs'],
+  ['kar98k', 'Kar98k', 'SR', '7.92×57mm 마우저', 79, 760, 1.90, 5, 5, 4.0, 'S', 2.5, 0.6, 8, 'mxs'],
+  ['m24', 'M24', 'SR', '7.62×51mm NATO', 75, 790, 1.80, 5, 7, 3.4, 'S', 2.4, 0.6, 8, 'mxs'],
+  ['awm', 'AWM', 'SR', '.300 윈체스터 매그넘', 105, 945, 1.85, 5, 7, 4.0, 'S', 3.0, 0.7, 8, 'mxs'],
+  ['mosin', 'Mosin Nagant', 'SR', '7.62×54mmR', 79, 870, 1.90, 5, 5, 4.0, 'S', 2.5, 0.6, 8, 'mxs'],
+  ['win94', 'Win94', 'SR', '.30-30 윈체스터', 66, 760, 1.30, 8, 8, 4.0, 'S', 2.2, 0.6, 2, 'm'],
+  ['lynx', 'Lynx AMR', 'SR', '.50 BMG (12.7×99mm)', 118, 1000, 1.80, 5, 5, 4.5, 'S', 4.0, 0.8, 8, ''],
+  ['s1897', 'S1897', 'SG', '12게이지 산탄', 26, 360, 0.75, 5, 5, 3.0, 'S', 3.5, 0.8, 1, 'm'],
+  ['s686', 'S686', 'SG', '12게이지 산탄', 26, 370, 0.20, 2, 2, 2.2, 'S', 3.5, 0.8, 0, 'm'],
+  ['s12k', 'S12K', 'SG', '12게이지 산탄', 24, 350, 0.25, 5, 8, 2.6, 'S', 3.0, 0.8, 2, 'mx'],
+  ['dbs', 'DBS', 'SG', '12게이지 산탄', 26, 400, 0.30, 14, 14, 4.5, 'S', 3.2, 0.8, 2, ''],
+  ['o12', 'O12', 'SG', '12게이지 슬러그', 30, 350, 0.20, 5, 8, 2.6, 'SA', 3.0, 0.8, 2, 'mx'],
+  ['sawed', 'Sawed-off', 'SG', '12게이지 산탄', 21, 340, 0.20, 2, 2, 2.0, 'S', 3.5, 0.8, 0, ''],
+  ['m249', 'M249', 'LMG', '5.56×45mm NATO', 41, 915, 0.075, 75, 150, 6.5, 'A', 0.48, 0.22, 7, ''],
+  ['dp28', 'DP-28', 'LMG', '7.62×54mmR', 52, 715, 0.109, 47, 47, 4.5, 'A', 0.60, 0.25, 7, ''],
+  ['mg3', 'MG3', 'LMG', '7.62×51mm NATO', 42, 820, 0.060, 75, 75, 6.5, 'A', 0.60, 0.28, 7, ''],
+  ['crossbow', '석궁', 'XB', '석궁 볼트(화살)', 105, 100, 0.3, 1, 1, 3.4, 'S', 1.0, 0.25, 5, ''],
+  ['p92', 'P92', 'HG', '9×19mm 파라벨룸', 34, 380, 0.135, 15, 20, 2.0, 'S', 0.9, 0.4, 2, 'mx'],
   ['p1911', 'P1911', 'HG', '.45 ACP', 42, 250, 0.110, 7, 12, 2.1, 'S', 1.1, 0.5, 2, 'mx'],
-  ['p18c', 'P18C', 'HG', '9mm', 23, 375, 0.060, 17, 25, 2.0, 'SA', 0.7, 0.4, 2, 'mx'],
-  ['r1895', 'R1895', 'HG', '7.62mm', 64, 330, 0.40, 7, 7, 3.0, 'S', 1.6, 0.6, 2, 'm'],
+  ['p18c', 'P18C', 'HG', '9×19mm 파라벨룸', 23, 375, 0.060, 17, 25, 2.0, 'SA', 0.7, 0.4, 2, 'mx'],
+  ['r1895', 'R1895', 'HG', '7.62×38mmR 나강', 64, 330, 0.40, 7, 7, 3.0, 'S', 1.6, 0.6, 2, 'm'],
   ['r45', 'R45', 'HG', '.45 ACP', 65, 330, 0.25, 6, 6, 2.2, 'S', 1.6, 0.6, 2, ''],
   ['deagle', 'Desert Eagle', 'HG', '.50 AE', 62, 420, 0.20, 7, 10, 2.2, 'S', 2.2, 0.7, 2, 'x'],
-  ['skorpion', 'Skorpion', 'HG', '9mm', 22, 300, 0.070, 20, 40, 2.6, 'SA', 0.45, 0.25, 2, 'gxs'],
+  ['skorpion', 'Skorpion', 'HG', '.32 ACP (7.65×17mm)', 22, 300, 0.070, 20, 40, 2.6, 'SA', 0.45, 0.25, 2, 'gxs'],
 ];
 const CAT_NAME = { AR: '돌격소총', SMG: '기관단총', DMR: '지정사수소총', SR: '저격소총', SG: '산탄총', LMG: '경기관총', HG: '권총', XB: '석궁' };
 const CAT_INFO = {
@@ -2339,11 +2392,48 @@ const SCOPES = [
 const MUZZLES = { comp: '보정기', flash: '소염기', supp: '소음기', choke: '초크', duck: '덕빌' };
 const GRIPS = { vert: '수직 손잡이', angled: '앵글 손잡이', half: '하프 그립', thumb: '엄지 그립', light: '라이트 그립', laser: '레이저 사이트' };
 const STOCKS = { tac: '전술 개머리판', cheek: '칙패드', loops: '총알 고리' };
+const MAGS = { ext: '대용량 탄창', qd: '퀵드로우 탄창', extqd: '대용량 퀵드로우' };
+// 파츠 효과 (배그 PC 기준) — 총 고르기 화면에 그대로 보여줘요
+const ATT_FX = {
+  muzzle: {
+    comp: { rv: 0.85, rh: 0.9, shake: 0.7, d: '수직 반동 -15% · 수평 반동 -10% · 화면 흔들림 -30%' },
+    flash: { rv: 0.9, rh: 0.9, hide: 1, d: '수직 반동 -10% · 수평 반동 -10% · 총구 불꽃 안 보임' },
+    supp: { supp: 1, hide: 1, d: '총소리가 작아져 멀리서 잘 안 들림 · 총구 불꽃 안 보임 · AI가 위치를 잘 못 찾음' },
+    choke: { spread: 0.75, d: '산탄 퍼짐 -25% (멀리까지 모여서 날아감)' },
+    duck: { spreadV: 0.6, spreadH: 1.15, d: '산탄 세로 퍼짐 -40% · 가로로 넓게 퍼짐' },
+  },
+  grip: {
+    vert: { rv: 0.85, d: '수직 반동 -15%' },
+    angled: { rh: 0.85, adsTime: 0.8, d: '수평 반동 -15% · 조준 속도 +20%' },
+    half: { rv: 0.92, rh: 0.92, recovery: 1.2, d: '수직·수평 반동 -8% · 반동 회복 +20%' },
+    thumb: { rv: 0.95, adsTime: 0.7, d: '수직 반동 -5% · 조준 속도 +30%' },
+    light: { rh: 0.9, recovery: 1.1, sway: 0.85, d: '수평 반동 -10% · 첫발 반동 회복 +10% · 흔들림 -15%' },
+    laser: { hip: 0.7, d: '비조준(지향) 사격 퍼짐 -30% · 움직이며 쏠 때 더 정확' },
+  },
+  mag: {
+    ext: { ext: 1, d: '탄창 크기 늘어남' },
+    qd: { reload: 0.7, d: '장전 시간 -30%' },
+    extqd: { ext: 1, reload: 0.7, d: '탄창 크기 늘어남 · 장전 시간 -30%' },
+  },
+  stock: {
+    tac: { rv: 0.92, rh: 0.9, sway: 0.85, d: '수직 반동 -8% · 수평 반동 -10% · 흔들림 -15%' },
+    cheek: { rv: 0.85, sway: 0.75, d: '수직 반동 -15% · 조준경 흔들림 -25%' },
+    loops: { reload: 0.75, d: '한 발씩 넣는 장전 +25% 빠름' },
+  },
+};
+function magOptions(w) { return w.slots.includes('x') ? ['ext', 'qd', 'extqd'] : []; }
+function stockOptions(w) {
+  if (!w.slots.includes('s')) return [];
+  if (w.cat === 'SR') return ['cheek', 'loops'];
+  if (w.cat === 'DMR') return ['cheek'];
+  if (w.cat === 'SG') return ['loops'];
+  return ['tac'];
+}
 
 function muzzleOptions(w) { if (!w.slots.includes('m')) return []; if (w.cat === 'SG') return ['choke', 'duck']; if (w.cat === 'HG') return ['supp']; return ['comp', 'flash', 'supp']; }
 function gripOptions(w) { return w.slots.includes('g') ? Object.keys(GRIPS) : []; }
 function scopeOptions(w) { if (w.scopeMax < 0) return []; if (w.cat === 'SG') return ['iron']; return SCOPES.slice(0, w.scopeMax + 1).map(s => s.id); }
-function stockType(w) { if (!w.slots.includes('s')) return null; if (w.cat === 'SR') return w.id === 'kar98k' || w.id === 'mosin' ? 'cheek' : 'cheek'; if (w.cat === 'DMR') return 'cheek'; return 'tac'; }
+function stockType(w) { const o = stockOptions(w); return o.length ? o[0] : null; }
 function defaultScope(w) {
   const o = scopeOptions(w); if (!o.length) return null;
   const want = { AR: 'reddot', SMG: 'holo', DMR: '4x', SR: '8x', SG: 'reddot', LMG: 'reddot', HG: 'reddot', XB: 'reddot' }[w.cat];
@@ -2353,12 +2443,15 @@ function defaultScope(w) {
 function fullAttachments(id, choice = {}) {
   const w = WEAPONS[id];
   const mo = muzzleOptions(w), go = gripOptions(w);
+  const xo = magOptions(w), so = stockOptions(w);
+  // '' 은 '없음'으로 고른 것
+  const pickOr = (v, opts, def) => !opts.length ? null : v === '' ? null : v && opts.includes(v) ? v : def;
   return {
     scope: choice.scope && scopeOptions(w).includes(choice.scope) ? choice.scope : defaultScope(w),
-    muzzle: mo.length ? (choice.muzzle && mo.includes(choice.muzzle) ? choice.muzzle : (w.cat === 'SG' ? 'choke' : w.cat === 'HG' ? 'supp' : 'comp')) : null,
-    grip: go.length ? (choice.grip && go.includes(choice.grip) ? choice.grip : (w.cat === 'DMR' ? 'half' : 'vert')) : null,
-    mag: w.slots.includes('x') ? 'extqd' : null,
-    stock: stockType(w),
+    muzzle: pickOr(choice.muzzle, mo, w.cat === 'SG' ? 'choke' : w.cat === 'HG' ? 'supp' : 'comp'),
+    grip: pickOr(choice.grip, go, w.cat === 'DMR' ? 'half' : 'vert'),
+    mag: pickOr(choice.mag, xo, 'extqd'),
+    stock: pickOr(choice.stock, so, so[0]),
   };
 }
 // 지금 실제 배율 (Win94 Alt+우클릭 4배율, 휠 줌 포함)
@@ -2376,25 +2469,16 @@ function weaponStats(id, att) {
   if (w.integrated) s.scopeZoom = 4;
   if (w.cat === 'XB') { s.suppressed = true; s.flashHidden = true; }
   if (att.scope) s.scopeZoom = scopeZoom(att.scope);
-  switch (att.muzzle) {
-    case 'comp': s.rv *= 0.85; s.rh *= 0.82; break;
-    case 'flash': s.rv *= 0.9; s.rh *= 0.9; s.flashHidden = true; break;
-    case 'supp': s.suppressed = true; s.flashHidden = true; break;
-    case 'choke': s.pelletSpread *= 0.6; break;
-    case 'duck': s.pelletSpread *= 0.8; break;
+  s.spreadMul = 1; s.spreadV = 1; s.spreadH = 1; s.shake = 1;
+  for (const key of ['muzzle', 'grip', 'mag', 'stock']) {
+    const fx = att[key] && ATT_FX[key][att[key]]; if (!fx) continue;
+    if (fx.rv) s.rv *= fx.rv; if (fx.rh) s.rh *= fx.rh; if (fx.adsTime) s.adsTime *= fx.adsTime;
+    if (fx.recovery) s.recovery *= fx.recovery; if (fx.sway) s.sway *= fx.sway; if (fx.hip) s.hip *= fx.hip;
+    if (fx.reload) s.reload *= fx.reload; if (fx.ext) s.mag = w.ext; if (fx.shake) s.shake *= fx.shake;
+    if (fx.supp) s.suppressed = true; if (fx.hide) s.flashHidden = true;
+    if (fx.spread) s.spreadMul *= fx.spread; if (fx.spreadV) s.spreadV *= fx.spreadV; if (fx.spreadH) s.spreadH *= fx.spreadH;
   }
-  switch (att.grip) {
-    case 'vert': s.rv *= 0.85; s.recovery *= 1.1; break;
-    case 'angled': s.rh *= 0.8; s.adsTime *= 0.8; break;
-    case 'half': s.rv *= 0.92; s.rh *= 0.92; s.recovery *= 1.2; break;
-    case 'thumb': s.rv *= 0.95; s.adsTime *= 0.7; break;
-    case 'light': s.rh *= 0.88; s.recovery *= 1.1; break;
-    case 'laser': s.hip *= 0.7; break;
-  }
-  if (att.mag === 'extqd') { s.mag = w.ext; s.reload *= 0.75; }
-  if (att.stock === 'tac') { s.rv *= 0.92; s.rh *= 0.9; s.sway *= 0.85; }
-  if (att.stock === 'cheek') { s.rv *= 0.85; s.sway *= 0.75; }
-  if (w.cat === 'SG') s.ads = s.pelletSpread * 0.7;
+  if (w.cat === 'SG') { s.pelletSpread *= s.spreadMul; s.ads = s.pelletSpread * 0.7; s.hip *= s.spreadMul; }
   return s;
 }
 
@@ -2501,7 +2585,7 @@ function buildGunModel(id, att) {
   }
   // 탄창
   let mag = null;
-  const ext = att.mag === 'extqd' ? 1.35 : 1;
+  const ext = att.mag === 'extqd' || att.mag === 'ext' ? 1.35 : 1;
   const magZ = st.bullpup ? 0.05 : -0.08;
   switch (st.mag) {
     case 'str': mag = M(BX(0.03, 0.12 * ext, 0.05), GUNMAT.black, 0, -0.07 * ext, magZ, 0.12); break;
@@ -2562,6 +2646,10 @@ function buildGunModel(id, att) {
   if (w.integrated) { addScope(g, '4x', 0.11, -0.05, info); g.add(M(CY(0.024, 0.024, B, 10), GUNMAT.black, 0, 0.035, recF - B / 2, Math.PI / 2)); }
   else if (att.scope && att.scope !== 'iron') addScope(g, att.scope, 0.0, -0.06, info);
   gunExtras(g, id, { body, furn, R, B, recF, hgL, att, scoped: !!(att.scope && att.scope !== 'iron') });
+  if (g.userData.mag && !info.magMesh) { info.magMesh = g.userData.mag; info.magHome = g.userData.mag.position.clone(); }
+  // 장전 동작용: 탄 넣는 방식 + 장전 손잡이 위치
+  info.loadType = info.magMesh && st.mag !== 'tube' ? 'mag' : 'shell';
+  info.boltPos = w.cat === 'HG' ? new V3(0, 0.05, 0.02) : /akm|beryl|mk47|ace32|groza|sks|dragunov|s12k|dp28/.test(id) ? new V3(0.05, 0.045, -0.02) : new V3(0.0, 0.075, 0.1);
   info.eject.position.set(0.03, 0.05, -0.05);
   g.add(info.muzzle, info.eject);
   return info;
@@ -2723,18 +2811,26 @@ function gunExtras(g, id, o) {
 function addScope(g, scope, yOff, zc, info, small) {
   const base = small ? 0.072 : 0.07;
   const s = new THREE.Group(); g.add(s);
-  if (scope === 'reddot') {
-    s.add(M(BX(0.026, 0.012, 0.045), GUNMAT.black, 0, base + 0.006, zc));
-    const fr = M(new THREE.TorusGeometry(0.019, 0.004, 6, 18), GUNMAT.black, 0, base + 0.032, zc - 0.015); s.add(fr);
-    s.add(M(new THREE.CircleGeometry(0.018, 18), GUNMAT.lensRed, 0, base + 0.032, zc - 0.015));
-    info.sightY = base + 0.032;
-  } else if (scope === 'holo') {
-    s.add(M(BX(0.036, 0.014, 0.06), GUNMAT.black, 0, base + 0.007, zc));
-    s.add(M(BX(0.004, 0.04, 0.05), GUNMAT.black, 0.02, base + 0.03, zc));
-    s.add(M(BX(0.004, 0.04, 0.05), GUNMAT.black, -0.02, base + 0.03, zc));
-    s.add(M(BX(0.044, 0.005, 0.05), GUNMAT.black, 0, base + 0.052, zc));
-    s.add(M(new THREE.PlaneGeometry(0.036, 0.034), GUNMAT.lensRed, 0, base + 0.032, zc - 0.02));
-    info.sightY = base + 0.032;
+  if (scope === 'reddot') { // 배그 레드 도트: 짧은 원통형 조준기 (마운트 위, 오른쪽에 밝기 다이얼)
+    const y = base + 0.034, r = 0.0175, L = 0.05;
+    s.add(M(BX(0.028, 0.008, 0.05), GUNMAT.black, 0, base + 0.004, zc));                // 레일 마운트
+    s.add(M(BX(0.018, y - r - base, 0.03), GUNMAT.black, 0, base + (y - r - base) / 2 + 0.004, zc)); // 받침
+    const tube = M(CY(r, r, L, 20, true), GUNMAT.black, 0, y, zc, Math.PI / 2); tube.material = tube.material.clone(); tube.material.side = THREE.DoubleSide; s.add(tube);
+    s.add(M(new THREE.TorusGeometry(r, 0.0022, 6, 20), GUNMAT.black, 0, y, zc - L / 2));  // 앞 테두리
+    s.add(M(new THREE.TorusGeometry(r, 0.0022, 6, 20), GUNMAT.black, 0, y, zc + L / 2));  // 뒤 테두리
+    s.add(M(CY(0.007, 0.007, 0.012, 10), GUNMAT.dark, r + 0.004, y, zc, 0, 0, Math.PI / 2)); // 밝기 다이얼
+    s.add(M(CY(0.006, 0.006, 0.01, 10), GUNMAT.dark, 0, y + r + 0.004, zc));              // 위 조절 다이얼
+    s.add(M(new THREE.CircleGeometry(r * 0.95, 20), GUNMAT.lensRed, 0, y, zc - L / 2 + 0.003));
+    info.sightY = y;
+  } else if (scope === 'holo') { // 배그 홀로그램: 네모난 창 + 위 덮개 + 뒤쪽 배터리 칸
+    const y = base + 0.032;
+    s.add(M(BX(0.034, 0.016, 0.075), GUNMAT.black, 0, base + 0.008, zc + 0.008));          // 아래 몸통
+    s.add(M(BX(0.03, 0.022, 0.026), GUNMAT.black, 0, base + 0.026, zc + 0.034));           // 뒤 배터리·버튼 칸
+    for (const sx of [-1, 1]) s.add(M(BX(0.004, 0.04, 0.04), GUNMAT.black, sx * 0.019, y + 0.003, zc - 0.012)); // 옆 창틀
+    s.add(M(BX(0.042, 0.005, 0.044), GUNMAT.black, 0, y + 0.024, zc - 0.012));             // 위 덮개
+    s.add(M(BX(0.034, 0.004, 0.004), GUNMAT.dark, 0, y - 0.016, zc - 0.033));              // 창 아래 테
+    s.add(M(new THREE.PlaneGeometry(0.034, 0.036), GUNMAT.lensRed, 0, y + 0.003, zc - 0.03));
+    info.sightY = y + 0.003;
   } else {
     const z = scopeZoom(scope);
     const len = { 2: 0.1, 3: 0.14, 4: 0.17, 6: 0.2, 8: 0.26, 15: 0.32 }[z] || 0.16;
@@ -3318,7 +3414,7 @@ class Actor {
     this.stance = 'stand'; this.stanceH = STANCE.stand.eye; this.lean = this.leanTarget = 0;
     this.vel.set(0, 0, 0); this.onGround = true;
     this.shoulder = false; this.shoulderT = 0;
-    this.cooldown = 0; this.reloadT = 0; this.boltT = 0; this.switchT = 0; this.adsT = 0; this.ads = false; this.burst = 0;
+    this.cooldown = 0; this.reloadT = 0; this.boltT = 0; this.switchT = 0; this.adsT = 0; this.ads = false; this.burst = 0; this.dmgLog = null;
     this.shots = 0; this.sinceShot = 9; this.recoilAcc = 0; this.recoilYawAcc = 0; this.trigger = false; this.triggerEdge = false;
     this.pin = false; this.cookT = -1; this.mode = 'gun';
     this.throwables = { frag: THROWABLES.frag.count, smoke: THROWABLES.smoke.count, flash: THROWABLES.flash.count };
@@ -3334,7 +3430,7 @@ class Actor {
       const stats = weaponStats(id, att);
       AU.prep(id, WEAPONS[id].cat);
       const model = buildGunModel(id, att);
-      return { id, att, stats, mag: stats.mag, reserve: stats.mag * 6, model: model.group, info: model, fireMode: WEAPONS[id].modes.includes('A') ? 'A' : WEAPONS[id].modes[0] };
+      return { id, att, stats, mag: stats.mag, reserve: stats.mag * 6, model: model.group, info: model, fireMode: WEAPONS[id].modes.includes('A') ? 'A' : WEAPONS[id].modes.includes('B') ? 'B' : WEAPONS[id].modes[0] };
     });
     this.equip(0, true);
   }
@@ -3533,7 +3629,7 @@ class Actor {
   get canShoot() { return !this.dead && !this.vault && this.switchT <= 0 && this.reloadT <= 0 && this.boltT <= 0 && !(this.sprint && Math.hypot(this.vel.x, this.vel.z) > 3) && !(this.stanceLock > 0 && this.stance === 'prone'); }
   startReload() {
     const w = this.w; if (!w || this.mode !== 'gun' || this.reloadT > 0 || w.mag >= w.stats.mag || w.reserve <= 0 || this.dead || this.vault) return;
-    this.reloadDur = w.mag === 0 ? w.stats.reload * 1.15 : w.stats.reload;
+    this.reloadDur = w.mag === 0 ? w.stats.reload * 1.15 : w.stats.reload; this.reloadEmpty = w.mag === 0;
     this.reloadT = this.reloadDur; this.burst = 0;
     if (this.isPlayer) AU.reload(this.reloadDur);
   }
@@ -3582,14 +3678,14 @@ class Actor {
     }
     const want = this.burst > 0 || (fm === 'A' && this.trigger);
     if (want && this.cooldown <= 0 && this.canShoot) {
-      if (w.mag > 0) { this.fire(); if (this.burst > 0) this.burst--; }
+      if (w.mag > 0) { this.fire(); if (this.burst > 0) { this.burst--; if (fm === 'B' && this.burst === 0) this.cooldown = Math.max(this.cooldown, 0.22); } } // 점사: 3발 끝나면 잠깐 쉬어요 (배그처럼)
       else { this.burst = 0; if (this.isPlayer) AU.empty(); this.startReload(); }
     }
   }
   fire() {
     const w = this.w, st = w.stats, def = st.def;
     w.mag--; this.sinceShot = 0; this.shots++;
-    this.cooldown = def.bolt ? 0.05 : (w.fireMode === 'B' ? def.interval * 0.9 : def.interval);
+    this.cooldown = def.bolt ? 0.05 : (w.fireMode === 'B' ? def.interval * 0.75 : def.interval);
     if (def.bolt || def.id === 'win94' || def.id === 's1897' || def.id === 'dbs') { this.boltT = def.interval; if (this.isPlayer) setTimeout(() => AU.bolt(), 10); }
     if (def.cat === 'SG' && def.id !== 's1897' && def.id !== 'dbs') this.cooldown = def.interval;
     // 조준 방향
@@ -3607,7 +3703,7 @@ class Actor {
     for (let p = 0; p < def.pellets; p++) {
       const sp = def.cat === 'SG' ? lerp(st.hip * lerp(1, 0.75, this.shoulderT), st.ads, this.adsT) : spread;
       const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * Math.tan(sp * DEG);
-      const d = dir.clone().addScaledVector(right, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize();
+      const d = dir.clone().addScaledVector(right, Math.cos(a) * r * (st.spreadH || 1)).addScaledVector(up, Math.sin(a) * r * (st.spreadV || 1)).normalize();
       spawnBullet(this, origin, d, st, def.dmg);
       dirs.push(d.toArray().map(v => +v.toFixed(5)));
     }
@@ -3685,15 +3781,21 @@ class Actor {
   damage(dmg, from, info) {
     if (this.dead || (G.state !== 'live' && G.state !== 'range')) return;
     this.health -= dmg; this.lastDamage = 0;
+    if (from && from !== this && dmg > 0) { if (!this.dmgLog) this.dmgLog = new Map(); this.dmgLog.set(from, performance.now()); } // 어시스트용 기록
     if (this.onDamage) this.onDamage(dmg, from, info);
     if (this.health <= 0) { this.health = 0; this.die(from, info); }
   }
   die(from, info) {
     this.deaths = (this.deaths || 0) + 1;
     if (from && from !== this) { from.kills = (from.kills || 0) + 1; if (info && info.head) from.heads = (from.heads || 0) + 1; }
+    // 어시스트: 최근 20초 안에 피해를 준 다른 적 (처치한 사람 빼고)
+    const assists = [], now = performance.now();
+    if (this.dmgLog) for (const [a, t] of this.dmgLog) if (a !== from && a !== this && now - t < 20000 && !a.gone && !(this.team !== undefined && a.team === this.team)) assists.push(a);
+    this.dmgLog = null;
+    for (const a of assists) giveAssist(a, this);
     this.dead = true; this.ads = false; this.pin = false; this.trigger = false; this.vault = null;
     const myId = this === PLAYER ? NET.id : this.netId;
-    if ((this === PLAYER || this.netBot) && NET.active) netSend({ t: 'died', killer: !from || from === this ? myId : from === PLAYER ? NET.id : from.netId, weapon: info && info.weapon, head: !!(info && info.head), dist: info && info.dist || 0 }, '*', myId);
+    if ((this === PLAYER || this.netBot) && NET.active) netSend({ t: 'died', killer: !from || from === this ? myId : from === PLAYER ? NET.id : from.netId, as: assists.map(a => a === PLAYER ? NET.id : a.netId), weapon: info && info.weapon, head: !!(info && info.head), dist: info && info.dist || 0 }, '*', myId);
     GAME.onKill(from, this, info);
   }
 }
@@ -3720,7 +3822,7 @@ const vmSleeve = new THREE.MeshStandardMaterial({ color: 0x3b4652, roughness: 0.
 function buildViewmodel() {
   const p = PLAYER;
   while (VM.root.children.length) VM.root.remove(VM.root.children[0]);
-  VM.arms = new THREE.Group();
+  VM.arms = new THREE.Group(); VM.lhand = null; VM.lfore = null;
   if (p.mode === 'fist') { // 맨손: 양 주먹
     const g = new THREE.Group(); VM.gun = g; VM.info = null; VM.fists = [];
     for (const s of [-1, 1]) {
@@ -3738,16 +3840,21 @@ function buildViewmodel() {
     VM.arms.add(new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), vmGlove));
     g.add(VM.arms);
   } else {
+    VM.lhand = null; VM.lfore = null;
     const info = buildGunModel(p.w.id, p.w.att); VM.gun = info.group; VM.info = info;
     VM.root.add(info.group);
     const hg = p.w.stats.cat === 'HG';
     const rH = new V3(0, -0.06, 0.04), lH = hg ? new V3(0.0, -0.075, 0.02) : new V3(0, -0.02, -0.2);
     const rg = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), vmGlove); rg.position.copy(rH); rg.scale.set(1, 1.2, 1.3);
-    const lg = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), vmGlove); lg.position.copy(lH); lg.scale.set(1.2, 1, 1.4);
-    VM.arms.add(rg, lg);
+    // 왼손 + 왼팔은 한 덩어리로 움직여요 (장전할 때 탄창을 빼고 넣는 손)
+    const L = new THREE.Group(); L.position.copy(lH);
+    const lg = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), vmGlove); lg.scale.set(1.2, 1, 1.4); L.add(lg);
+    const elbow = hg ? new V3(-0.12, -0.25, 0.3) : new V3(-0.16, -0.2, 0.12);
+    const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 1, 8), vmSleeve); // 아래팔: 손을 따라 늘었다 줄었다
+    if (!hg) VM.arms.add(limbMesh(elbow, new V3(-0.2, -0.3, 0.45), 0.045, 0.05, vmSleeve));
+    VM.lhand = L; VM.lhome = lH.clone(); VM.lfore = fore; VM.lelbow = elbow;
+    VM.arms.add(rg, L, fore); fitForearm();
     VM.arms.add(limbMesh(rH, new V3(0.1, -0.22, 0.35), 0.035, 0.045, vmSleeve));
-    VM.arms.add(limbMesh(lH, hg ? new V3(-0.12, -0.25, 0.3) : new V3(-0.16, -0.2, 0.12), 0.035, 0.045, vmSleeve));
-    if (!hg) VM.arms.add(limbMesh(new V3(-0.16, -0.2, 0.12), new V3(-0.2, -0.3, 0.45), 0.045, 0.05, vmSleeve));
     info.group.add(VM.arms);
   }
   VM.root.traverse(o => { o.castShadow = false; o.frustumCulled = false; });
@@ -3780,7 +3887,7 @@ function createPlayer() {
     VM.kick = Math.min(VM.kick + 0.055 * (p.w.stats.cat === 'SR' || p.w.stats.cat === 'SG' ? 2.2 : 1), 0.16);
     VM.kickRot = Math.min(VM.kickRot + v * 2.8, 0.35);
     CAM.kickP += v * 0.9;
-    G.shake = Math.max(G.shake, p.w.stats.cat === 'SR' ? 0.35 : p.w.stats.cat === 'SG' ? 0.3 : 0.08);
+    G.shake = Math.max(G.shake, (p.w.stats.cat === 'SR' ? 0.35 : p.w.stats.cat === 'SG' ? 0.3 : 0.08) * (p.w.stats.shake || 1));
 
   };
   p.onFire = (st) => {
@@ -3845,6 +3952,14 @@ function playerInput(dt) {
   if (P.Digit1) p.equip(0); if (P.Digit2) p.equip(1); if (P.Digit3) p.equip(2);
   if (P.Digit5 || P.KeyG) p.equipThrow();
   if (P.KeyX) p.holster(); // 총 넣기 → 맨손
+  if ((P.PageUp || P.PageDown) && p.mode === 'gun' && p.w && p.adsT > 0.5) { // 배그처럼 조준점 모양 바꾸기
+    const sid = effScopeId(p.w);
+    if (sid && sid !== 'iron') {
+      SETTINGS.ret = SETTINGS.ret || {}; const n = ((SETTINGS.ret[sid] || 0) + (P.PageUp ? 1 : 3)) % 4; SETTINGS.ret[sid] = n; saveSettings();
+      const tip = $('rettip'); tip.textContent = `조준점 모양 ${n + 1}/4 (PgUp/PgDn)`; tip.style.opacity = 1; clearTimeout(tip._t); tip._t = setTimeout(() => tip.style.opacity = 0, 1200);
+      AU.click(0.1, 2400);
+    }
+  }
   // 조준경 휠 줌 (3배율 이상)
   const zw = p.w && p.mode === 'gun' ? p.w : null;
   if (INPUT.wheel && zw && p.adsT > 0.5 && zw.stats.scopeZoom >= 3) {
@@ -4004,11 +4119,12 @@ function updateViewmodel(dt, hsp) {
   pos.x -= VM.sprintT * 0.06; pos.y -= VM.sprintT * 0.05; ry += VM.sprintT * 0.7; rx -= VM.sprintT * 0.25;
   // 재장전 동작
   if (p.reloadT > 0) {
-    const k = 1 - p.reloadT / p.reloadDur, e = Math.sin(clamp(k, 0, 1) * Math.PI);
-    rz += e * 0.5; rx += e * 0.25; pos.y -= e * 0.06; pos.x -= e * 0.03;
-    if (info.xbBolt) { info.xbBolt.visible = k > 0.7; info.xbBolt.position.z = info.magHome.z + (k < 0.9 ? 0.25 * (0.9 - k) : 0); }
-    else if (info.magMesh) { const out = k > 0.25 && k < 0.7 ? 1 : 0; info.magMesh.position.y = info.magHome.y - out * 0.25; info.magMesh.visible = !(k > 0.35 && k < 0.6); }
-  } else if (info.magMesh) { info.magMesh.position.copy(info.magHome); info.magMesh.visible = !info.xbBolt || p.w.mag > 0; }
+    const k = clamp(1 - p.reloadT / p.reloadDur, 0, 1), r = reloadPose(k, p, info);
+    rz += r.rz; rx += r.rx; ry += r.ry; pos.x += r.x; pos.y += r.y; pos.z += r.z;
+  } else {
+    if (info.magMesh) { info.magMesh.position.copy(info.magHome); info.magMesh.rotation.x = info.magRot0 !== undefined ? info.magRot0 : info.magMesh.rotation.x; info.magMesh.visible = !info.xbBolt || p.w.mag > 0; }
+    if (VM.lhand) VM.lhand.position.copy(VM.lhome);
+  }
   // 볼트 당기기
   if (p.boltT > 0 && p.w.stats.def.interval > 0.5) { const k = 1 - p.boltT / p.w.stats.def.interval, e = Math.sin(clamp((k - 0.08) / 0.85, 0, 1) * Math.PI); rz -= e * 0.42; ry -= e * 0.12; pos.y -= e * 0.035; pos.z += e * 0.05; pos.x -= e * 0.02; }
   // 파쿠르: 총을 내리고 옆으로 비킴 (손으로 짚는 느낌)
@@ -4017,6 +4133,71 @@ function updateViewmodel(dt, hsp) {
   // 기울이기
   rz += p.lean * 0.05;
   g.position.copy(pos); g.rotation.set(rx, ry, rz);
+  fitForearm();
+}
+
+function fitForearm() { // 아래팔을 손 → 팔꿈치로 맞추기 (손이 아래로 가면 팔꿈치도 조금 따라감)
+  const f = VM.lfore, L = VM.lhand; if (!f || !L) return;
+  const off = _rv.copy(L.position).sub(VM.lhome);
+  const e = _rv2.copy(VM.lelbow).addScaledVector(off, 1.0);
+  const d = new V3().copy(e).sub(L.position), len = d.length();
+  f.position.copy(L.position).addScaledVector(d, 0.5); f.scale.set(1, len, 1);
+  f.quaternion.setFromUnitVectors(new V3(0, 1, 0), d.normalize());
+  f.visible = off.y > -0.16; L.visible = off.y > -0.3; // 화면 아래로 내려간 팔은 숨겨요 (카메라 앞을 가리지 않게)
+}
+// ================= 배그 같은 장전 동작 =================
+// k: 0→1 진행. 총을 기울이고 → 왼손으로 탄창 빼서 버리고 → 새 탄창 꺼내 끼우고 → (다 쏜 뒤면) 장전 손잡이 당기기
+const _rv = new V3(), _rv2 = new V3();
+const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+function reloadPose(k, p, info) {
+  const out = { rx: 0, ry: 0, rz: 0, x: 0, y: 0, z: 0 };
+  const tilt = sstep(0, 0.12, k) * (1 - sstep(0.86, 1, k));
+  const L = VM.lhand, H0 = VM.lhome, mag = info.magMesh, M0 = info.magHome;
+  if (info.magRot0 === undefined && mag) info.magRot0 = mag.rotation.x;
+  const setHand = (v) => { if (L) L.position.copy(v); };
+  if (info.xbBolt) { // 석궁: 손으로 화살을 얹어요
+    out.rz = tilt * 0.3; out.rx = tilt * 0.15; out.y = -tilt * 0.05;
+    info.xbBolt.visible = k > 0.55; info.xbBolt.position.z = M0.z + (k < 0.85 ? 0.25 * (0.85 - k) : 0);
+    if (L) setHand(_rv.copy(H0).lerp(_rv2.set(0, 0.04, M0.z + 0.1), Math.sin(clamp(k, 0, 1) * Math.PI)));
+    return out;
+  }
+  if (info.loadType === 'mag' && mag) {
+    out.rz = tilt * 0.34; out.rx = -tilt * 0.04; out.ry = tilt * 0.1; out.y = tilt * 0.03; out.x = -tilt * 0.02; out.z = -tilt * 0.1;
+    const below = _rv2.copy(M0); below.y -= 0.13;
+    const grip = (m) => _rv.copy(m).add(new V3(0, -0.055, 0.0));
+    const Hdown = new V3(-0.04, -0.42, -0.25);
+    mag.visible = true; mag.rotation.x = info.magRot0;
+    if (k < 0.1) { setHand(_rv.copy(H0).lerp(grip(M0), sstep(0, 0.1, k))); mag.position.copy(M0); }
+    else if (k < 0.22) { const t = sstep(0.1, 0.22, k); mag.position.copy(M0).lerp(below, t); setHand(grip(mag.position)); }
+    else if (k < 0.4) { // 빈 탄창은 떨어지고, 손은 새 탄창을 가지러 아래로
+      const t = (k - 0.22) / 0.18; mag.position.copy(below); mag.position.y -= 1.6 * t * t; mag.position.x -= 0.05 * t; mag.rotation.x = info.magRot0 + t * 1.4; mag.visible = t < 0.7;
+      setHand(_rv.copy(grip(below)).lerp(Hdown, sstep(0.22, 0.36, k)));
+    } else if (k < 0.56) { // 새 탄창을 들고 올라와요
+      const t = sstep(0.4, 0.56, k); setHand(_rv.copy(Hdown).lerp(grip(below), t));
+      mag.position.copy(L ? L.position : below).add(new V3(0, 0.055, 0)); mag.visible = t > 0.15;
+    } else if (k < 0.66) { // 끼우기 (탁!)
+      const t = sstep(0.56, 0.64, k); mag.position.copy(below).lerp(M0, t); setHand(grip(mag.position));
+      const slap = Math.max(0, 1 - Math.abs(k - 0.645) / 0.02); out.y += slap * 0.012; out.rx += slap * 0.05;
+    } else {
+      mag.position.copy(M0);
+      if (p.reloadEmpty) { // 다 쏘고 장전: 장전 손잡이 당겼다 놓기
+        const B0 = info.boltPos, pull = _rv2.copy(B0); pull.z += 0.06;
+        if (k < 0.74) setHand(_rv.copy(grip(M0)).lerp(B0, sstep(0.66, 0.74, k)));
+        else if (k < 0.8) { setHand(_rv.copy(B0).lerp(pull, sstep(0.74, 0.79, k))); }
+        else { setHand(_rv.copy(pull).lerp(H0, sstep(0.8, 0.92, k))); const kick = Math.max(0, 1 - Math.abs(k - 0.8) / 0.025); out.z += kick * 0.015; out.rz += kick * 0.06; }
+        out.rz += sstep(0.66, 0.72, k) * (1 - sstep(0.82, 0.9, k)) * -0.25; // 손잡이 쪽이 보이게
+      } else setHand(_rv.copy(grip(M0)).lerp(H0, sstep(0.66, 0.86, k)));
+    }
+    return out;
+  }
+  // 한 발씩 넣는 총 (산탄총·볼트액션): 총을 옆으로 돌리고 손으로 여러 번 넣기
+  out.rz = -tilt * 0.6; out.rx = tilt * 0.12; out.y = -tilt * 0.04; out.x = tilt * 0.02;
+  const port = new V3(0.03, 0.02, 0.0), Hd = new V3(0.02, -0.3, 0.12);
+  const n = 3, a = 0.12, b = 0.86, cyc = clamp((k - a) / (b - a), 0, 0.999) * n, ph = cyc % 1;
+  if (k < a) setHand(_rv.copy(H0).lerp(Hd, sstep(0, a, k)));
+  else if (k < b) { const up = ph < 0.5 ? sstep(0, 0.45, ph) : 1 - sstep(0.55, 1, ph); setHand(_rv.copy(Hd).lerp(port, up)); const push = Math.max(0, 1 - Math.abs(ph - 0.5) / 0.08); out.y += push * 0.006; }
+  else setHand(_rv.copy(Hd).lerp(H0, sstep(b, 1, k)));
+  return out;
 }
 
 // 조준경 흔들림도 실제 조준에 들어가게 (카메라 회전에 포함됨)
@@ -4438,9 +4619,10 @@ const HUD = {
     const zoom = w ? effZoom(w) : 1;
     const full = p.adsT > 0.85 && scope && zoom >= 2 && scope !== 'iron' && CAM.blend < 0.5;
     UI('scope', 'style.display', full ? 'block' : 'none');
-    if (full) { UI('scope', 'className', 'sc-' + scope); }
+    const rv = scope ? ((SETTINGS.ret || {})[scope] || 0) : 0; // PgUp/PgDn 으로 고른 조준점 모양
+    if (full) { UI('scope', 'className', 'sc-' + scope + (rv ? ' rv' + rv : '')); }
     const dotOn = p.adsT > 0.9 && (scope === 'reddot' || scope === 'holo') && CAM.blend < 0.5;
-    UI('ret', 'style.display', dotOn ? 'block' : 'none'); if (dotOn) UI('ret', 'className', 'r-' + scope);
+    UI('ret', 'style.display', dotOn ? 'block' : 'none'); if (dotOn) UI('ret', 'className', 'r-' + scope + (rv ? ' rv' + rv : ''));
     const isSG = p.mode === 'gun' && w && w.stats.cat === 'SG';
     const showSG = isSG && !p.dead && !(p.sprint && Math.hypot(p.vel.x, p.vel.z) > 3);
     const showCross = !isSG && !(p.adsT > 0.5 && CAM.blend < 0.5) && !p.dead && p.mode === 'gun' && !(p.sprint && Math.hypot(p.vel.x, p.vel.z) > 3);
@@ -4462,9 +4644,10 @@ const HUD = {
       const focal = (innerHeight / 2) / Math.tan(camera.fov * DEG / 2);
       const gap = Math.max(4, Math.tan(sp * DEG) * focal);
       this.gap = damp(this.gap || gap, gap, 18, dt);
-      const g = Math.round(this.gap * 2) / 2;
-      UI('ch-t', 'style.transform', `translate(-50%, ${-g - 10}px)`); UI('ch-b', 'style.transform', `translate(-50%, ${g}px)`);
-      UI('ch-l', 'style.transform', `translate(${-g - 10}px, -50%)`); UI('ch-r', 'style.transform', `translate(${g}px, -50%)`);
+      const X = SETTINGS.xh, L = X.len;
+      const g = X.dyn ? Math.max(X.gap, Math.round(this.gap * 2) / 2 - 4 + X.gap) : X.gap; // 발로란트처럼 고정할 수도 있어요
+      UI('ch-t', 'style.transform', `translate(0, ${-g - L}px)`); UI('ch-b', 'style.transform', `translate(0, ${g}px)`);
+      UI('ch-l', 'style.transform', `translate(${-g - L}px, 0)`); UI('ch-r', 'style.transform', `translate(${g}px, 0)`);
     }
     UI('dot', 'style.display', !p.dead && (p.mode === 'throw' || p.mode === 'fist') ? 'block' : 'none');
     // 맞힘 표시
@@ -4495,14 +4678,19 @@ const HUD = {
     this.drawCompass();
     this.updateArc(p);
   },
+  assist(victim) { // 어시스트 표시 (화면 가운데 아래, 잠깐)
+    const el = $('assist'); if (!el) return;
+    el.innerHTML = `<b>어시스트</b> ${esc(victim ? victim.name : '')}`; el.style.opacity = 1; el.style.transform = 'translate(-50%,0)';
+    clearTimeout(this._asT); this._asT = setTimeout(() => { el.style.opacity = 0; el.style.transform = 'translate(-50%,8px)'; }, 1800);
+  },
   showBoard(on) {
     const b = $('board');
     if (!on) { b.style.display = 'none'; return; }
-    const row = (a, me) => `<tr class="${me ? 'me' : ''} ${a.dead ? 'dead' : ''}"><td>${esc(a.name)}${me ? ' (나)' : ''}</td><td>${a.kills || 0}</td><td>${a.deaths || 0}</td><td>${((a.kills || 0) / Math.max(1, a.deaths || 0)).toFixed(2)}</td><td>${a.heads || 0}</td></tr>`;
-    let h = `<h3>점수판 · 라운드 ${G.round} · ${G.score[G.myTeam || 0]} : ${G.score[1 - (G.myTeam || 0)]}</h3><table><tr><th>이름</th><th>킬</th><th>데스</th><th>K/D</th><th>헤드샷</th></tr>`;
+    const row = (a, me) => `<tr class="${me ? 'me' : ''} ${a.dead ? 'dead' : ''}"><td>${esc(a.name)}${me ? ' (나)' : ''}</td><td>${a.kills || 0}</td><td>${a.assists || 0}</td><td>${a.deaths || 0}</td><td>${((a.kills || 0) / Math.max(1, a.deaths || 0)).toFixed(2)}</td><td>${a.heads || 0}</td></tr>`;
+    let h = `<h3>점수판 · 라운드 ${G.round} · ${G.score[G.myTeam || 0]} : ${G.score[1 - (G.myTeam || 0)]}</h3><table><tr><th>이름</th><th>킬</th><th>어시</th><th>데스</th><th>K/D</th><th>헤드샷</th></tr>`;
     if (G.mode === 'mp') {
       for (const t of [G.myTeam, 1 - G.myTeam]) {
-        h += `<tr><td class="tb" colspan="5" style="color:${TEAM_COLOR[t]}">${TEAM_NAME[t]} 팀${t === G.myTeam ? ' (우리)' : ''} · ${G.score[t]}점</td></tr>`;
+        h += `<tr><td class="tb" colspan="6" style="color:${TEAM_COLOR[t]}">${TEAM_NAME[t]} 팀${t === G.myTeam ? ' (우리)' : ''} · ${G.score[t]}점</td></tr>`;
         const list = ACTORS.filter(a => a.team === t && !a.gone).sort((x, y) => (y.kills || 0) - (x.kills || 0));
         for (const a of list) h += row(a, a === PLAYER);
       }
@@ -4612,7 +4800,7 @@ function goMenu() {
 
 const GAME = {
   startMatch() {
-    G.mode = 'arena'; G.myTeam = 0; PLAYER.team = undefined; setMap('duel');
+    G.mode = 'arena'; G.myTeam = 0; PLAYER.team = undefined; setMap(G.matchMap || 'duel');
     ACTORS.length = 0; ACTORS.push(PLAYER, BOT); BOT.soldier.setVisible(true);
     for (const a of RANGE.dummies) a.soldier.setVisible(false);
     G.score = [0, 0]; G.round = 0; G.time = 0; resetKD(); PLAYER.name = NICK();
@@ -4624,7 +4812,7 @@ const GAME = {
   newRound(sideOverride) {
     G.round++;
     clearCombat();
-    if (G.mode !== 'mp') setMap('duel');
+    if (G.mode !== 'mp') setMap(G.matchMap || 'duel');
     WORLD.bounds = WORLD.map.bounds;
     const mp = G.mode === 'mp', E = enemy();
     ACTORS.length = 0; ACTORS.push(PLAYER, E);
@@ -4791,17 +4979,30 @@ function renderLoadout() {
   html += statBar('피해량', w.dmg * w.pellets, 220, w.dmg + (w.pellets > 1 ? ' ×' + w.pellets : ''));
   html += statBar('연사력', w.bolt ? 30 : rpm, 1100, w.bolt ? '볼트액션' : rpm + ' RPM');
   html += statBar('탄속', w.vel, 1000, w.vel + ' m/s');
-  html += statBar('반동', st.rv, 4, st.rv < 0.5 ? '낮음' : st.rv < 1 ? '보통' : '높음');
-  html += statBar('탄창', st.mag, 150, st.mag + '발');
+  const base = weaponStats(sl.id, { scope: att.scope });
+  const pct = (a, b) => { const v = Math.round((a / b - 1) * 100); return v ? ` <b class="${v < 0 ? 'good' : 'bad'}">${v > 0 ? '+' : ''}${v}%</b>` : ''; };
+  html += statBar('수직 반동', st.rv, 4, (st.rv < 0.5 ? '낮음' : st.rv < 1 ? '보통' : '높음') + pct(st.rv, base.rv));
+  html += statBar('수평 반동', st.rh, 3, (st.rh < 0.4 ? '낮음' : st.rh < 0.8 ? '보통' : '높음') + pct(st.rh, base.rh));
+  html += statBar('조준 속도', 1 / st.adsTime, 10, st.adsTime.toFixed(2) + '초' + pct(st.adsTime, base.adsTime));
+  html += statBar('장전 시간', 6 - st.reload, 6, st.reload.toFixed(1) + '초' + pct(st.reload, base.reload));
+  html += statBar('탄창', st.mag, 150, st.mag + '발' + (st.mag > base.mag ? ` <b class="good">+${st.mag - base.mag}</b>` : ''));
   html += `<div class="modes">사격 모드: ${w.modes.split('').map(m => ({ S: '단발', B: '점사', A: '연사' }[m])).join(' / ')}</div>`;
-  const row = (title, key, opts, names) => opts.length ? `<div class="attrow"><span>${title}</span>${opts.map(o => `<button class="${att[key] === o ? 'on' : ''}" data-att="${key}" data-val="${o}">${names(o)}</button>`).join('')}</div>` : '';
-  html += `<h4>풀파츠 (자동 장착) - 원하는 걸로 바꿀 수 있어요</h4>`;
-  html += row('조준경', 'scope', scopeOptions(w), o => SCOPES.find(s => s.id === o).name);
+  // 파츠 줄: 버튼에 마우스를 올리면 효과가 뜨고, 고른 파츠 효과는 아래에 늘 보여요
+  const row = (title, key, opts, names, none = true) => {
+    if (!opts.length) return '';
+    const fx = (o) => (ATT_FX[key] && ATT_FX[key][o] && ATT_FX[key][o].d) || '';
+    let h = `<div class="attrow"><span>${title}</span>` + (none ? `<button class="${!att[key] ? 'on' : ''}" data-att="${key}" data-val="" title="파츠 없음">없음</button>` : '')
+      + opts.map(o => `<button class="${att[key] === o ? 'on' : ''}" data-att="${key}" data-val="${o}" title="${fx(o)}">${names(o)}</button>`).join('') + `</div>`;
+    if (att[key] && fx(att[key])) h += `<div class="attfx">↳ ${fx(att[key])}</div>`;
+    return h;
+  };
+  html += `<h4>풀파츠 (자동 장착) - 원하는 걸로 바꿀 수 있어요 · 버튼에 마우스를 올리면 효과가 보여요</h4>`;
+  html += row('조준경', 'scope', scopeOptions(w), o => SCOPES.find(s => s.id === o).name, false);
   if (w.integrated) html += `<div class="attrow"><span>조준경</span><button class="on">내장 4배율</button></div>`;
   html += row('총구', 'muzzle', muzzleOptions(w), o => MUZZLES[o]);
   html += row('손잡이', 'grip', gripOptions(w), o => GRIPS[o]);
-  if (att.mag) html += `<div class="attrow"><span>탄창</span><button class="on">대용량 퀵드로우</button></div>`;
-  if (att.stock) html += `<div class="attrow"><span>개머리판</span><button class="on">${STOCKS[att.stock]}</button></div>`;
+  html += row('탄창', 'mag', magOptions(w), o => MAGS[o]);
+  html += row('개머리판', 'stock', stockOptions(w), o => STOCKS[o]);
   if (w.integrated) html += `<div class="attrow"><span>총구</span><button class="on">내장 소음기</button></div>`;
   $('lo-detail').innerHTML = html;
   $('lo-ready').textContent = G.state === 'pre' ? `확인 (시작까지 ${Math.ceil(G.preT)}초)` : '확인';
@@ -4821,6 +5022,47 @@ function setupLoadoutUI() {
   setInterval(() => { if (G.menuOpen && G.state === 'pre') $('lo-ready').textContent = `확인 (시작까지 ${Math.ceil(G.preT)}초)`; }, 250);
 }
 
+// ================= 조준선 (발로란트처럼 바꾸기) =================
+const XH_PRESETS = {
+  pubg: { color: '#ffffff', len: 10, th: 2, gap: 4, dot: 0, out: 1, dyn: 1 },
+  valo: { color: '#00ff6a', len: 6, th: 2, gap: 3, dot: 0, out: 1, dyn: 0 },
+  dot: { color: '#00ffff', len: 0, th: 2, gap: 0, dot: 4, out: 1, dyn: 0 },
+  tiny: { color: '#ffff00', len: 4, th: 1, gap: 2, dot: 2, out: 1, dyn: 0 },
+  big: { color: '#ff3df0', len: 14, th: 3, gap: 6, dot: 0, out: 1, dyn: 1 },
+};
+const XH_COLORS = ['#ffffff', '#00ff6a', '#ffff00', '#00ffff', '#ff3df0', '#ff3030', '#ffa600'];
+function applyCrosshair() {
+  const x = SETTINGS.xh;
+  for (const el of [$('cross'), $('xh-pv')]) { if (!el) continue;
+    el.style.setProperty('--xc', x.color); el.style.setProperty('--xl', x.len + 'px'); el.style.setProperty('--xt', x.th + 'px');
+    el.style.setProperty('--xo', x.out ? '1px' : '0px'); el.style.setProperty('--xd', x.dot + 'px'); }
+  const pv = $('xh-pv'); if (pv) { // 미리보기 (고정 간격)
+    const g = x.gap, L = x.len, show = L > 0 ? 'block' : 'none';
+    const q = (c) => pv.querySelector('.' + c);
+    Object.assign(q('t').style, { display: show, width: x.th + 'px', height: L + 'px', transform: `translate(-50%, ${-g - L}px)` });
+    Object.assign(q('b').style, { display: show, width: x.th + 'px', height: L + 'px', transform: `translate(-50%, ${g}px)` });
+    Object.assign(q('l').style, { display: show, height: x.th + 'px', width: L + 'px', transform: `translate(${-g - L}px, -50%)` });
+    Object.assign(q('r').style, { display: show, height: x.th + 'px', width: L + 'px', transform: `translate(${g}px, -50%)` });
+    Object.assign(q('d').style, { display: x.dot ? 'block' : 'none', width: x.dot + 'px', height: x.dot + 'px', transform: 'translate(-50%,-50%)' });
+  }
+  for (const id of ['ch-t', 'ch-b', 'ch-l', 'ch-r']) { const el = $(id); if (el) el.style.display = x.len > 0 ? 'block' : 'none'; }
+  const d = $('ch-d'); if (d) d.style.display = x.dot ? 'block' : 'none';
+}
+function setupCrosshairUI() {
+  const x = SETTINGS.xh;
+  const draw = () => {
+    $('xh-preset').value = x.preset || 'custom';
+    $('xh-colors').innerHTML = XH_COLORS.map(c => `<b data-c="${c}" class="${c === x.color ? 'on' : ''}" style="background:${c}"></b>`).join('');
+    $('xh-len').value = x.len; $('xh-th').value = x.th; $('xh-gap').value = x.gap; $('xh-dot').value = x.dot; $('xh-out').value = x.out; $('xh-dyn').value = x.dyn;
+    $('v-xh-len').textContent = x.len; $('v-xh-th').textContent = x.th; $('v-xh-gap').textContent = x.gap;
+    applyCrosshair(); saveSettings();
+  };
+  $('xh-preset').addEventListener('input', () => { const p = $('xh-preset').value; if (XH_PRESETS[p]) Object.assign(x, XH_PRESETS[p]); x.preset = p; draw(); });
+  $('xh-colors').addEventListener('click', (e) => { const b = e.target.closest('b'); if (b) { x.color = b.dataset.c; x.preset = 'custom'; draw(); } });
+  for (const k of ['len', 'th', 'gap', 'dot', 'out', 'dyn']) $('xh-' + k).addEventListener('input', () => { x[k] = +$('xh-' + k).value; x.preset = 'custom'; draw(); });
+  draw();
+}
+
 // ================= 설정 / 시작 화면 =================
 function setupMenus() {
   const diff = $('set-diff'), arm = $('set-armor');
@@ -4837,7 +5079,8 @@ function setupMenus() {
     $('v-sens').textContent = SETTINGS.sens.toFixed(2); $('v-ads').textContent = SETTINGS.adsSens.toFixed(2); $('v-fov').textContent = SETTINGS.fov;
     saveSettings();
   };
-  document.querySelectorAll('#settings input, #settings select').forEach(el => el.addEventListener('input', sync)); sync();
+  document.querySelectorAll('#settings input, #settings select').forEach(el => { if (!el.id.startsWith('xh-')) el.addEventListener('input', sync); }); sync();
+  setupCrosshairUI();
   // 닉네임 (시작 화면 · 친구와 대전 화면 같이)
   const setNick = (v) => { SETTINGS.nick = v.trim().slice(0, 12); saveSettings(); PLAYER.name = NICK(); NET.name = SETTINGS.nick || NET.name; for (const id of ['start-nick', 'mp-name']) if ($(id).value !== v) $(id).value = v; };
   for (const id of ['start-nick', 'mp-name']) { $(id).addEventListener('input', (e) => setNick(e.target.value)); $(id).addEventListener('keydown', (e) => e.stopPropagation()); }
@@ -4852,7 +5095,29 @@ function setupMenus() {
     } catch (e) { HUD.toast('이 화면에선 전체화면이 막혀 있어요. F11 을 눌러 보세요'); }
   };
   document.addEventListener('fullscreenchange', fsSync); fsSync();
-  $('btn-start').onclick = () => { AU.init(); GAME.startMatch(); };
+  // AI 대전: 인원(1~4)과 맵 고르기. 2대2 이상은 내 컴퓨터 안에서 AI 팀원·상대와 함께
+  const aiSel = { size: 1, map: 'random' };
+  try { Object.assign(aiSel, JSON.parse(localStorage.getItem('tg1v1_ai') || '{}')); } catch (e) {}
+  const drawAI = () => {
+    $('ai-size').innerHTML = [1, 2, 3, 4].map(n => `<button class="${aiSel.size === n ? 'on' : ''}" data-n="${n}">${n}대${n}</button>`).join(' ');
+    const list = MAP_LIST[aiSel.size] || [];
+    if (aiSel.map !== 'random' && !list.includes(aiSel.map)) aiSel.map = 'random';
+    $('ai-map').innerHTML = `<option value="random">랜덤</option>` + list.map(id => `<option value="${id}">${MAP_DEFS[id].name}</option>`).join('');
+    $('ai-map').value = aiSel.map;
+    try { localStorage.setItem('tg1v1_ai', JSON.stringify(aiSel)); } catch (e) {}
+  };
+  $('ai-size').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { aiSel.size = +b.dataset.n; drawAI(); } });
+  $('ai-map').addEventListener('change', () => { aiSel.map = $('ai-map').value; drawAI(); });
+  drawAI();
+  window.AI_SEL = aiSel;
+  $('btn-start').onclick = () => {
+    AU.init();
+    if (aiSel.size > 1) { // 팀 대전: 혼자 방을 만들고 빈자리를 AI로 채워서 바로 시작
+      netHost('local'); NET.lobby.size = aiSel.size; NET.lobby.map = aiSel.map; fillBots(); netStartGame(); lockPointer(); return;
+    }
+    const list = MAP_LIST[1]; G.matchMap = aiSel.map !== 'random' && list.includes(aiSel.map) ? aiSel.map : list[(Math.random() * list.length) | 0];
+    GAME.startMatch();
+  };
   $('btn-range').onclick = () => { AU.init(); enterRange(); };
   $('btn-loadout').onclick = () => { AU.init(); openLoadout(); };
   $('btn-resume').onclick = () => { $('pause').style.display = 'none'; $('start-settings').appendChild($('settings')); lockPointer(); };
@@ -4876,7 +5141,11 @@ function setupMenus() {
 }
 addEventListener('keyup', (e) => { if (e.code === 'Tab') HUD.showBoard(false); });
 addEventListener('blur', () => HUD.showBoard(false));
-function resetKD() { for (const a of [PLAYER, BOT, ...Object.values(REMOTES), ...Object.values(NET.bots)]) { a.kills = a.deaths = a.heads = 0; } }
+function resetKD() { for (const a of [PLAYER, BOT, ...Object.values(REMOTES), ...Object.values(NET.bots)]) { a.kills = a.deaths = a.heads = a.assists = 0; } }
+function giveAssist(a, victim) { // 어시스트 +1 (내가 받으면 화면에 표시)
+  a.assists = (a.assists || 0) + 1;
+  if (a === PLAYER) { HUD.assist(victim); AU.click(0.15, 1500); }
+}
 const isPlaying = () => G.state === 'pre' || G.state === 'live' || G.state === 'post' || G.state === 'range';
 
 // ================= 메인 루프 =================
@@ -4906,7 +5175,9 @@ function frame() {
   } else if (G.state === 'menu' || G.state === 'over') {
     // 메뉴 뒤 배경: 천천히 도는 카메라
     const t = performance.now() / 1000 * 0.05;
-    camera.position.set(Math.sin(t) * 38, 16, Math.cos(t) * 38); camera.lookAt(0, 2, 0);
+    const R = WORLD.map ? Math.max(30, WORLD.map.bounds.maxZ * 0.9) : 38;
+    if (window.__camOverride) { const o = window.__camOverride; camera.position.set(...o.pos); camera.lookAt(...o.look); }
+    else { camera.position.set(Math.sin(t) * R, 16, Math.cos(t) * R); camera.lookAt(0, 2, 0); }
     camera.fov = 60; camera.updateProjectionMatrix();
     for (const a of ACTORS) a.afterMove(0.016);
     if (G.mode === 'mp' && dt > 0) netUpdate(dt);
@@ -5190,7 +5461,7 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 8; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 9; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 const STANCE_CODE = { stand: 0, crouch: 1, prone: 2 }, STANCE_NAME = ['stand', 'crouch', 'prone'];
@@ -5384,9 +5655,9 @@ function hostRecv(m) {
     if (L.players.find(p => p.id === m.from)) { rawSend(m.from, { t: 'welcome', from: 'h', to: m.from }); rawSend(m.from, { t: 'lobby', lobby: L, from: 'h', to: m.from }); return; }
     if (NET.active) { rawSend(m.from, { t: 'reject', from: 'h', to: m.from, why: '이미 게임이 시작됐어요' }); return; }
     const humans = (t) => L.players.filter(p => p.team === t && !p.bot).length;
-    if (L.players.length >= 6) {
+    if (L.players.length >= 8) {
       const bot = L.players.find(p => p.bot);
-      if (!bot) { rawSend(m.from, { t: 'reject', from: 'h', to: m.from, why: '방이 꽉 찼어요 (최대 6명)' }); return; }
+      if (!bot) { rawSend(m.from, { t: 'reject', from: 'h', to: m.from, why: '방이 꽉 찼어요 (최대 8명)' }); return; }
       L.players = L.players.filter(p => p !== bot);
     }
     const t0 = L.players.filter(p => p.team === 0).length, t1 = L.players.filter(p => p.team === 1).length;
@@ -5404,17 +5675,17 @@ function hostRecv(m) {
   }
   hostRoute(m);
 }
-function autoSize() { const L = NET.lobby; L.size = Math.max(L.size, Math.min(3, Math.max(...[0, 1].map(t => L.players.filter(p => p.team === t).length)))); }
+function autoSize() { const L = NET.lobby; L.size = Math.max(L.size, Math.min(4, Math.max(...[0, 1].map(t => L.players.filter(p => p.team === t).length)))); }
 function addBot(team) {
   const L = NET.lobby;
-  if (L.players.length >= 6 || L.players.filter(p => p.team === team).length >= L.size) return;
+  if (L.players.length >= 8 || L.players.filter(p => p.team === team).length >= L.size) return;
   NET.botN++;
   L.players.push({ id: 'b' + NET.botN, name: 'AI ' + NET.botN, team, bot: true });
   broadcastLobby();
 }
 function fillBots() {
   const L = NET.lobby;
-  for (const t of [0, 1]) while (L.players.filter(p => p.team === t).length < L.size && L.players.length < 6) { NET.botN++; L.players.push({ id: 'b' + NET.botN, name: 'AI ' + NET.botN, team: t, bot: true }); }
+  for (const t of [0, 1]) while (L.players.filter(p => p.team === t).length < L.size && L.players.length < 8) { NET.botN++; L.players.push({ id: 'b' + NET.botN, name: 'AI ' + NET.botN, team: t, bot: true }); }
   broadcastLobby();
 }
 function removeBot(id) {
@@ -5513,17 +5784,19 @@ function renderLobby() {
   const box = $('mp-lobby');
   if (!L.players.length) { box.style.display = 'none'; return; }
   box.style.display = 'block';
-  const sizeBtns = [1, 2, 3].map(n => `<button class="${L.size === n ? 'on' : ''}" data-size="${n}" ${host ? '' : 'disabled'}>${n}대${n}</button>`).join('');
+  const sizeBtns = [1, 2, 3, 4].map(n => `<button class="${L.size === n ? 'on' : ''}" data-size="${n}" ${host ? '' : 'disabled'}>${n}대${n}</button>`).join('');
   const col = (team) => {
     const ps = L.players.filter(p => p.team === team);
     let h = `<div class="tcol t${team}"><h4 style="color:${TEAM_COLOR[team]}">${TEAM_NAME[team]} 팀 <small>${ps.length}/${L.size}</small></h4>`;
     for (const p of ps) h += `<div class="pl">${p.id === 'h' ? '👑 ' : p.bot ? '🤖 ' : ''}${esc(p.name)}${p.id === me ? ' <em>(나)</em>' : ''}${host ? (p.bot ? `<button data-kick="${p.id}">AI 빼기</button>` : '') + `<button data-swap="${p.id}">팀 바꾸기</button>` : ''}</div>`;
-    for (let i = ps.length; i < L.size; i++) h += `<div class="pl empty">빈 자리${host && L.players.length < 6 ? `<button data-addbot="${team}">＋ AI 넣기</button>` : ''}</div>`;
+    for (let i = ps.length; i < L.size; i++) h += `<div class="pl empty">빈 자리${host && L.players.length < 8 ? `<button data-addbot="${team}">＋ AI 넣기</button>` : ''}</div>`;
     return h + '</div>';
   };
   const t0 = L.players.filter(p => p.team === 0).length, t1 = L.players.length - t0;
   const ok = t0 >= 1 && t1 >= 1 && t0 <= L.size && t1 <= L.size;
-  box.innerHTML = `<div class="attrow"><span>경기 방식</span>${sizeBtns}</div><div class="teams">${col(0)}${col(1)}</div>`
+  const maps = MAP_LIST[L.size] || [], cur = L.map && maps.includes(L.map) ? L.map : 'random';
+  const mapBtns = [`<button class="${cur === 'random' ? 'on' : ''}" data-map="random" ${host ? '' : 'disabled'}>랜덤</button>`].concat(maps.map(id => `<button class="${cur === id ? 'on' : ''}" data-map="${id}" ${host ? '' : 'disabled'}>${MAP_DEFS[id].name}</button>`)).join('');
+  box.innerHTML = `<div class="attrow"><span>경기 방식</span>${sizeBtns}</div><div class="attrow"><span>맵</span>${mapBtns}</div><div class="teams">${col(0)}${col(1)}</div>`
     + (host ? `<div class="row" style="margin:12px 0 0"><button class="btn" id="mp-startgame" ${ok ? '' : 'disabled'}>게임 시작</button><button class="btn sub" id="mp-fillbots">빈자리 모두 AI로 채우기</button><span class="hint">${ok ? '팀원이 적은 쪽도 그대로 시작할 수 있어요' : '양쪽 팀에 한 명 이상, 정한 인원 이하로 맞춰 주세요'}</span></div>`
       : `<div class="hint" style="margin-top:10px">방장이 게임을 시작하면 바로 들어가요</div>`);
 }
@@ -5542,12 +5815,14 @@ function removeRemote(id) {
   const i = ACTORS.indexOf(r); if (i >= 0) ACTORS.splice(i, 1);
   delete REMOTES[id];
 }
-function actorById(id) { return id === NET.id ? PLAYER : REMOTES[id] || null; }
+function actorById(id) { return id === NET.id ? PLAYER : REMOTES[id] || NET.bots[id] || null; }
 function myLoadoutMsg() { return { t: 'lo', list: PLAYER.weapons.map(w => ({ id: w.id, att: w.att })) }; }
 
 // ---------- 라운드 (방장이 정함) ----------
 function netStartGame() {
   const L = NET.lobby;
+  const maps = MAP_LIST[L.size] || ['arena'];
+  NET.matchMap = L.map && maps.includes(L.map) ? L.map : maps[(Math.random() * maps.length) | 0];
   NET.active = true; G.mode = 'mp';
   G.score = [0, 0]; G.round = 0; G.time = 0;
   netNextRound();
@@ -5555,11 +5830,12 @@ function netStartGame() {
 function netNextRound() {
   const L = NET.lobby, round = G.round + 1;
   const flip = round % 2 === 0;
-  const spawns = {}, map = L.size === 1 ? 'duel' : 'arena', SZ = Math.abs(MAPS[map].spawnZ);
+  const map = NET.matchMap || (L.size === 1 ? 'duel' : 'arena'), D = MAP_DEFS[map] || MAP_DEFS.arena;
+  const spawns = {}, SZ = Math.abs(D.spawnZ), gap = Math.min(5, (D.bounds.maxX - 4) * 2 / Math.max(1, L.size));
   for (const team of [0, 1]) {
     const ps = L.players.filter(p => p.team === team);
     const z = (team === 0) !== flip ? -SZ : SZ;
-    ps.forEach((p, i) => { const x = (i - (ps.length - 1) / 2) * 6 + rand(-1, 1); spawns[p.id] = [+x.toFixed(2), z, z < 0 ? Math.PI : 0]; });
+    ps.forEach((p, i) => { const x = (i - (ps.length - 1) / 2) * gap + rand(-0.5, 0.5); spawns[p.id] = [+x.toFixed(2), z, z < 0 ? Math.PI : 0]; });
   }
   const m = { t: 'round', round, score: G.score, spawns, players: L.players, armor: SETTINGS.armor, winTo: G.winTo, map };
   netSend(m); applyRound(m);
@@ -5667,6 +5943,7 @@ function netRecv(m) {
       r.deaths = (r.deaths || 0) + 1;
       if (killer !== r) { killer.kills = (killer.kills || 0) + 1; if (m.head) killer.heads = (killer.heads || 0) + 1; }
       if (killer === PLAYER) HUD.hitMarker(true, m.head);
+      for (const id of m.as || []) { const a = actorById(id); if (a && a !== killer) giveAssist(a, r); }
       GAME.onKill(killer, r, { weapon: m.weapon, head: m.head, dist: m.dist, net: true });
       break;
     }
@@ -5752,6 +6029,7 @@ function setupMP() {
       for (const tm of [0, 1]) { let ps = L.players.filter(p => p.team === tm); while (ps.length > L.size && ps.some(p => p.bot)) { const bt = ps.filter(p => p.bot).pop(); L.players = L.players.filter(p => p !== bt); ps = L.players.filter(p => p.team === tm); } }
       broadcastLobby();
     }
+    if (t.dataset.map) { L.map = t.dataset.map; broadcastLobby(); }
     if (t.dataset.swap) { const p = L.players.find(x => x.id === t.dataset.swap); if (p) { p.team = 1 - p.team; autoSize(); broadcastLobby(); } }
     if (t.dataset.addbot !== undefined) addBot(+t.dataset.addbot);
     if (t.dataset.kick) { L.players = L.players.filter(x => x.id !== t.dataset.kick); broadcastLobby(); }
@@ -5759,6 +6037,502 @@ function setupMP() {
     if (t.id === 'mp-startgame') { netStartGame(); lockPointer(); }
   });
 }
+
+// ================= 모드별 맵 (1대1 · 2대2 · 3대3 · 4대4 각 4개) =================
+// 모든 맵은 가운데를 기준으로 점대칭이라 양쪽 팀이 공평해요.
+// 맵은 처음 쓸 때 만들어요 (게임 시작이 느려지지 않게).
+
+// ---- 테마별 바닥·벽 질감 ----
+TEX.sand = canvasTex(512, 512, (g, w, h) => { g.fillStyle = '#d2b884'; g.fillRect(0, 0, w, h); blotches(g, w, h, 90, 'rgba(180,150,100,A)', 20, 90, 0.25); blotches(g, w, h, 60, 'rgba(235,215,170,A)', 15, 70, 0.25); noiseFill(g, w, h, 0, 22); });
+TEX.snow = canvasTex(512, 512, (g, w, h) => { g.fillStyle = '#e9eef3'; g.fillRect(0, 0, w, h); blotches(g, w, h, 80, 'rgba(190,205,220,A)', 20, 100, 0.25); blotches(g, w, h, 40, 'rgba(255,255,255,A)', 15, 60, 0.4); noiseFill(g, w, h, 0, 10); });
+TEX.grass = canvasTex(512, 512, (g, w, h) => { g.fillStyle = '#5f7a3e'; g.fillRect(0, 0, w, h); blotches(g, w, h, 120, 'rgba(70,95,40,A)', 15, 80, 0.3); blotches(g, w, h, 70, 'rgba(130,140,70,A)', 10, 60, 0.25); noiseFill(g, w, h, 0, 26); for (let i = 0; i < 2500; i++) { g.fillStyle = `rgba(${rand(40, 110)},${rand(80, 140)},${rand(30, 60)},0.6)`; g.fillRect(Math.random() * w, Math.random() * h, 1, 3); } });
+TEX.dirt = canvasTex(512, 512, (g, w, h) => { g.fillStyle = '#7b6650'; g.fillRect(0, 0, w, h); blotches(g, w, h, 100, 'rgba(95,78,58,A)', 20, 90, 0.3); blotches(g, w, h, 60, 'rgba(150,130,100,A)', 10, 50, 0.25); noiseFill(g, w, h, 0, 28); });
+TEX.rock = canvasTex(256, 256, (g, w, h) => { g.fillStyle = '#8a8378'; g.fillRect(0, 0, w, h); blotches(g, w, h, 60, 'rgba(60,56,50,A)', 8, 40, 0.35); blotches(g, w, h, 40, 'rgba(170,165,150,A)', 8, 30, 0.3); noiseFill(g, w, h, 0, 30); for (let i = 0; i < 14; i++) { g.strokeStyle = 'rgba(40,36,32,0.45)'; g.lineWidth = 1.5; g.beginPath(); let x = Math.random() * w, y = Math.random() * h; g.moveTo(x, y); for (let k = 0; k < 5; k++) { x += rand(-30, 30); y += rand(-30, 30); g.lineTo(x, y); } g.stroke(); } });
+TEX.plaster = canvasTex(256, 256, (g, w, h) => { g.fillStyle = '#d9c29a'; g.fillRect(0, 0, w, h); blotches(g, w, h, 40, 'rgba(180,150,110,A)', 10, 60, 0.3); blotches(g, w, h, 20, 'rgba(240,225,195,A)', 10, 40, 0.3); noiseFill(g, w, h, 0, 16); });
+TEX.cobble = canvasTex(512, 512, (g, w, h) => { g.fillStyle = '#6d6a66'; g.fillRect(0, 0, w, h); const s = 32; for (let y = 0; y < h; y += s) for (let x = (y / s) % 2 ? -s / 2 : 0; x < w; x += s) { g.fillStyle = `rgb(${120 + rand(-25, 25)},${116 + rand(-25, 20)},${110 + rand(-20, 20)})`; g.beginPath(); g.roundRect ? g.roundRect(x + 2, y + 2, s - 4, s - 4, 6) : g.rect(x + 2, y + 2, s - 4, s - 4); g.fill(); } noiseFill(g, w, h, 0, 18); });
+TEX.hay = canvasTex(128, 128, (g, w, h) => { g.fillStyle = '#c9a24e'; g.fillRect(0, 0, w, h); for (let i = 0; i < 900; i++) { g.strokeStyle = `rgba(${rand(150, 230)},${rand(120, 190)},${rand(40, 80)},0.7)`; g.beginPath(); const x = Math.random() * w, y = Math.random() * h; g.moveTo(x, y); g.lineTo(x + rand(-6, 6), y + rand(4, 10)); g.stroke(); } });
+TEX.log = canvasTex(128, 256, (g, w, h) => { g.fillStyle = '#5b3f28'; g.fillRect(0, 0, w, h); for (let x = 0; x < w; x += 4) { g.fillStyle = `rgba(${rand(30, 90)},${rand(20, 60)},${rand(10, 40)},0.5)`; g.fillRect(x, 0, 2, h); } noiseFill(g, w, h, 0, 20); });
+TEX.plank = canvasTex(256, 256, (g, w, h) => { const c = ['#7a5636', '#6d4a2d', '#835d3b']; for (let y = 0; y < h; y += 32) { g.fillStyle = c[(y / 32) % 3]; g.fillRect(0, y, w, 32); g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, y, w, 2); } noiseFill(g, w, h, 0, 18); });
+
+const M2 = {
+  sand: new THREE.MeshStandardMaterial({ map: TEX.sand, roughness: 1 }),
+  snow: new THREE.MeshStandardMaterial({ map: TEX.snow, roughness: 0.9 }),
+  grass: new THREE.MeshStandardMaterial({ map: TEX.grass, roughness: 1 }),
+  dirt: new THREE.MeshStandardMaterial({ map: TEX.dirt, roughness: 1 }),
+  rock: new THREE.MeshStandardMaterial({ map: TEX.rock, roughness: 0.95 }),
+  rockSnow: new THREE.MeshStandardMaterial({ map: TEX.rock, color: 0xdfe6ee, roughness: 0.9 }),
+  plaster: new THREE.MeshStandardMaterial({ map: TEX.plaster, roughness: 0.95 }),
+  white: new THREE.MeshStandardMaterial({ map: TEX.plaster, color: 0xf2f0ea, roughness: 0.95 }),
+  cobble: new THREE.MeshStandardMaterial({ map: TEX.cobble, roughness: 0.95 }),
+  hay: new THREE.MeshStandardMaterial({ map: TEX.hay, roughness: 1 }),
+  log: new THREE.MeshStandardMaterial({ map: TEX.log, roughness: 0.95 }),
+  plank: new THREE.MeshStandardMaterial({ map: TEX.plank, roughness: 0.9 }),
+  redwood: new THREE.MeshStandardMaterial({ map: TEX.plank, color: 0xc0574a, roughness: 0.9 }),
+  stone: new THREE.MeshStandardMaterial({ map: TEX.rock, color: 0xcfc6b5, roughness: 0.95 }),
+  snowCap: new THREE.MeshStandardMaterial({ color: 0xf4f7fb, roughness: 0.85 }),
+  leaf: new THREE.MeshStandardMaterial({ color: 0x3e5a35, roughness: 1, flatShading: true }),
+  leafSnow: new THREE.MeshStandardMaterial({ color: 0x506b55, roughness: 1, flatShading: true }),
+  leafRound: new THREE.MeshStandardMaterial({ color: 0x4f7438, roughness: 1, flatShading: true }),
+  palm: new THREE.MeshStandardMaterial({ color: 0x5c8a3a, roughness: 1, side: THREE.DoubleSide }),
+  trunk: new THREE.MeshStandardMaterial({ color: 0x4f3b28, roughness: 1 }),
+  water: new THREE.MeshStandardMaterial({ color: 0x2f5f7a, roughness: 0.15, metalness: 0.4 }),
+  cloth: [0xb83a2e, 0x2e6fb8, 0xd9b23a, 0x3a9a5a].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9, side: THREE.DoubleSide })),
+  tent: new THREE.MeshStandardMaterial({ color: 0x5d6b45, roughness: 1, side: THREE.DoubleSide }),
+  tank: new THREE.MeshStandardMaterial({ color: 0xb9bcbf, roughness: 0.5, metalness: 0.6 }),
+  roofTile: new THREE.MeshStandardMaterial({ color: 0x8a3b2c, roughness: 0.9 }),
+};
+
+// 테마: 하늘·안개·빛 색 + 바닥 + 둘레벽
+const THEMES = {
+  base: { bg: 0xaec4d6, fog: 0xb7c6d2, near: 90, far: 420, sky: 0xd8e6f5, gnd: 0x6f604c, hemiI: 0.55, sun: 0xfff1dc, sunI: 2.1, hill: 0x6f7d58, trees: true },
+  snow: { bg: 0xcdd8e3, fog: 0xd9e2ea, near: 50, far: 300, sky: 0xe6eef7, gnd: 0x9aa4ae, hemiI: 0.75, sun: 0xf3f6ff, sunI: 1.7, hill: 0xdfe6ee, trees: true },
+  desert: { bg: 0xe2cfa6, fog: 0xe6d3ad, near: 70, far: 380, sky: 0xf6e6c4, gnd: 0x9a7b52, hemiI: 0.6, sun: 0xffe2b0, sunI: 2.4, hill: 0xc9a46c, trees: false },
+  forest: { bg: 0xa9c2c4, fog: 0x9fb6a8, near: 45, far: 260, sky: 0xcfe2d8, gnd: 0x4d5a36, hemiI: 0.6, sun: 0xfff0d0, sunI: 1.8, hill: 0x4f6a40, trees: true },
+  gray: { bg: 0xa9b1b8, fog: 0xa5adb4, near: 60, far: 320, sky: 0xc8d0d8, gnd: 0x5c5a56, hemiI: 0.7, sun: 0xf2f0ea, sunI: 1.6, hill: 0x6d7468, trees: true },
+  dusk: { bg: 0xe0b48c, fog: 0xd6a888, near: 70, far: 360, sky: 0xffd6b0, gnd: 0x6a4e3c, hemiI: 0.6, sun: 0xffc48a, sunI: 2.0, hill: 0x7a6a50, trees: true },
+};
+function applyTheme(name) {
+  const T = THEMES[name] || THEMES.base;
+  scene.background.setHex(T.bg); scene.fog.color.setHex(T.fog); scene.fog.near = T.near; scene.fog.far = T.far;
+  hemi.color.setHex(T.sky); hemi.groundColor.setHex(T.gnd); hemi.intensity = T.hemiI;
+  sun.color.setHex(T.sun); sun.intensity = T.sunI;
+  if (window.SCENERY) { SCENERY.hillMat.color.setHex(T.hill); SCENERY.trees.visible = T.trees; }
+}
+
+// ---- 맵 만들 때 쓰는 도구 ----
+let MR = Math.random; // 맵마다 같은 모양이 나오게 씨앗 있는 난수 (멀티에서 모두 같은 맵)
+function seeded(seed) { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const mr = (a, b) => a + MR() * (b - a);
+let MSPOTS = null;
+// 지역 좌표틀: 90도 단위로 돌려서 놓기 (local +z = 앞, 적 쪽)
+function LF(x, z, rot = 0) {
+  rot = ((rot % 4) + 4) % 4;
+  const a = rot * Math.PI / 2, c = Math.round(Math.cos(a)), s = Math.round(Math.sin(a)), odd = rot % 2 === 1;
+  const P = (lx, lz) => [x + lx * c + lz * s, z - lx * s + lz * c];
+  const F = {
+    rot, P, odd, x, z,
+    box(lx, y, lz, w, h, d, mat, opt) { const [px, pz] = P(lx, lz); return addBox(px, y, pz, odd ? d : w, h, odd ? w : d, mat, opt); },
+    mesh(m, lx, ly, lz, ry = 0) { const [px, pz] = P(lx, lz); m.position.set(px, ly, pz); m.rotation.y += a + ry; m.castShadow = m.castShadow !== false; m.receiveShadow = true; WADD(m); return m; },
+    dir(d) { const v = { 'x+': [1, 0], 'x-': [-1, 0], 'z+': [0, 1], 'z-': [0, -1] }[d]; const wx = v[0] * c + v[1] * s, wz = -v[0] * s + v[1] * c; return wx > 0 ? 'x+' : wx < 0 ? 'x-' : wz > 0 ? 'z+' : 'z-'; },
+    stairs(lx0, lz0, width, steps, rise, run, dir, mat) { const [px, pz] = P(lx0, lz0); stairs(px, pz, width, steps, rise, run, F.dir(dir), mat); },
+  };
+  return F;
+}
+// 점대칭으로 두 번 놓기 (내 쪽 + 상대 쪽)
+const NOPOS = new Set();
+const callP = (fn, F, args) => NOPOS.has(fn) ? fn(F, ...args) : fn(F, 0, 0, ...args);
+function S(fn, x, z, rot, ...args) {
+  callP(fn, LF(x, z, rot), args); callP(fn, LF(-x, -z, rot + 2), args);
+  if (MSPOTS) { const bz = z < 0 ? -z : z, bx = z < 0 ? -x : x; MSPOTS.push([bx, bz + 2.2]); }
+}
+// 가운데에 한 번만 (그 자체가 대칭인 것)
+function C(fn, x, z, rot, ...args) { callP(fn, LF(x, z, rot), args); if (MSPOTS) MSPOTS.push([x, z + 4]); }
+
+// ---- 조립 부품 ----
+function lwall(F, along, fixed, a0, a1, h, T, mat, holes = [], ts = 2) {
+  const put = (c, len, y0, hh) => { if (len < 0.02 || hh < 0.02) return; along === 'x' ? F.box(c, y0, fixed, len, hh, T, mat, { texScale: ts }) : F.box(fixed, y0, c, T, hh, len, mat, { texScale: ts }); };
+  let cur = a0;
+  for (const o of holes.slice().sort((p, q) => p.c - q.c)) {
+    const l = o.c - o.w / 2, r = o.c + o.w / 2;
+    put((cur + l) / 2, l - cur, 0, h); put(o.c, o.w, 0, o.y0); put(o.c, o.w, o.y1, h - o.y1); cur = r;
+  }
+  put((cur + a1) / 2, a1 - cur, 0, h);
+}
+// 집: o.door / o.win = ['f','b','l','r'] (f = 적 쪽), o.roof 지붕 위 올라가기, o.stairs 계단 쪽
+function house(F, w, d, h, mat, o = {}) {
+  const T = 0.3, door = { w: 1.4, y0: 0, y1: 2.3 }, win = { w: 1.5, y0: 1.05, y1: 2.05 };
+  const holes = (side, len) => { const r = []; if ((o.door || []).includes(side)) r.push({ c: 0, ...door }); if ((o.win || []).includes(side)) r.push({ c: (o.door || []).includes(side) ? (len / 2 - 1.3 > 1.6 ? len / 2 - 1.4 : 99) : 0, ...win }); return r.filter(x => x.c < 50); };
+  if (!o.ruin || o.ruin < 1) {
+    lwall(F, 'x', d / 2 - T / 2, -w / 2, w / 2, h, T, mat, holes('f', w));
+    lwall(F, 'x', -d / 2 + T / 2, -w / 2, w / 2, h, T, mat, holes('b', w));
+    lwall(F, 'z', -w / 2 + T / 2, -d / 2 + T, d / 2 - T, h, T, mat, holes('l', d));
+    lwall(F, 'z', w / 2 - T / 2, -d / 2 + T, d / 2 - T, h, T, mat, holes('r', d));
+  }
+  // o.roof: true = 올라갈 수 있는 지붕, false = 지붕 없음, 그 외 = 평평한 지붕 / o.pitched = 뾰족 지붕
+  if (!o.ruin && (o.roof !== false || o.pitched)) {
+    if (!o.pitched || o.roof) F.box(0, h, 0, w, 0.25, d, o.roofMat || MAT.concreteDark, { texScale: 3 });
+    else F.box(0, h, 0, w, 0.25, d, o.pitchMat || M2.roofTile, { texScale: 3 });
+    if (o.roof === true) { // 올라갈 수 있는 지붕: 앞쪽 난간 + 계단
+      F.box(0, h + 0.25, d / 2 - 0.15, w, 0.85, 0.3, o.roofMat || MAT.concrete);
+      const steps = Math.ceil((h + 0.25) / 0.33), rise = (h + 0.25) / steps, run = 0.45;
+      const st = o.stairs || 'b';
+      if (st === 'b') F.stairs(w / 2 - 0.9, -d / 2 - steps * run, 1.2, steps, rise, run, 'z+', MAT.metal);
+      if (st === 'l') F.stairs(-w / 2 - steps * run, -d / 2 + 0.8, 1.2, steps, rise, run, 'x+', MAT.metal);
+      if (st === 'r') F.stairs(w / 2 + steps * run, -d / 2 + 0.8, 1.2, steps, rise, run, 'x-', MAT.metal);
+    } else if (o.pitched) { // 뾰족 지붕 (보기용)
+      const r = new THREE.Mesh(new THREE.CylinderGeometry(0.01, Math.max(w, d) * 0.62, 1.8, 4, 1), o.pitchMat || M2.roofTile);
+      r.scale.set(w / Math.max(w, d), 1, d / Math.max(w, d)); F.mesh(r, 0, h + 0.25 + 0.9, 0, Math.PI / 4);
+    }
+  }
+  if (o.ruin) ruinWalls(F, w, d, h, mat);
+}
+NOPOS.add(house);
+function ruinWalls(F, w, d, h, mat) { // 무너진 집: 벽이 군데군데 남아 있음
+  const T = 0.35, seg = 1.5;
+  const side = (along, fixed, len) => { for (let a = -len / 2; a < len / 2 - 0.1; a += seg) { const hh = MR() < 0.25 ? 0 : mr(0.8, h); const l = Math.min(seg, len / 2 - a); if (hh > 0.3) (along === 'x' ? F.box(a + l / 2, 0, fixed, l, hh, T, mat) : F.box(fixed, 0, a + l / 2, T, hh, l, mat)); } };
+  side('x', d / 2, w); side('x', -d / 2, w); side('z', -w / 2, d - 0.4); side('z', w / 2, d - 0.4);
+  for (let i = 0; i < 3; i++) F.box(mr(-w / 3, w / 3), 0, mr(-d / 3, d / 3), mr(0.6, 1.2), mr(0.3, 0.7), mr(0.6, 1.2), M2.rock, { kind: 'solid' });
+}
+function wallL(F, lx, lz, len, h, alongX, mat, ts = 2) { alongX ? F.box(lx, 0, lz, len, h, 0.5, mat, { texScale: ts }) : F.box(lx, 0, lz, 0.5, h, len, mat, { texScale: ts }); }
+function broken(F, lx, lz, len, alongX, mat) {
+  const n = Math.max(2, Math.round(len / 1.4)), sl = len / n;
+  for (let i = 0; i < n; i++) { const hh = mr(0.9, 2.8), c = -len / 2 + sl * (i + 0.5); if (MR() < 0.18) continue; alongX ? F.box(lx + c, 0, lz, sl, hh, 0.5, mat) : F.box(lx, 0, lz + c, 0.5, hh, sl, mat); }
+}
+function pillar(F, lx, lz, s = 0.9, h = 4, mat = M2.stone) {
+  F.box(lx, 0, lz, s, h, s, mat, { invisible: true });
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.45, s * 0.5, h, 10), mat); F.mesh(m, lx, h / 2, lz);
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(s * 1.15, 0.25, s * 1.15), mat); F.mesh(cap, lx, h - 0.12, lz);
+}
+const _dodeca = new THREE.DodecahedronGeometry(1, 0);
+function rock(F, lx, lz, w = 2, h = 1.4, d, snowy) {
+  d = d || w * 0.85;
+  F.box(lx, 0, lz, w, h, d, M2.rock, { invisible: true, kind: 'solid' });
+  const m = new THREE.Mesh(_dodeca, snowy ? M2.rockSnow : M2.rock);
+  m.scale.set(w / 1.86, h / 1.7, d / 1.86); m.rotation.set(mr(-0.2, 0.2), 0, mr(-0.2, 0.2)); F.mesh(m, lx, h / 2 - 0.05, lz, mr(0, 1));
+}
+function pine(F, lx, lz, s = 1, snowy) {
+  F.box(lx, 0, lz, 0.55 * s, 3.2 * s, 0.55 * s, M2.trunk, { invisible: true, kind: 'wood' });
+  const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.2 * s, 0.3 * s, 3.4 * s, 7), M2.trunk); F.mesh(tr, lx, 1.7 * s, lz);
+  for (let k = 0; k < 3; k++) {
+    const c = new THREE.Mesh(new THREE.ConeGeometry((2.2 - k * 0.55) * s, 2.8 * s, 8), snowy ? M2.leafSnow : M2.leaf); F.mesh(c, lx, (3.2 + k * 1.5) * s, lz);
+    if (snowy) { const cap = new THREE.Mesh(new THREE.ConeGeometry((1.3 - k * 0.3) * s, 1.4 * s, 8), M2.snowCap); F.mesh(cap, lx, (3.9 + k * 1.5) * s, lz); }
+  }
+}
+function tree(F, lx, lz, s = 1) { // 둥근 나무
+  F.box(lx, 0, lz, 0.6 * s, 3 * s, 0.6 * s, M2.trunk, { invisible: true, kind: 'wood' });
+  const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.22 * s, 0.32 * s, 3.2 * s, 7), M2.trunk); F.mesh(tr, lx, 1.6 * s, lz);
+  for (let k = 0; k < 3; k++) { const b = new THREE.Mesh(new THREE.IcosahedronGeometry((1.6 - k * 0.2) * s, 0), M2.leafRound); F.mesh(b, lx + mr(-0.7, 0.7) * s, (3.6 + k * 0.7) * s, lz + mr(-0.7, 0.7) * s); }
+}
+function palm(F, lx, lz, s = 1) {
+  F.box(lx, 0, lz, 0.5, 3, 0.5, M2.trunk, { invisible: true, kind: 'wood' });
+  const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.16 * s, 0.26 * s, 5.5 * s, 7), M2.trunk); tr.rotation.z = 0.12; F.mesh(tr, lx, 2.75 * s, lz);
+  for (let k = 0; k < 6; k++) { const l = new THREE.Mesh(new THREE.PlaneGeometry(0.7 * s, 3 * s), M2.palm); l.rotation.set(1.1, 0, 0); const g = new THREE.Group(); g.add(l); l.position.set(0, 0, 1.3 * s); g.rotation.y = k * Math.PI / 3; F.mesh(g, lx + 0.3 * s, 5.4 * s, lz); }
+}
+function logs(F, lx, lz, len = 4, alongX = true) {
+  alongX ? F.box(lx, 0, lz, len, 1.1, 1.3, M2.log, { invisible: true, kind: 'wood' }) : F.box(lx, 0, lz, 1.3, 1.1, len, M2.log, { invisible: true, kind: 'wood' });
+  const g = new THREE.CylinderGeometry(0.3, 0.3, len, 10);
+  for (const [o, y] of [[-0.32, 0.3], [0.32, 0.3], [0, 0.82]]) { const m = new THREE.Mesh(g, M2.log); m.rotation.z = Math.PI / 2; if (!alongX) m.rotation.set(Math.PI / 2, 0, 0); F.mesh(m, lx + (alongX ? 0 : o), y, lz + (alongX ? o : 0)); }
+}
+function hay(F, lx, lz, n = 1) { for (let i = 0; i < n; i++) F.box(lx + (i % 2) * 1.25, i >= 2 ? 1.0 : 0, lz, 1.2, 1.0, 1.2, M2.hay, { texScale: 1.2, kind: 'sand', pen: 0.5 }); }
+function tent(F, lx, lz) {
+  F.box(lx, 0, lz, 2.8, 1.5, 3.4, M2.tent, { invisible: true, kind: 'wood', pen: 0.6 });
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.7, 3.4, 3, 1, true), M2.tent); m.rotation.set(Math.PI / 2, 0, 0); m.rotation.z = Math.PI; m.scale.set(0.95, 1, 1.05);
+  F.mesh(m, lx, 0.85, lz);
+}
+function tankV(F, lx, lz, r = 2, h = 6, mat = M2.tank) {
+  F.box(lx, 0, lz, r * 1.8, h, r * 1.8, mat, { invisible: true, kind: 'metal' });
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 18), mat); F.mesh(m, lx, h / 2, lz);
+  const top = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 6, 0, Math.PI * 2, 0, Math.PI / 2), mat); top.scale.y = 0.35; F.mesh(top, lx, h, lz);
+  for (let k = 1; k < 4; k++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(r + 0.02, 0.05, 4, 24), MAT.dark); ring.rotation.x = Math.PI / 2; F.mesh(ring, lx, h * k / 4, lz); }
+}
+function pipe(F, lx, lz, len, y = 2, alongX = true) {
+  alongX ? F.box(lx, y - 0.35, lz, len, 0.7, 0.7, M2.tank, { invisible: true, kind: 'metal' }) : F.box(lx, y - 0.35, lz, 0.7, 0.7, len, M2.tank, { invisible: true, kind: 'metal' });
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, len, 12), M2.tank); m.rotation.set(alongX ? 0 : Math.PI / 2, 0, alongX ? Math.PI / 2 : 0); F.mesh(m, lx, y, lz);
+  for (let a = -len / 2 + 1; a < len / 2; a += 4) { alongX ? F.box(lx + a, 0, lz, 0.25, y - 0.35, 0.25, MAT.dark, { texScale: 0 }) : F.box(lx, 0, lz + a, 0.25, y - 0.35, 0.25, MAT.dark, { texScale: 0 }); }
+}
+function crateF(F, lx, lz, y = 0, s = 1.3) { const [px, pz] = F.P(lx, lz); crate(px, y, pz, s); }
+function crates(F, lx, lz) { crateF(F, lx, lz, 0, 1.3); crateF(F, lx + 1.3, lz, 0, 1.3); crateF(F, lx, lz, 1.3, 1.3); crateF(F, lx, lz + 1.3, 0, 1.2); }
+function cont(F, lx, lz, long, alongX, color, y0 = 0) { const [px, pz] = F.P(lx, lz); container(px, y0, pz, long, F.odd ? !alongX : alongX, color); }
+function scaf(F, lx, lz, w, d, h, dir) { const [px, pz] = F.P(lx, lz); scaffold(px, pz, F.odd ? d : w, F.odd ? w : d, h, F.dir(dir)); }
+function carF(F, lx, lz, alongZ, color = 0) { const [px, pz] = F.P(lx, lz); car(px, pz, F.odd ? !alongZ : alongZ, color); }
+function barrelF(F, lx, lz) { const [px, pz] = F.P(lx, lz); barrel(px, pz); }
+function barrels(F, lx, lz) { barrelF(F, lx, lz); barrelF(F, lx + 0.66, lz); barrelF(F, lx + 0.33, lz + 0.6); }
+function sandbag(F, lx, lz, len = 3, alongX = true) { alongX ? F.box(lx, 0, lz, len, 0.95, 0.8, MAT.sandbag, { texScale: 1.6, kind: 'sand' }) : F.box(lx, 0, lz, 0.8, 0.95, len, MAT.sandbag, { texScale: 1.6, kind: 'sand' }); }
+function jersey(F, lx, lz, len = 3, alongX = true) { alongX ? F.box(lx, 0, lz, len, 1.05, 0.6, MAT.concrete, { kind: 'barrier' }) : F.box(lx, 0, lz, 0.6, 1.05, len, MAT.concrete, { kind: 'barrier' }); }
+function fence(F, lx, lz, len, alongX = true, mat = M2.plank) {
+  alongX ? F.box(lx, 0, lz, len, 1.1, 0.12, mat, { invisible: true, kind: 'wood', pen: 0.3 }) : F.box(lx, 0, lz, 0.12, 1.1, len, mat, { invisible: true, kind: 'wood', pen: 0.3 });
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(alongX ? len : 0.08, 0.12, alongX ? 0.08 : len), mat);
+  for (const y of [0.45, 0.95]) F.mesh(rail.clone(), lx, y, lz);
+  for (let a = -len / 2; a <= len / 2 + 0.01; a += 1.5) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.15, 0.12), mat); F.mesh(p, lx + (alongX ? a : 0), 0.575, lz + (alongX ? 0 : a)); }
+}
+function fountain(F) {
+  for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, r = 3; F.box(Math.cos(a) * r, 0, Math.sin(a) * r, 1.4, 0.75, 1.4, M2.stone); }
+  F.box(0, 0, 0, 1.2, 2.2, 1.2, M2.stone);
+  const w = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 2.8, 0.1, 24), M2.water); w.castShadow = false; F.mesh(w, 0, 0.5, 0);
+}
+NOPOS.add(fountain);
+function well(F) {
+  for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; F.box(Math.cos(a) * 1.4, 0, Math.sin(a) * 1.4, 1.0, 1.0, 1.0, M2.plaster); }
+  for (const sx of [-1, 1]) F.box(sx * 1.5, 1.0, 0, 0.2, 1.8, 0.2, M2.plank, { texScale: 0 });
+  F.box(0, 2.8, 0, 3.6, 0.15, 1.6, M2.roofTile, { texScale: 0 });
+}
+NOPOS.add(well);
+function stall(F, lx, lz, color = 0) {
+  F.box(lx, 0, lz, 2.6, 1.0, 1.1, M2.plank, { kind: 'wood', pen: 0.4 });
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.4, 0.1), M2.plank); F.mesh(p, lx + sx * 1.3, 1.2, lz + sz * 0.7); }
+  const c = new THREE.Mesh(new THREE.BoxGeometry(3, 0.06, 2), M2.cloth[color % M2.cloth.length]); c.rotation.x = 0.12; F.mesh(c, lx, 2.45, lz);
+}
+function arch(F, lx, lz, span = 5, h = 4.5, alongX = true, mat = M2.stone) {
+  const off = span / 2 + 0.6;
+  alongX ? (F.box(lx - off, 0, lz, 1.2, h, 1.2, mat), F.box(lx + off, 0, lz, 1.2, h, 1.2, mat), F.box(lx, h - 1, lz, span + 2.4, 1, 1.2, mat))
+    : (F.box(lx, 0, lz - off, 1.2, h, 1.2, mat), F.box(lx, 0, lz + off, 1.2, h, 1.2, mat), F.box(lx, h - 1, lz, 1.2, 1, span + 2.4, mat));
+}
+// 올라갈 수 있는 단 (dirs: 계단 방향 목록, 'z-' 는 내 쪽에서 올라가는 계단)
+function platform(F, lx, lz, w, d, h, mat, dirs = ['z-'], rail = true) {
+  F.box(lx, 0, lz, w, h, d, mat, { texScale: 2.5 });
+  const steps = Math.ceil(h / 0.33), rise = h / steps, run = 0.45;
+  for (const dir of dirs) {
+    if (dir === 'z-') F.stairs(lx, lz - d / 2 - steps * run, 1.6, steps, rise, run, 'z+', mat);
+    if (dir === 'z+') F.stairs(lx, lz + d / 2 + steps * run, 1.6, steps, rise, run, 'z-', mat);
+    if (dir === 'x-') F.stairs(lx - w / 2 - steps * run, lz, 1.6, steps, rise, run, 'x+', mat);
+    if (dir === 'x+') F.stairs(lx + w / 2 + steps * run, lz, 1.6, steps, rise, run, 'x-', mat);
+  }
+  if (rail) { F.box(lx - w / 2 + 0.6, h, lz + d / 2 - 0.2, 1.2, 0.9, 0.4, mat); F.box(lx + w / 2 - 0.6, h, lz - d / 2 + 0.2, 1.2, 0.9, 0.4, mat); }
+}
+function mesa(F, lx, lz, w, d, h) {
+  F.box(lx, 0, lz, w, h, d, M2.rock, { texScale: 4 });
+  F.box(lx + mr(-w / 5, w / 5), h, lz + mr(-d / 5, d / 5), w * mr(0.4, 0.7), mr(0.8, 2), d * mr(0.4, 0.7), M2.rock, { texScale: 4 });
+  for (let i = 0; i < 3; i++) rock(F, lx + mr(-w / 2, w / 2), lz + (MR() < 0.5 ? -1 : 1) * (d / 2 + 0.6), mr(1.2, 2.2), mr(0.8, 1.6));
+}
+function palis(F, lx, lz, len, alongX = true, h = 3.6, gaps = []) {
+  let cur = -len / 2;
+  for (const gp of gaps.concat([{ c: len / 2 + 99, w: 0 }]).sort((a, b) => a.c - b.c)) {
+    const l = Math.min(gp.c - gp.w / 2, len / 2) - cur;
+    if (l > 0.1) { const c = cur + l / 2; alongX ? F.box(lx + c, 0, lz, l, h, 0.6, M2.log, { invisible: true, kind: 'wood' }) : F.box(lx, 0, lz + c, 0.6, h, l, M2.log, { invisible: true, kind: 'wood' });
+      const g = new THREE.CylinderGeometry(0.28, 0.28, h, 7); for (let a = cur + 0.3; a < cur + l; a += 0.56) { const m = new THREE.Mesh(g, M2.log); F.mesh(m, lx + (alongX ? a : 0), h / 2, lz + (alongX ? 0 : a)); } }
+    cur = gp.c + gp.w / 2; if (cur > len / 2) break;
+  }
+}
+function bus(F, lx, lz, alongZ = true, color = 1) {
+  const W = 2.5, L = 10;
+  alongZ ? F.box(lx, 0.3, lz, W, 2.6, L, MAT.car[color % MAT.car.length], { texScale: 0, kind: 'metal' }) : F.box(lx, 0.3, lz, L, 2.6, W, MAT.car[color % MAT.car.length], { texScale: 0, kind: 'metal' });
+  alongZ ? F.box(lx, 0, lz, W - 0.3, 0.3, L - 1, MAT.dark, { texScale: 0 }) : F.box(lx, 0, lz, L - 1, 0.3, W - 0.3, MAT.dark, { texScale: 0 });
+  const win = new THREE.Mesh(new THREE.BoxGeometry(alongZ ? W + 0.02 : L - 1, 0.8, alongZ ? L - 1 : W + 0.02), MAT.glass); win.castShadow = false; F.mesh(win, lx, 2.2, lz);
+}
+function bunker(F) { // ㄷ자 모래주머니 진지
+  sandbag(F, 0, 1.6, 4, true); sandbag(F, -2, 0.4, 2.4, false); sandbag(F, 2, 0.4, 2.4, false);
+}
+NOPOS.add(bunker);
+TEX.facade = canvasTex(256, 256, (g, w, h) => { // 창문 있는 건물 벽 (한 장 = 가로 3m · 세로 3.2m 두 칸)
+  g.fillStyle = '#9a9690'; g.fillRect(0, 0, w, h); noiseFill(g, w, h, 0, 18);
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 2; c++) { const x = c * 128 + 34, y = r * 128 + 34; g.fillStyle = '#26323e'; g.fillRect(x, y, 60, 56); g.fillStyle = 'rgba(160,190,210,0.25)'; g.fillRect(x + 4, y + 4, 24, 20); g.fillStyle = '#5c5a56'; g.fillRect(x - 4, y + 56, 68, 6); }
+});
+const FACADE = [0xffffff, 0xc98a76, 0xe6d6b4, 0xa9b4bf].map(c => new THREE.MeshStandardMaterial({ map: TEX.facade, color: c, roughness: 0.9 }));
+function block(F, lx, lz, w, d, h, mat) { // 들어갈 수 없는 큰 건물 (도심) — 창문은 벽 그림으로 (가볍게)
+  const fm = FACADE[mat === MAT.brick ? 1 : mat === M2.plaster ? 2 : mat === MAT.concrete ? 0 : 3];
+  F.box(lx, 0, lz, w, h, d, fm, { texScale: 6 });
+  F.box(lx, h, lz, w + 0.3, 0.4, d + 0.3, MAT.concreteDark, { texScale: 3 });
+}
+function snowTop(F, lx, lz, w, d, y) { const m = new THREE.Mesh(new THREE.BoxGeometry(w + 0.1, 0.12, d + 0.1), M2.snowCap); m.castShadow = false; F.mesh(m, lx, y + 0.06, lz); }
+
+// ---- 바닥 + 둘레 ----
+function mapFloor(W, L, mat, rep = 8) {
+  const t = mat.map.clone(); t.needsUpdate = true; t.repeat.set((W + 160) / rep, (L + 160) / rep);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(W + 160, L + 160), new THREE.MeshStandardMaterial({ map: t, color: mat.color, roughness: 1 }));
+  m.rotation.x = -Math.PI / 2; m.position.y = -0.005; m.receiveShadow = true; WADD(m);
+}
+function perimeter(W, L, type) {
+  const hw = W / 2, hl = L / 2;
+  const solid = (mat, H, ts = 2) => {
+    addBox(0, 0, -hl - 0.5, W + 2, H, 1, mat, { texScale: ts }); addBox(0, 0, hl + 0.5, W + 2, H, 1, mat, { texScale: ts });
+    addBox(-hw - 0.5, 0, 0, 1, H, L, mat, { texScale: ts }); addBox(hw + 0.5, 0, 0, 1, H, L, mat, { texScale: ts });
+  };
+  const F = LF(0, 0, 0);
+  if (type === 'rock' || type === 'rockSnow') { // 바위 절벽
+    const snowy = type === 'rockSnow';
+    solid(M2.rock, 3.2, 4);
+    const saved = WORLD.boxes; WORLD.boxes = [];
+    for (const [ax, len, fixed] of [['x', W + 6, -hl - 2.2], ['x', W + 6, hl + 2.2], ['z', L, -hw - 2.2], ['z', L, hw + 2.2]])
+      for (let a = -len / 2; a < len / 2; a += mr(3, 5)) { const w = mr(3.5, 6), h = mr(5, 11); ax === 'x' ? rock(F, a, fixed, w, h, 4, snowy) : rock(F, fixed, a, 4, h, w, snowy); }
+    WORLD.boxes = saved;
+    return;
+  }
+  if (type === 'fence') { // 철망 (보이지 않는 높은 벽 + 기둥)
+    for (const [x, z, w, d] of [[0, -hl - 0.3, W + 1, 0.4], [0, hl + 0.3, W + 1, 0.4], [-hw - 0.3, 0, 0.4, L], [hw + 0.3, 0, 0.4, L]]) addBox(x, 0, z, w, 6, d, MAT.metal, { invisible: true, kind: 'metal' });
+    const mesh = new THREE.MeshStandardMaterial({ color: 0x8a9096, roughness: 0.5, metalness: 0.7, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false });
+    for (const [x, z, len, rx] of [[0, -hl - 0.3, W, 0], [0, hl + 0.3, W, 0], [-hw - 0.3, 0, L, 1], [hw + 0.3, 0, L, 1]]) {
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(len, 3.2), mesh); p.position.set(x, 1.6, z); if (rx) p.rotation.y = Math.PI / 2; p.castShadow = false; WADD(p);
+      for (let a = -len / 2; a <= len / 2; a += 3) { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.3, 6), MAT.dark); post.position.set(rx ? x : a, 1.65, rx ? a : z); WADD(post); }
+    }
+    return;
+  }
+  if (type === 'palis') { for (const [x, z, len, ax] of [[0, -hl - 0.4, W + 1, true], [0, hl + 0.4, W + 1, true], [-hw - 0.4, 0, L, false], [hw + 0.4, 0, L, false]]) palis(F, x, z, len, ax, 4.4); return; }
+  const mat = { brick: MAT.brick, plaster: M2.plaster, concrete: MAT.concreteDark, stone: M2.stone, plank: M2.plank }[type] || MAT.concreteDark;
+  solid(mat, type === 'concrete' ? 6 : 5);
+}
+function outskirts(W, L, kind) { // 둘레 바깥 꾸미기 (보기용, 충돌 없음)
+  const hw = W / 2, hl = L / 2, F = LF(0, 0, 0);
+  const ring = (fn, gap = 7) => { for (let a = -hw - 10; a <= hw + 10; a += gap) { fn(a, -hl - mr(6, 14)); fn(a, hl + mr(6, 14)); } for (let a = -hl; a <= hl; a += gap) { fn(-hw - mr(6, 14), a); fn(hw + mr(6, 14), a); } };
+  const visualOnly = (build) => { const saved = WORLD.boxes; WORLD.boxes = []; build(); WORLD.boxes = saved; };
+  visualOnly(() => {
+    if (kind === 'pines' || kind === 'snowpines') ring((x, z) => pine(F, x, z, mr(1, 1.7), kind === 'snowpines'), 5);
+    if (kind === 'trees') ring((x, z) => tree(F, x, z, mr(1, 1.6)), 6);
+    if (kind === 'palms') ring((x, z) => { if (MR() < 0.4) palm(F, x, z, mr(0.9, 1.3)); else rock(F, x, z, mr(2, 5), mr(1, 3)); }, 8);
+    if (kind === 'city') ring((x, z) => { const h = mr(10, 24); block(F, x, z, mr(6, 9), mr(6, 9), h, [MAT.brick, MAT.concrete, M2.plaster][(MR() * 3) | 0]); }, 9);
+    if (kind === 'cranes') ring((x, z) => { if (MR() < 0.15) { const m = new THREE.Mesh(new THREE.BoxGeometry(1, 22, 1), new THREE.MeshStandardMaterial({ color: 0xd9a531 })); m.position.set(x, 11, z); WADD(m); const arm = new THREE.Mesh(new THREE.BoxGeometry(14, 0.8, 0.8), m.material); arm.position.set(x, 21.5, z); WADD(arm); } else if (MR() < 0.5) { const [px, pz] = F.P(x, z); container(px, 0, pz, MR() < 0.5, MR() < 0.5, (MR() * 6) | 0); } }, 8);
+  });
+}
+
+// ---- 맵 정의 ----
+// size: 한 팀 인원 (1~4), W·L: 크기, theme: 하늘색, floor: 바닥, wall: 둘레
+const MAP_LIST = { 1: [], 2: [], 3: [], 4: [] };
+function defMap(id, name, size, W, L, theme, build) {
+  MAP_DEFS[id] = { id, name, size, theme, bounds: { minX: -W / 2, maxX: W / 2, minZ: -L / 2, maxZ: L / 2 }, spawnZ: -(L / 2 - 3.5), W, L, build };
+  MAP_LIST[size].push(id);
+}
+function mapBuilder(seed, W, L, floor, wall, outside, layout) {
+  return () => {
+    MR = seeded(seed); MSPOTS = [];
+    mapFloor(W, L, floor); perimeter(W, L, wall); if (outside) outskirts(W, L, outside);
+    layout(W / 2, L / 2);
+    const spots = MSPOTS; MSPOTS = null; MR = Math.random;
+    return spots;
+  };
+}
+
+// 기존 두 맵도 목록에 넣기
+defMap('duel', '벽돌 골목', 1, 28, 72, 'base', null);
+defMap('arena', '훈련장', 4, 100, 100, 'base', null);
+
+// ===== 1대1 =====
+defMap('d_snow', '눈 덮인 산장', 1, 30, 72, 'snow', mapBuilder(101, 30, 72, M2.snow, 'rockSnow', 'snowpines', (hw, hl) => {
+  C(house, 0, 0, 0, 7, 5, 3, M2.log, { door: ['l', 'r'], win: ['f', 'b'], roof: false, pitched: true, pitchMat: M2.snowCap });
+  S(pine, -10.5, -8, 0, 1.1, true); S(pine, -5.5, -15, 0, 1, true); S(pine, 10, -18, 0, 1.2, true); S(pine, 4, -7, 0, 0.9, true); S(pine, 12, -3, 0, 1, true); S(pine, -12, -22, 0, 1.1, true);
+  S(rock, -2.5, -12, 0, 2.6, 1.5, 0, true); S(rock, 7.5, -11, 0, 3, 1.3, 0, true); S(rock, -8.5, -18, 0, 2, 2.2, 0, true);
+  S(logs, 2.5, -24, 0, 4, true); S(logs, -10, -3, 0, 3.5, false);
+  S(house, 9, -27, 0, 5, 4, 2.6, M2.plank, { door: ['f'], win: ['l'], roof: true, stairs: 'l' });
+  S(rock, -4.5, -29, 0, 2.6, 1.3, 0, true); S(logs, 4.5, -30.5, 0, 3.5, true);
+  S(fence, 0, -18.5, 0, 6, true, M2.plank);
+  S(scaf, -11.5, -13, 0, 3, 3, 3, 'z-');
+}));
+defMap('d_desert', '사막 마을', 1, 32, 70, 'desert', mapBuilder(102, 32, 70, M2.sand, 'plaster', 'palms', (hw, hl) => {
+  C(well, 0, 0, 0);
+  S(house, -9.5, -12, 0, 7, 6, 3.2, M2.plaster, { door: ['r'], win: ['f', 'l'], roof: true, stairs: 'b' });
+  S(house, 10.5, -22, 0, 6, 5, 3, M2.plaster, { door: ['l', 'f'], win: ['r'], roof: false });
+  S(stall, 5, -6, 0, 0); S(stall, -4.5, -3.5, 0, 2);
+  S(wallL, 5, -16, 0, 6, 2.2, true, M2.plaster); S(wallL, -12.8, -26, 0, 5, 1.2, false, M2.plaster);
+  S(palm, -13.5, -4, 0, 1); S(palm, 13.5, -11, 0, 1.1); S(palm, -3.5, -23, 0, 0.9);
+  S(crates, 6, -12, 0); S(barrels, 12, -5, 0);
+  S(wallL, 0, -29, 0, 5, 1.1, true, M2.plaster); S(crates, -9, -30, 0);
+  S(arch, 0, -19.5, 0, 3.4, 4, true, M2.plaster);
+}));
+defMap('d_harbor', '컨테이너 부두', 1, 30, 74, 'gray', mapBuilder(103, 30, 74, MAT.asphalt, 'fence', 'cranes', (hw, hl) => {
+  C(cont, 0, 0, 0, true, true, 2);
+  S(cont, -9, -10, 0, false, false, 0); S(cont, 8, -14, 0, false, false, 1); S(cont, 8, -14, 0, false, false, 3, 2.6);
+  S(crates, 3.5, -18.5, 0); S(cont, -4, -23, 0, false, true, 4);
+  S(barrels, 12, -5, 0); S(barrels, -13, -18, 0); S(jersey, 2, -8, 0, 3.2, true); S(jersey, -12.5, -3, 0, 3, false);
+  S(scaf, 11.5, -26, 0, 3, 3, 3.2, 'z-');
+  S(jersey, 0, -30, 0, 5, true); S(crates, -10, -31, 0); S(carF, 5, -27, 0, false, 2);
+}));
+
+// ===== 2대2 =====
+defMap('t2_farm', '시골 농장', 2, 44, 84, 'base', mapBuilder(201, 44, 84, M2.grass, 'palis', 'trees', (hw, hl) => {
+  C(house, 0, 0, 0, 10, 8, 4.5, M2.redwood, { door: ['f', 'b'], win: ['l', 'r'], roof: false, pitched: true });
+  S(hay, -3, -2, 0, 2); S(hay, 3.2, 1.5, 0, 1);
+  S(tankV, -15, -14, 0, 2.2, 9, M2.tank);
+  S(hay, 6, -12, 0, 3); S(hay, -8, -21, 0, 2); S(hay, 13, -27, 0, 4);
+  S(fence, -6, -8, 0, 8, true); S(fence, 15, -6, 0, 9, false); S(fence, -16, -24, 0, 8, true);
+  S(carF, 9, -19, 0, true, 3);
+  S(house, -12, -31, 0, 9, 7, 3.2, M2.plank, { door: ['f', 'r'], win: ['l', 'b', 'f'], roof: true, stairs: 'l' });
+  S(tree, 17, -14, 0, 1.3); S(tree, -18, -4, 0, 1.2); S(tree, 3, -33, 0, 1.1); S(tree, 18, -33, 0, 1.4);
+  S(hay, -4, -36, 0, 2); S(hay, 7, -36.5, 0, 2);
+  S(logs, 18, -20, 0, 4, false);
+}));
+defMap('t2_ruins', '돌 유적', 2, 44, 84, 'dusk', mapBuilder(202, 44, 84, M2.dirt, 'rock', null, (hw, hl) => {
+  C(platform, 0, 0, 0, 8, 8, 1.6, M2.stone, ['z-', 'z+']);
+  S(pillar, -3.2, -3.2, 0, 0.9, 4.5); S(pillar, 3.2, -3.2, 0, 0.9, 4.5);
+  S(pillar, -9, -6, 0); S(pillar, -9, -12, 0); S(pillar, 9, -8, 0, 0.9, 2.5);
+  S(broken, -12, -15, 0, 8, true, M2.stone); S(broken, 5, -20, 0, 10, true, M2.stone); S(broken, -17, -27, 0, 6, false, M2.stone); S(broken, 15, -11, 0, 7, false, M2.stone);
+  S(arch, 0, -27, 0, 6, 4.5, true); S(rock, 10, -30, 0, 3, 1.6); S(rock, -6, -9, 0, 2, 1.2); S(rock, 17, -22, 0, 2.6, 2);
+  S(platform, -15, -33, 0, 6, 4, 2.2, M2.stone, ['z-']);
+  S(broken, -3, -36, 0, 7, true, M2.stone); S(broken, 9, -36, 0, 4, true, M2.stone);
+}));
+defMap('t2_forest', '숲 속 캠프', 2, 44, 84, 'forest', mapBuilder(203, 44, 84, M2.grass, 'palis', 'pines', (hw, hl) => {
+  S(logs, 0, -2.8, 0, 3.2, true); S(logs, -2.8, 0, 1, 3.2, true);
+  S(pine, -6, -6, 0, 1.2); S(pine, 8, -4, 0, 1.4); S(pine, -14, -12, 0, 1.3); S(pine, 4, -15, 0, 1.1); S(pine, 16, -16, 0, 1.5); S(pine, -9, -24, 0, 1.2); S(pine, 12, -30, 0, 1.3); S(pine, -18, -36, 0, 1.4); S(pine, 0, -26, 0, 1);
+  S(tent, -6, -15, 0); S(tent, 9, -24, 1);
+  S(scaf, 15, -9, 0, 3, 3, 4, 'z-');
+  S(rock, -16, -4, 0, 3, 1.8); S(rock, 3, -9, 0, 2.2, 1.3); S(rock, -3, -33, 0, 3, 1.4); S(rock, 19, -24, 0, 2.4, 2.4);
+  S(logs, 10, -14, 0, 4, false); S(logs, -12, -30, 0, 4, true);
+  S(house, -14, -20, 0, 6, 5, 3, M2.log, { door: ['f', 'r'], win: ['l'], roof: false, pitched: true });
+  S(logs, 5, -36, 0, 4, true);
+}));
+defMap('t2_town', '마을 광장', 2, 44, 84, 'base', mapBuilder(204, 44, 84, M2.cobble, 'brick', 'city', (hw, hl) => {
+  C(fountain, 0, 0, 0);
+  S(house, -12, -10, 0, 8, 7, 3.2, M2.white, { door: ['f', 'r'], win: ['l', 'b'], roof: true, stairs: 'l' });
+  S(house, 12, -21, 0, 7, 6, 3, MAT.brick, { door: ['l'], win: ['f', 'b'], roof: true, stairs: 'b' });
+  S(stall, 6, -7, 0, 1); S(stall, -4, -15, 0, 3);
+  S(carF, -3, -25, 0, false, 0); S(carF, 17, -5, 0, true, 2);
+  S(tree, 8, -13, 0, 1.1); S(tree, -18, -23, 0, 1.3);
+  S(wallL, -8, -4, 0, 3, 1.0, true, M2.stone); S(wallL, 15, -32, 0, 4, 1.0, false, M2.stone);
+  S(house, -14, -32, 0, 7, 6, 3.2, M2.plaster, { door: ['f', 'b'], win: ['r'], roof: false, pitched: true });
+  S(carF, 5, -36, 0, false, 1); S(wallL, -5, -37, 0, 4, 1.0, true, M2.stone);
+}));
+
+// ===== 3대3 =====
+defMap('t3_factory', '공장', 3, 60, 96, 'gray', mapBuilder(301, 60, 96, MAT.concrete, 'concrete', 'city', (hw, hl) => {
+  C(house, 0, 0, 0, 14, 10, 5, MAT.metal, { door: ['f', 'b', 'l', 'r'], win: [], roofMat: MAT.metal });
+  S(crates, -3, -1.5, 0); S(cont, 4, 2.5, 0, false, true, 1);
+  S(tankV, -20, -12, 0, 3, 7); S(tankV, -13.5, -13, 0, 2.2, 5.5);
+  S(pipe, 8, -19, 0, 18, 2.1, true);
+  S(cont, 20, -12, 0, false, false, 2); S(cont, 20, -12, 0, false, false, 4, 2.6); S(crates, 17, -17.5, 0);
+  S(scaf, -6, -26, 0, 10, 2.5, 3.5, 'x-');
+  S(house, 18, -38, 0, 8, 6, 3.2, MAT.concrete, { door: ['f', 'l'], win: ['b'], roof: true, stairs: 'r' });
+  S(barrels, 3, -31, 0); S(jersey, -16, -24, 0, 4, true); S(jersey, 8, -10, 0, 3, false);
+  S(bus, -22, -33, 0, true, 2); S(cont, -10, -40, 0, true, true, 0); S(jersey, 4, -43, 0, 6, true);
+}));
+defMap('t3_snowbase', '설원 기지', 3, 60, 96, 'snow', mapBuilder(302, 60, 96, M2.snow, 'fence', 'snowpines', (hw, hl) => {
+  C(platform, 0, 0, 0, 5, 5, 3, MAT.metal, ['z-', 'z+']);
+  S(bunker, -10, -13, 0); S(bunker, 14, -6, 1);
+  S(cont, 16, -14, 0, false, false, 0); S(snowTop, 16, -14, 0, 2.44, 6.1, 2.6);
+  S(cont, -18, -6, 0, true, true, 2); S(snowTop, -18, -6, 0, 12.2, 2.44, 2.6);
+  S(house, -18, -30, 0, 12, 6, 3, M2.plank, { door: ['f', 'r'], win: ['f', 'b', 'l'], roof: true, stairs: 'l', roofMat: M2.snowCap });
+  S(pine, 24, -24, 0, 1.3, true); S(pine, -26, -18, 0, 1.4, true); S(pine, 6, -26, 0, 1.1, true); S(pine, -4, -38, 0, 1.2, true);
+  S(rock, 9, -20, 0, 3, 1.5, 0, true); S(rock, -5, -20, 0, 2.4, 1.2, 0, true); S(rock, 22, -36, 0, 4, 2, 0, true);
+  S(tankV, 22, -2, 0, 2, 4, M2.tank); S(jersey, 2, -12, 0, 4, true); S(jersey, -2, -40.5, 0, 6, true); S(crates, 14, -42, 0);
+  S(scaf, 26, -40, 0, 3, 3, 4, 'z-');
+}));
+defMap('t3_canyon', '사막 협곡', 3, 60, 96, 'desert', mapBuilder(303, 60, 96, M2.sand, 'rock', 'palms', (hw, hl) => {
+  C(mesa, 0, 0, 0, 6, 6, 2.6); S(rock, 4.5, -3.5, 0, 1.6, 1.3);
+  S(mesa, -17, -10, 0, 10, 14, 7); S(mesa, 18, -24, 0, 12, 10, 6); S(mesa, -6, -32, 0, 8, 6, 4.5);
+  S(rock, 6, -10, 0, 3, 1.6); S(rock, -4, -18, 0, 2.6, 1.3); S(rock, 24, -8, 0, 3.5, 2); S(rock, -24, -28, 0, 3, 1.8);
+  S(carF, 8, -16, 0, false, 0); S(barrels, -10, -22, 0);
+  S(house, 8, -38, 0, 7, 6, 3, M2.plaster, { door: ['f', 'l'], win: ['r'], roof: true, stairs: 'b' });
+  S(platform, -22, -40, 0, 6, 5, 2.4, M2.rock, ['x+']);
+  S(wallL, 0, -40.5, 0, 6, 1.1, true, M2.plaster); S(palm, 20, -42, 0, 1.1); S(palm, -14, -44, 0, 1);
+}));
+defMap('t3_village', '폐허 마을', 3, 60, 96, 'gray', mapBuilder(304, 60, 96, M2.dirt, 'stone', 'trees', (hw, hl) => {
+  C(platform, 0, 0, 0, 5, 5, 3, M2.stone, ['x-', 'x+']);
+  S(house, -14, -12, 0, 8, 7, 3, MAT.brick, { ruin: 1 }); S(house, 13, -8, 0, 7, 6, 3, M2.plaster, { ruin: 1 });
+  S(house, -4, -26, 0, 9, 6, 3, MAT.brick, { ruin: 1 }); S(house, 20, -30, 0, 8, 8, 3.2, M2.stone, { door: ['f', 'l'], win: ['r', 'b'], roof: true, stairs: 'b' });
+  S(rock, 6, -16, 0, 2, 1); S(rock, -22, -24, 0, 2.6, 1.4); S(rock, 2, -10, 0, 1.6, 0.9);
+  S(carF, -18, -36, 0, true, 3); S(broken, 9, -42, 0, 8, true, MAT.brick); S(broken, -10, -42, 0, 6, true, MAT.brick);
+  S(tree, 25, -14, 0, 1.2); S(tree, -25, -6, 0, 1.3); S(tree, 0, -36, 0, 1);
+  S(broken, -24, -14, 0, 6, false, M2.stone); S(broken, 25, -20, 0, 6, false, M2.stone);
+}));
+
+// ===== 4대4 =====
+defMap('t4_city', '도심', 4, 80, 110, 'base', mapBuilder(401, 80, 110, MAT.asphalt, 'concrete', 'city', (hw, hl) => {
+  C(fountain, 0, 0, 0); S(bus, 8, -6, 0, true, 1);
+  S(block, -26, -14, 0, 14, 12, 14, MAT.brick); S(block, 26, -30, 0, 12, 14, 18, MAT.concrete); S(block, -24, -40, 0, 14, 10, 10, M2.plaster);
+  S(house, 14, -16, 0, 10, 8, 3.4, M2.white, { door: ['f', 'b', 'l'], win: ['r'], roof: true, stairs: 'r' });
+  S(house, -10, -28, 0, 8, 7, 3.2, MAT.brick, { door: ['f', 'r'], win: ['l', 'b'], roof: true, stairs: 'l' });
+  S(carF, -4, -12, 0, true, 0); S(carF, 4, -26, 0, false, 2); S(carF, 34, -12, 0, true, 3); S(carF, -34, -24, 0, true, 1);
+  S(jersey, 0, -38, 0, 6, true); S(jersey, 10, -44, 0, 4, false); S(jersey, -14, -50, 0, 5, true);
+  S(scaf, 32, -48, 0, 3, 3, 4, 'z-'); S(barrels, -2, -20, 0); S(crates, 22, -4, 0); S(bus, -16, -4, 0, false, 2);
+}));
+defMap('t4_port', '항구', 4, 80, 110, 'gray', mapBuilder(402, 80, 110, MAT.concrete, 'fence', 'cranes', (hw, hl) => {
+  C(cont, 0, 0, 0, true, true, 0); C(cont, 0, 0, 0, false, true, 1, 2.6);
+  S(cont, -14, -8, 0, true, true, 2); S(cont, -14, -8, 0, false, true, 3, 2.6); S(cont, 14, -14, 0, false, false, 4);
+  S(cont, -28, -14, 0, false, false, 5); S(cont, -28, -14, 0, false, false, 1, 2.6); S(cont, 30, -6, 0, true, false, 0);
+  S(house, -18, -30, 0, 16, 10, 6, MAT.metal, { door: ['f', 'b', 'r'], win: [], roofMat: MAT.metal });
+  S(crates, -21, -31, 0); S(cont, -14, -30, 0, false, false, 2);
+  S(cont, 18, -28, 0, true, true, 3); S(crates, 10, -24, 0); S(scaf, 32, -36, 0, 4, 4, 4.5, 'z-');
+  S(barrels, 4, -12, 0); S(jersey, 6, -40, 0, 6, true); S(jersey, -6, -48, 0, 4, false); S(carF, 24, -48, 0, false, 1);
+  S(crates, 34, -20, 0); S(cont, 0, -34, 0, false, true, 4);
+}));
+defMap('t4_fort', '숲 속 요새', 4, 80, 110, 'forest', mapBuilder(403, 80, 110, M2.grass, 'rock', 'pines', (hw, hl) => {
+  // 가운데 나무 요새: 양쪽에 문, 모서리에 망루
+  C(palis, 0, -9, 0, 18, true, 3.4, [{ c: 0, w: 3 }]); C(palis, 0, 9, 0, 18, true, 3.4, [{ c: 0, w: 3 }]);
+  C(palis, -9, 0, 0, 18, false, 3.4, [{ c: 0, w: 2.5 }]); C(palis, 9, 0, 0, 18, false, 3.4, [{ c: 0, w: 2.5 }]);
+  S(scaf, -7, -7, 0, 2.6, 2.6, 4, 'x+'); S(scaf, 7, -7, 0, 2.6, 2.6, 4, 'x-');
+  C(house, 0, 0, 0, 5, 4, 2.6, M2.log, { door: ['l', 'r'], win: ['f', 'b'], roof: false, pitched: true });
+  S(pine, -16, -6, 0, 1.4); S(pine, 18, -12, 0, 1.5); S(pine, -24, -20, 0, 1.3); S(pine, 6, -22, 0, 1.2); S(pine, 28, -26, 0, 1.6); S(pine, -8, -34, 0, 1.3); S(pine, 16, -40, 0, 1.4); S(pine, -30, -42, 0, 1.5); S(pine, 34, -8, 0, 1.3);
+  S(tent, -16, -28, 0); S(tent, 22, -34, 1); S(logs, -4, -18, 0, 4, true); S(logs, 26, -18, 0, 4, false);
+  S(rock, -30, -10, 0, 4, 2.4); S(rock, 12, -28, 0, 3, 1.6); S(rock, -18, -48, 0, 3.5, 1.8); S(rock, 4, -46, 0, 3, 1.4);
+  S(house, -30, -32, 0, 6, 5, 3, M2.log, { door: ['f', 'r'], win: ['b'], roof: true, stairs: 'l' });
+  S(scaf, 30, -48, 0, 3, 3, 4, 'z-');
+}));
 
 // ================= 시작 =================
 applyQuality();

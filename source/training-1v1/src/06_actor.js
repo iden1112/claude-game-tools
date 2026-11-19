@@ -28,7 +28,7 @@ class Actor {
     this.stance = 'stand'; this.stanceH = STANCE.stand.eye; this.lean = this.leanTarget = 0;
     this.vel.set(0, 0, 0); this.onGround = true;
     this.shoulder = false; this.shoulderT = 0;
-    this.cooldown = 0; this.reloadT = 0; this.boltT = 0; this.switchT = 0; this.adsT = 0; this.ads = false; this.burst = 0;
+    this.cooldown = 0; this.reloadT = 0; this.boltT = 0; this.switchT = 0; this.adsT = 0; this.ads = false; this.burst = 0; this.dmgLog = null;
     this.shots = 0; this.sinceShot = 9; this.recoilAcc = 0; this.recoilYawAcc = 0; this.trigger = false; this.triggerEdge = false;
     this.pin = false; this.cookT = -1; this.mode = 'gun';
     this.throwables = { frag: THROWABLES.frag.count, smoke: THROWABLES.smoke.count, flash: THROWABLES.flash.count };
@@ -44,7 +44,7 @@ class Actor {
       const stats = weaponStats(id, att);
       AU.prep(id, WEAPONS[id].cat);
       const model = buildGunModel(id, att);
-      return { id, att, stats, mag: stats.mag, reserve: stats.mag * 6, model: model.group, info: model, fireMode: WEAPONS[id].modes.includes('A') ? 'A' : WEAPONS[id].modes[0] };
+      return { id, att, stats, mag: stats.mag, reserve: stats.mag * 6, model: model.group, info: model, fireMode: WEAPONS[id].modes.includes('A') ? 'A' : WEAPONS[id].modes.includes('B') ? 'B' : WEAPONS[id].modes[0] };
     });
     this.equip(0, true);
   }
@@ -243,7 +243,7 @@ class Actor {
   get canShoot() { return !this.dead && !this.vault && this.switchT <= 0 && this.reloadT <= 0 && this.boltT <= 0 && !(this.sprint && Math.hypot(this.vel.x, this.vel.z) > 3) && !(this.stanceLock > 0 && this.stance === 'prone'); }
   startReload() {
     const w = this.w; if (!w || this.mode !== 'gun' || this.reloadT > 0 || w.mag >= w.stats.mag || w.reserve <= 0 || this.dead || this.vault) return;
-    this.reloadDur = w.mag === 0 ? w.stats.reload * 1.15 : w.stats.reload;
+    this.reloadDur = w.mag === 0 ? w.stats.reload * 1.15 : w.stats.reload; this.reloadEmpty = w.mag === 0;
     this.reloadT = this.reloadDur; this.burst = 0;
     if (this.isPlayer) AU.reload(this.reloadDur);
   }
@@ -292,14 +292,14 @@ class Actor {
     }
     const want = this.burst > 0 || (fm === 'A' && this.trigger);
     if (want && this.cooldown <= 0 && this.canShoot) {
-      if (w.mag > 0) { this.fire(); if (this.burst > 0) this.burst--; }
+      if (w.mag > 0) { this.fire(); if (this.burst > 0) { this.burst--; if (fm === 'B' && this.burst === 0) this.cooldown = Math.max(this.cooldown, 0.22); } } // 점사: 3발 끝나면 잠깐 쉬어요 (배그처럼)
       else { this.burst = 0; if (this.isPlayer) AU.empty(); this.startReload(); }
     }
   }
   fire() {
     const w = this.w, st = w.stats, def = st.def;
     w.mag--; this.sinceShot = 0; this.shots++;
-    this.cooldown = def.bolt ? 0.05 : (w.fireMode === 'B' ? def.interval * 0.9 : def.interval);
+    this.cooldown = def.bolt ? 0.05 : (w.fireMode === 'B' ? def.interval * 0.75 : def.interval);
     if (def.bolt || def.id === 'win94' || def.id === 's1897' || def.id === 'dbs') { this.boltT = def.interval; if (this.isPlayer) setTimeout(() => AU.bolt(), 10); }
     if (def.cat === 'SG' && def.id !== 's1897' && def.id !== 'dbs') this.cooldown = def.interval;
     // 조준 방향
@@ -317,7 +317,7 @@ class Actor {
     for (let p = 0; p < def.pellets; p++) {
       const sp = def.cat === 'SG' ? lerp(st.hip * lerp(1, 0.75, this.shoulderT), st.ads, this.adsT) : spread;
       const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * Math.tan(sp * DEG);
-      const d = dir.clone().addScaledVector(right, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize();
+      const d = dir.clone().addScaledVector(right, Math.cos(a) * r * (st.spreadH || 1)).addScaledVector(up, Math.sin(a) * r * (st.spreadV || 1)).normalize();
       spawnBullet(this, origin, d, st, def.dmg);
       dirs.push(d.toArray().map(v => +v.toFixed(5)));
     }
@@ -395,15 +395,21 @@ class Actor {
   damage(dmg, from, info) {
     if (this.dead || (G.state !== 'live' && G.state !== 'range')) return;
     this.health -= dmg; this.lastDamage = 0;
+    if (from && from !== this && dmg > 0) { if (!this.dmgLog) this.dmgLog = new Map(); this.dmgLog.set(from, performance.now()); } // 어시스트용 기록
     if (this.onDamage) this.onDamage(dmg, from, info);
     if (this.health <= 0) { this.health = 0; this.die(from, info); }
   }
   die(from, info) {
     this.deaths = (this.deaths || 0) + 1;
     if (from && from !== this) { from.kills = (from.kills || 0) + 1; if (info && info.head) from.heads = (from.heads || 0) + 1; }
+    // 어시스트: 최근 20초 안에 피해를 준 다른 적 (처치한 사람 빼고)
+    const assists = [], now = performance.now();
+    if (this.dmgLog) for (const [a, t] of this.dmgLog) if (a !== from && a !== this && now - t < 20000 && !a.gone && !(this.team !== undefined && a.team === this.team)) assists.push(a);
+    this.dmgLog = null;
+    for (const a of assists) giveAssist(a, this);
     this.dead = true; this.ads = false; this.pin = false; this.trigger = false; this.vault = null;
     const myId = this === PLAYER ? NET.id : this.netId;
-    if ((this === PLAYER || this.netBot) && NET.active) netSend({ t: 'died', killer: !from || from === this ? myId : from === PLAYER ? NET.id : from.netId, weapon: info && info.weapon, head: !!(info && info.head), dist: info && info.dist || 0 }, '*', myId);
+    if ((this === PLAYER || this.netBot) && NET.active) netSend({ t: 'died', killer: !from || from === this ? myId : from === PLAYER ? NET.id : from.netId, as: assists.map(a => a === PLAYER ? NET.id : a.netId), weapon: info && info.weapon, head: !!(info && info.head), dist: info && info.dist || 0 }, '*', myId);
     GAME.onKill(from, this, info);
   }
 }

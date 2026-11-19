@@ -33,7 +33,7 @@ function goMenu() {
 
 const GAME = {
   startMatch() {
-    G.mode = 'arena'; G.myTeam = 0; PLAYER.team = undefined; setMap('duel');
+    G.mode = 'arena'; G.myTeam = 0; PLAYER.team = undefined; setMap(G.matchMap || 'duel');
     ACTORS.length = 0; ACTORS.push(PLAYER, BOT); BOT.soldier.setVisible(true);
     for (const a of RANGE.dummies) a.soldier.setVisible(false);
     G.score = [0, 0]; G.round = 0; G.time = 0; resetKD(); PLAYER.name = NICK();
@@ -45,7 +45,7 @@ const GAME = {
   newRound(sideOverride) {
     G.round++;
     clearCombat();
-    if (G.mode !== 'mp') setMap('duel');
+    if (G.mode !== 'mp') setMap(G.matchMap || 'duel');
     WORLD.bounds = WORLD.map.bounds;
     const mp = G.mode === 'mp', E = enemy();
     ACTORS.length = 0; ACTORS.push(PLAYER, E);
@@ -212,17 +212,30 @@ function renderLoadout() {
   html += statBar('피해량', w.dmg * w.pellets, 220, w.dmg + (w.pellets > 1 ? ' ×' + w.pellets : ''));
   html += statBar('연사력', w.bolt ? 30 : rpm, 1100, w.bolt ? '볼트액션' : rpm + ' RPM');
   html += statBar('탄속', w.vel, 1000, w.vel + ' m/s');
-  html += statBar('반동', st.rv, 4, st.rv < 0.5 ? '낮음' : st.rv < 1 ? '보통' : '높음');
-  html += statBar('탄창', st.mag, 150, st.mag + '발');
+  const base = weaponStats(sl.id, { scope: att.scope });
+  const pct = (a, b) => { const v = Math.round((a / b - 1) * 100); return v ? ` <b class="${v < 0 ? 'good' : 'bad'}">${v > 0 ? '+' : ''}${v}%</b>` : ''; };
+  html += statBar('수직 반동', st.rv, 4, (st.rv < 0.5 ? '낮음' : st.rv < 1 ? '보통' : '높음') + pct(st.rv, base.rv));
+  html += statBar('수평 반동', st.rh, 3, (st.rh < 0.4 ? '낮음' : st.rh < 0.8 ? '보통' : '높음') + pct(st.rh, base.rh));
+  html += statBar('조준 속도', 1 / st.adsTime, 10, st.adsTime.toFixed(2) + '초' + pct(st.adsTime, base.adsTime));
+  html += statBar('장전 시간', 6 - st.reload, 6, st.reload.toFixed(1) + '초' + pct(st.reload, base.reload));
+  html += statBar('탄창', st.mag, 150, st.mag + '발' + (st.mag > base.mag ? ` <b class="good">+${st.mag - base.mag}</b>` : ''));
   html += `<div class="modes">사격 모드: ${w.modes.split('').map(m => ({ S: '단발', B: '점사', A: '연사' }[m])).join(' / ')}</div>`;
-  const row = (title, key, opts, names) => opts.length ? `<div class="attrow"><span>${title}</span>${opts.map(o => `<button class="${att[key] === o ? 'on' : ''}" data-att="${key}" data-val="${o}">${names(o)}</button>`).join('')}</div>` : '';
-  html += `<h4>풀파츠 (자동 장착) - 원하는 걸로 바꿀 수 있어요</h4>`;
-  html += row('조준경', 'scope', scopeOptions(w), o => SCOPES.find(s => s.id === o).name);
+  // 파츠 줄: 버튼에 마우스를 올리면 효과가 뜨고, 고른 파츠 효과는 아래에 늘 보여요
+  const row = (title, key, opts, names, none = true) => {
+    if (!opts.length) return '';
+    const fx = (o) => (ATT_FX[key] && ATT_FX[key][o] && ATT_FX[key][o].d) || '';
+    let h = `<div class="attrow"><span>${title}</span>` + (none ? `<button class="${!att[key] ? 'on' : ''}" data-att="${key}" data-val="" title="파츠 없음">없음</button>` : '')
+      + opts.map(o => `<button class="${att[key] === o ? 'on' : ''}" data-att="${key}" data-val="${o}" title="${fx(o)}">${names(o)}</button>`).join('') + `</div>`;
+    if (att[key] && fx(att[key])) h += `<div class="attfx">↳ ${fx(att[key])}</div>`;
+    return h;
+  };
+  html += `<h4>풀파츠 (자동 장착) - 원하는 걸로 바꿀 수 있어요 · 버튼에 마우스를 올리면 효과가 보여요</h4>`;
+  html += row('조준경', 'scope', scopeOptions(w), o => SCOPES.find(s => s.id === o).name, false);
   if (w.integrated) html += `<div class="attrow"><span>조준경</span><button class="on">내장 4배율</button></div>`;
   html += row('총구', 'muzzle', muzzleOptions(w), o => MUZZLES[o]);
   html += row('손잡이', 'grip', gripOptions(w), o => GRIPS[o]);
-  if (att.mag) html += `<div class="attrow"><span>탄창</span><button class="on">대용량 퀵드로우</button></div>`;
-  if (att.stock) html += `<div class="attrow"><span>개머리판</span><button class="on">${STOCKS[att.stock]}</button></div>`;
+  html += row('탄창', 'mag', magOptions(w), o => MAGS[o]);
+  html += row('개머리판', 'stock', stockOptions(w), o => STOCKS[o]);
   if (w.integrated) html += `<div class="attrow"><span>총구</span><button class="on">내장 소음기</button></div>`;
   $('lo-detail').innerHTML = html;
   $('lo-ready').textContent = G.state === 'pre' ? `확인 (시작까지 ${Math.ceil(G.preT)}초)` : '확인';
@@ -242,6 +255,47 @@ function setupLoadoutUI() {
   setInterval(() => { if (G.menuOpen && G.state === 'pre') $('lo-ready').textContent = `확인 (시작까지 ${Math.ceil(G.preT)}초)`; }, 250);
 }
 
+// ================= 조준선 (발로란트처럼 바꾸기) =================
+const XH_PRESETS = {
+  pubg: { color: '#ffffff', len: 10, th: 2, gap: 4, dot: 0, out: 1, dyn: 1 },
+  valo: { color: '#00ff6a', len: 6, th: 2, gap: 3, dot: 0, out: 1, dyn: 0 },
+  dot: { color: '#00ffff', len: 0, th: 2, gap: 0, dot: 4, out: 1, dyn: 0 },
+  tiny: { color: '#ffff00', len: 4, th: 1, gap: 2, dot: 2, out: 1, dyn: 0 },
+  big: { color: '#ff3df0', len: 14, th: 3, gap: 6, dot: 0, out: 1, dyn: 1 },
+};
+const XH_COLORS = ['#ffffff', '#00ff6a', '#ffff00', '#00ffff', '#ff3df0', '#ff3030', '#ffa600'];
+function applyCrosshair() {
+  const x = SETTINGS.xh;
+  for (const el of [$('cross'), $('xh-pv')]) { if (!el) continue;
+    el.style.setProperty('--xc', x.color); el.style.setProperty('--xl', x.len + 'px'); el.style.setProperty('--xt', x.th + 'px');
+    el.style.setProperty('--xo', x.out ? '1px' : '0px'); el.style.setProperty('--xd', x.dot + 'px'); }
+  const pv = $('xh-pv'); if (pv) { // 미리보기 (고정 간격)
+    const g = x.gap, L = x.len, show = L > 0 ? 'block' : 'none';
+    const q = (c) => pv.querySelector('.' + c);
+    Object.assign(q('t').style, { display: show, width: x.th + 'px', height: L + 'px', transform: `translate(-50%, ${-g - L}px)` });
+    Object.assign(q('b').style, { display: show, width: x.th + 'px', height: L + 'px', transform: `translate(-50%, ${g}px)` });
+    Object.assign(q('l').style, { display: show, height: x.th + 'px', width: L + 'px', transform: `translate(${-g - L}px, -50%)` });
+    Object.assign(q('r').style, { display: show, height: x.th + 'px', width: L + 'px', transform: `translate(${g}px, -50%)` });
+    Object.assign(q('d').style, { display: x.dot ? 'block' : 'none', width: x.dot + 'px', height: x.dot + 'px', transform: 'translate(-50%,-50%)' });
+  }
+  for (const id of ['ch-t', 'ch-b', 'ch-l', 'ch-r']) { const el = $(id); if (el) el.style.display = x.len > 0 ? 'block' : 'none'; }
+  const d = $('ch-d'); if (d) d.style.display = x.dot ? 'block' : 'none';
+}
+function setupCrosshairUI() {
+  const x = SETTINGS.xh;
+  const draw = () => {
+    $('xh-preset').value = x.preset || 'custom';
+    $('xh-colors').innerHTML = XH_COLORS.map(c => `<b data-c="${c}" class="${c === x.color ? 'on' : ''}" style="background:${c}"></b>`).join('');
+    $('xh-len').value = x.len; $('xh-th').value = x.th; $('xh-gap').value = x.gap; $('xh-dot').value = x.dot; $('xh-out').value = x.out; $('xh-dyn').value = x.dyn;
+    $('v-xh-len').textContent = x.len; $('v-xh-th').textContent = x.th; $('v-xh-gap').textContent = x.gap;
+    applyCrosshair(); saveSettings();
+  };
+  $('xh-preset').addEventListener('input', () => { const p = $('xh-preset').value; if (XH_PRESETS[p]) Object.assign(x, XH_PRESETS[p]); x.preset = p; draw(); });
+  $('xh-colors').addEventListener('click', (e) => { const b = e.target.closest('b'); if (b) { x.color = b.dataset.c; x.preset = 'custom'; draw(); } });
+  for (const k of ['len', 'th', 'gap', 'dot', 'out', 'dyn']) $('xh-' + k).addEventListener('input', () => { x[k] = +$('xh-' + k).value; x.preset = 'custom'; draw(); });
+  draw();
+}
+
 // ================= 설정 / 시작 화면 =================
 function setupMenus() {
   const diff = $('set-diff'), arm = $('set-armor');
@@ -258,7 +312,8 @@ function setupMenus() {
     $('v-sens').textContent = SETTINGS.sens.toFixed(2); $('v-ads').textContent = SETTINGS.adsSens.toFixed(2); $('v-fov').textContent = SETTINGS.fov;
     saveSettings();
   };
-  document.querySelectorAll('#settings input, #settings select').forEach(el => el.addEventListener('input', sync)); sync();
+  document.querySelectorAll('#settings input, #settings select').forEach(el => { if (!el.id.startsWith('xh-')) el.addEventListener('input', sync); }); sync();
+  setupCrosshairUI();
   // 닉네임 (시작 화면 · 친구와 대전 화면 같이)
   const setNick = (v) => { SETTINGS.nick = v.trim().slice(0, 12); saveSettings(); PLAYER.name = NICK(); NET.name = SETTINGS.nick || NET.name; for (const id of ['start-nick', 'mp-name']) if ($(id).value !== v) $(id).value = v; };
   for (const id of ['start-nick', 'mp-name']) { $(id).addEventListener('input', (e) => setNick(e.target.value)); $(id).addEventListener('keydown', (e) => e.stopPropagation()); }
@@ -273,7 +328,29 @@ function setupMenus() {
     } catch (e) { HUD.toast('이 화면에선 전체화면이 막혀 있어요. F11 을 눌러 보세요'); }
   };
   document.addEventListener('fullscreenchange', fsSync); fsSync();
-  $('btn-start').onclick = () => { AU.init(); GAME.startMatch(); };
+  // AI 대전: 인원(1~4)과 맵 고르기. 2대2 이상은 내 컴퓨터 안에서 AI 팀원·상대와 함께
+  const aiSel = { size: 1, map: 'random' };
+  try { Object.assign(aiSel, JSON.parse(localStorage.getItem('tg1v1_ai') || '{}')); } catch (e) {}
+  const drawAI = () => {
+    $('ai-size').innerHTML = [1, 2, 3, 4].map(n => `<button class="${aiSel.size === n ? 'on' : ''}" data-n="${n}">${n}대${n}</button>`).join(' ');
+    const list = MAP_LIST[aiSel.size] || [];
+    if (aiSel.map !== 'random' && !list.includes(aiSel.map)) aiSel.map = 'random';
+    $('ai-map').innerHTML = `<option value="random">랜덤</option>` + list.map(id => `<option value="${id}">${MAP_DEFS[id].name}</option>`).join('');
+    $('ai-map').value = aiSel.map;
+    try { localStorage.setItem('tg1v1_ai', JSON.stringify(aiSel)); } catch (e) {}
+  };
+  $('ai-size').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { aiSel.size = +b.dataset.n; drawAI(); } });
+  $('ai-map').addEventListener('change', () => { aiSel.map = $('ai-map').value; drawAI(); });
+  drawAI();
+  window.AI_SEL = aiSel;
+  $('btn-start').onclick = () => {
+    AU.init();
+    if (aiSel.size > 1) { // 팀 대전: 혼자 방을 만들고 빈자리를 AI로 채워서 바로 시작
+      netHost('local'); NET.lobby.size = aiSel.size; NET.lobby.map = aiSel.map; fillBots(); netStartGame(); lockPointer(); return;
+    }
+    const list = MAP_LIST[1]; G.matchMap = aiSel.map !== 'random' && list.includes(aiSel.map) ? aiSel.map : list[(Math.random() * list.length) | 0];
+    GAME.startMatch();
+  };
   $('btn-range').onclick = () => { AU.init(); enterRange(); };
   $('btn-loadout').onclick = () => { AU.init(); openLoadout(); };
   $('btn-resume').onclick = () => { $('pause').style.display = 'none'; $('start-settings').appendChild($('settings')); lockPointer(); };
@@ -297,7 +374,11 @@ function setupMenus() {
 }
 addEventListener('keyup', (e) => { if (e.code === 'Tab') HUD.showBoard(false); });
 addEventListener('blur', () => HUD.showBoard(false));
-function resetKD() { for (const a of [PLAYER, BOT, ...Object.values(REMOTES), ...Object.values(NET.bots)]) { a.kills = a.deaths = a.heads = 0; } }
+function resetKD() { for (const a of [PLAYER, BOT, ...Object.values(REMOTES), ...Object.values(NET.bots)]) { a.kills = a.deaths = a.heads = a.assists = 0; } }
+function giveAssist(a, victim) { // 어시스트 +1 (내가 받으면 화면에 표시)
+  a.assists = (a.assists || 0) + 1;
+  if (a === PLAYER) { HUD.assist(victim); AU.click(0.15, 1500); }
+}
 const isPlaying = () => G.state === 'pre' || G.state === 'live' || G.state === 'post' || G.state === 'range';
 
 // ================= 메인 루프 =================
@@ -327,7 +408,9 @@ function frame() {
   } else if (G.state === 'menu' || G.state === 'over') {
     // 메뉴 뒤 배경: 천천히 도는 카메라
     const t = performance.now() / 1000 * 0.05;
-    camera.position.set(Math.sin(t) * 38, 16, Math.cos(t) * 38); camera.lookAt(0, 2, 0);
+    const R = WORLD.map ? Math.max(30, WORLD.map.bounds.maxZ * 0.9) : 38;
+    if (window.__camOverride) { const o = window.__camOverride; camera.position.set(...o.pos); camera.lookAt(...o.look); }
+    else { camera.position.set(Math.sin(t) * R, 16, Math.cos(t) * R); camera.lookAt(0, 2, 0); }
     camera.fov = 60; camera.updateProjectionMatrix();
     for (const a of ACTORS) a.afterMove(0.016);
     if (G.mode === 'mp' && dt > 0) netUpdate(dt);

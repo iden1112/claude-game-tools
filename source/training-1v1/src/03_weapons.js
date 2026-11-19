@@ -3,57 +3,57 @@
 // [id, 이름, 분류, 탄, 피해, 탄속(m/s), 발사간격(s), 탄창, 대용량탄창, 재장전(s), 사격모드, 수직반동(도), 수평반동, 최대조준경, 파츠칸]
 // 파츠칸: m=총구 g=손잡이 x=탄창 s=개머리판
 const WEAPON_TABLE = [
-  ['m416', 'M416', 'AR', '5.56mm', 40, 880, 0.0857, 30, 40, 2.1, 'SA', 0.42, 0.20, 7, 'mgxs'],
-  ['akm', 'AKM', 'AR', '7.62mm', 47, 715, 0.100, 30, 40, 2.7, 'SA', 0.74, 0.30, 7, 'mx'],
-  ['beryl', 'Beryl M762', 'AR', '7.62mm', 44, 715, 0.086, 30, 40, 2.9, 'SBA', 0.84, 0.38, 7, 'mgx'],
-  ['scar', 'SCAR-L', 'AR', '5.56mm', 42, 870, 0.096, 30, 40, 2.2, 'SA', 0.45, 0.22, 7, 'mgx'],
-  ['aug', 'AUG', 'AR', '5.56mm', 41, 940, 0.0857, 30, 40, 3.0, 'SA', 0.40, 0.21, 7, 'mgx'],
-  ['groza', 'Groza', 'AR', '7.62mm', 47, 715, 0.080, 30, 40, 3.0, 'SA', 0.62, 0.30, 5, 'mx'],
-  ['qbz', 'QBZ95', 'AR', '5.56mm', 42, 870, 0.092, 30, 40, 2.8, 'SA', 0.45, 0.22, 7, 'mgx'],
-  ['g36c', 'G36C', 'AR', '5.56mm', 41, 870, 0.086, 30, 40, 2.5, 'SA', 0.44, 0.22, 5, 'mgx'],
-  ['m16', 'M16A4', 'AR', '5.56mm', 43, 900, 0.075, 30, 40, 2.3, 'SB', 0.48, 0.20, 7, 'mx'],
-  ['mk47', 'Mk47 Mutant', 'AR', '7.62mm', 49, 780, 0.100, 20, 30, 2.7, 'SB', 0.70, 0.30, 7, 'mgx'],
-  ['ace32', 'ACE32', 'AR', '7.62mm', 43, 715, 0.088, 30, 40, 2.6, 'SA', 0.60, 0.26, 7, 'mgxs'],
-  ['famas', 'FAMAS', 'AR', '5.56mm', 39, 925, 0.0667, 25, 35, 2.8, 'SBA', 0.50, 0.26, 7, 'mx'],
+  ['m416', 'M416', 'AR', '5.56×45mm NATO', 40, 880, 0.0857, 30, 40, 2.1, 'SA', 0.42, 0.20, 7, 'mgxs'],
+  ['akm', 'AKM', 'AR', '7.62×39mm', 47, 715, 0.100, 30, 40, 2.7, 'SA', 0.74, 0.30, 7, 'mx'],
+  ['beryl', 'Beryl M762', 'AR', '7.62×39mm', 44, 715, 0.086, 30, 40, 2.9, 'SBA', 0.84, 0.38, 7, 'mgx'],
+  ['scar', 'SCAR-L', 'AR', '5.56×45mm NATO', 42, 870, 0.096, 30, 40, 2.2, 'SA', 0.45, 0.22, 7, 'mgx'],
+  ['aug', 'AUG', 'AR', '5.56×45mm NATO', 41, 940, 0.0857, 30, 40, 3.0, 'SA', 0.40, 0.21, 7, 'mgx'],
+  ['groza', 'Groza', 'AR', '7.62×39mm', 47, 715, 0.080, 30, 40, 3.0, 'SA', 0.62, 0.30, 5, 'mx'],
+  ['qbz', 'QBZ95', 'AR', '5.8×42mm', 42, 870, 0.092, 30, 40, 2.8, 'SA', 0.45, 0.22, 7, 'mgx'],
+  ['g36c', 'G36C', 'AR', '5.56×45mm NATO', 41, 870, 0.086, 30, 40, 2.5, 'SA', 0.44, 0.22, 5, 'mgx'],
+  ['m16', 'M16A4', 'AR', '5.56×45mm NATO', 43, 900, 0.075, 30, 40, 2.3, 'SB', 0.48, 0.20, 7, 'mx'],
+  ['mk47', 'Mk47 Mutant', 'AR', '7.62×39mm', 49, 780, 0.100, 20, 30, 2.7, 'SB', 0.70, 0.30, 7, 'mgx'],
+  ['ace32', 'ACE32', 'AR', '7.62×39mm', 43, 715, 0.088, 30, 40, 2.6, 'SA', 0.60, 0.26, 7, 'mgxs'],
+  ['famas', 'FAMAS', 'AR', '5.56×45mm NATO', 39, 925, 0.0667, 25, 35, 2.8, 'SBA', 0.50, 0.26, 7, 'mx'],
   ['ump', 'UMP45', 'SMG', '.45 ACP', 41, 360, 0.092, 25, 35, 2.4, 'SBA', 0.32, 0.15, 5, 'mgx'],
-  ['vector', 'Vector', 'SMG', '9mm', 31, 380, 0.055, 19, 33, 1.9, 'SBA', 0.42, 0.20, 3, 'mgxs'],
-  ['uzi', 'Micro UZI', 'SMG', '9mm', 26, 350, 0.048, 25, 35, 2.2, 'SA', 0.30, 0.18, 1, 'mxs'],
+  ['vector', 'Vector', 'SMG', '.45 ACP', 31, 380, 0.055, 19, 33, 1.9, 'SBA', 0.42, 0.20, 3, 'mgxs'],
+  ['uzi', 'Micro UZI', 'SMG', '9×19mm 파라벨룸', 26, 350, 0.048, 25, 35, 2.2, 'SA', 0.30, 0.18, 1, 'mxs'],
   ['tommy', 'Tommy Gun', 'SMG', '.45 ACP', 40, 280, 0.086, 30, 50, 3.0, 'SA', 0.38, 0.20, 0, 'mgx'],
-  ['bizon', 'PP-19 Bizon', 'SMG', '9mm', 35, 408, 0.086, 53, 53, 3.2, 'SA', 0.30, 0.15, 5, 'm'],
-  ['mp5k', 'MP5K', 'SMG', '9mm', 33, 400, 0.067, 30, 40, 2.4, 'SBA', 0.32, 0.15, 5, 'mgxs'],
-  ['p90', 'P90', 'SMG', '5.7mm', 35, 715, 0.060, 50, 50, 2.5, 'SA', 0.28, 0.15, 5, ''],
-  ['js9', 'JS9', 'SMG', '9mm', 34, 400, 0.067, 30, 40, 2.4, 'SA', 0.28, 0.14, 5, 'mgx'],
-  ['sks', 'SKS', 'DMR', '7.62mm', 53, 800, 0.090, 10, 20, 2.9, 'S', 1.30, 0.50, 8, 'mgxs'],
-  ['slr', 'SLR', 'DMR', '7.62mm', 56, 840, 0.100, 10, 20, 2.9, 'S', 1.60, 0.60, 8, 'mxs'],
-  ['mini14', 'Mini14', 'DMR', '5.56mm', 48, 990, 0.100, 20, 30, 2.6, 'S', 0.90, 0.35, 8, 'mxs'],
-  ['mk14', 'Mk14 EBR', 'DMR', '7.62mm', 61, 853, 0.090, 10, 20, 3.0, 'SA', 1.60, 0.60, 8, 'mxs'],
-  ['qbu', 'QBU', 'DMR', '5.56mm', 48, 945, 0.100, 10, 20, 2.6, 'S', 0.90, 0.35, 8, 'mx'],
-  ['vss', 'VSS', 'DMR', '9mm', 41, 330, 0.086, 10, 20, 2.6, 'SA', 0.45, 0.25, -1, 'gx'],
-  ['mk12', 'Mk12', 'DMR', '5.56mm', 50, 930, 0.100, 20, 30, 2.6, 'S', 1.00, 0.40, 8, 'mgxs'],
-  ['dragunov', 'Dragunov', 'DMR', '7.62mm', 60, 830, 0.150, 10, 20, 3.2, 'S', 1.70, 0.60, 8, 'mxs'],
-  ['kar98k', 'Kar98k', 'SR', '7.62mm', 79, 760, 1.90, 5, 5, 4.0, 'S', 2.5, 0.6, 8, 'mxs'],
-  ['m24', 'M24', 'SR', '7.62mm', 75, 790, 1.80, 5, 7, 3.4, 'S', 2.4, 0.6, 8, 'mxs'],
-  ['awm', 'AWM', 'SR', '.300 Magnum', 105, 945, 1.85, 5, 7, 4.0, 'S', 3.0, 0.7, 8, 'mxs'],
-  ['mosin', 'Mosin Nagant', 'SR', '7.62mm', 79, 870, 1.90, 5, 5, 4.0, 'S', 2.5, 0.6, 8, 'mxs'],
-  ['win94', 'Win94', 'SR', '.45 ACP', 66, 760, 1.30, 8, 8, 4.0, 'S', 2.2, 0.6, 2, 'm'],
-  ['lynx', 'Lynx AMR', 'SR', '.50 BMG', 118, 1000, 1.80, 5, 5, 4.5, 'S', 4.0, 0.8, 8, ''],
-  ['s1897', 'S1897', 'SG', '12 Gauge', 26, 360, 0.75, 5, 5, 3.0, 'S', 3.5, 0.8, 1, 'm'],
-  ['s686', 'S686', 'SG', '12 Gauge', 26, 370, 0.20, 2, 2, 2.2, 'S', 3.5, 0.8, 0, 'm'],
-  ['s12k', 'S12K', 'SG', '12 Gauge', 24, 350, 0.25, 5, 8, 2.6, 'S', 3.0, 0.8, 2, 'mx'],
-  ['dbs', 'DBS', 'SG', '12 Gauge', 26, 400, 0.30, 14, 14, 4.5, 'S', 3.2, 0.8, 2, ''],
-  ['o12', 'O12', 'SG', '12 Gauge', 30, 350, 0.20, 5, 8, 2.6, 'SA', 3.0, 0.8, 2, 'mx'],
-  ['sawed', 'Sawed-off', 'SG', '12 Gauge', 21, 340, 0.20, 2, 2, 2.0, 'S', 3.5, 0.8, 0, ''],
-  ['m249', 'M249', 'LMG', '5.56mm', 41, 915, 0.075, 75, 150, 6.5, 'A', 0.48, 0.22, 7, ''],
-  ['dp28', 'DP-28', 'LMG', '7.62mm', 52, 715, 0.109, 47, 47, 4.5, 'A', 0.60, 0.25, 7, ''],
-  ['mg3', 'MG3', 'LMG', '7.62mm', 42, 820, 0.060, 75, 75, 6.5, 'A', 0.60, 0.28, 7, ''],
-  ['crossbow', '석궁', 'XB', '볼트', 105, 100, 0.3, 1, 1, 3.4, 'S', 1.0, 0.25, 5, ''],
-  ['p92', 'P92', 'HG', '9mm', 34, 380, 0.135, 15, 20, 2.0, 'S', 0.9, 0.4, 2, 'mx'],
+  ['bizon', 'PP-19 Bizon', 'SMG', '9×18mm 마카로프', 35, 408, 0.086, 53, 53, 3.2, 'SA', 0.30, 0.15, 5, 'm'],
+  ['mp5k', 'MP5K', 'SMG', '9×19mm 파라벨룸', 33, 400, 0.067, 30, 40, 2.4, 'SBA', 0.32, 0.15, 5, 'mgxs'],
+  ['p90', 'P90', 'SMG', '5.7×28mm', 35, 715, 0.060, 50, 50, 2.5, 'A', 0.28, 0.15, 5, ''],
+  ['js9', 'JS9', 'SMG', '9×19mm 파라벨룸', 34, 400, 0.067, 30, 40, 2.4, 'SA', 0.28, 0.14, 5, 'mgx'],
+  ['sks', 'SKS', 'DMR', '7.62×39mm', 53, 800, 0.090, 10, 20, 2.9, 'S', 1.30, 0.50, 8, 'mgxs'],
+  ['slr', 'SLR', 'DMR', '7.62×51mm NATO', 56, 840, 0.100, 10, 20, 2.9, 'S', 1.60, 0.60, 8, 'mxs'],
+  ['mini14', 'Mini14', 'DMR', '5.56×45mm NATO', 48, 990, 0.100, 20, 30, 2.6, 'S', 0.90, 0.35, 8, 'mxs'],
+  ['mk14', 'Mk14 EBR', 'DMR', '7.62×51mm NATO', 61, 853, 0.090, 10, 20, 3.0, 'SA', 1.60, 0.60, 8, 'mxs'],
+  ['qbu', 'QBU', 'DMR', '5.8×42mm', 48, 945, 0.100, 10, 20, 2.6, 'S', 0.90, 0.35, 8, 'mx'],
+  ['vss', 'VSS', 'DMR', '9×39mm', 41, 330, 0.086, 10, 20, 2.6, 'SA', 0.45, 0.25, -1, 'gx'],
+  ['mk12', 'Mk12', 'DMR', '5.56×45mm NATO', 50, 930, 0.100, 20, 30, 2.6, 'S', 1.00, 0.40, 8, 'mgxs'],
+  ['dragunov', 'Dragunov', 'DMR', '7.62×54mmR', 60, 830, 0.150, 10, 20, 3.2, 'S', 1.70, 0.60, 8, 'mxs'],
+  ['kar98k', 'Kar98k', 'SR', '7.92×57mm 마우저', 79, 760, 1.90, 5, 5, 4.0, 'S', 2.5, 0.6, 8, 'mxs'],
+  ['m24', 'M24', 'SR', '7.62×51mm NATO', 75, 790, 1.80, 5, 7, 3.4, 'S', 2.4, 0.6, 8, 'mxs'],
+  ['awm', 'AWM', 'SR', '.300 윈체스터 매그넘', 105, 945, 1.85, 5, 7, 4.0, 'S', 3.0, 0.7, 8, 'mxs'],
+  ['mosin', 'Mosin Nagant', 'SR', '7.62×54mmR', 79, 870, 1.90, 5, 5, 4.0, 'S', 2.5, 0.6, 8, 'mxs'],
+  ['win94', 'Win94', 'SR', '.30-30 윈체스터', 66, 760, 1.30, 8, 8, 4.0, 'S', 2.2, 0.6, 2, 'm'],
+  ['lynx', 'Lynx AMR', 'SR', '.50 BMG (12.7×99mm)', 118, 1000, 1.80, 5, 5, 4.5, 'S', 4.0, 0.8, 8, ''],
+  ['s1897', 'S1897', 'SG', '12게이지 산탄', 26, 360, 0.75, 5, 5, 3.0, 'S', 3.5, 0.8, 1, 'm'],
+  ['s686', 'S686', 'SG', '12게이지 산탄', 26, 370, 0.20, 2, 2, 2.2, 'S', 3.5, 0.8, 0, 'm'],
+  ['s12k', 'S12K', 'SG', '12게이지 산탄', 24, 350, 0.25, 5, 8, 2.6, 'S', 3.0, 0.8, 2, 'mx'],
+  ['dbs', 'DBS', 'SG', '12게이지 산탄', 26, 400, 0.30, 14, 14, 4.5, 'S', 3.2, 0.8, 2, ''],
+  ['o12', 'O12', 'SG', '12게이지 슬러그', 30, 350, 0.20, 5, 8, 2.6, 'SA', 3.0, 0.8, 2, 'mx'],
+  ['sawed', 'Sawed-off', 'SG', '12게이지 산탄', 21, 340, 0.20, 2, 2, 2.0, 'S', 3.5, 0.8, 0, ''],
+  ['m249', 'M249', 'LMG', '5.56×45mm NATO', 41, 915, 0.075, 75, 150, 6.5, 'A', 0.48, 0.22, 7, ''],
+  ['dp28', 'DP-28', 'LMG', '7.62×54mmR', 52, 715, 0.109, 47, 47, 4.5, 'A', 0.60, 0.25, 7, ''],
+  ['mg3', 'MG3', 'LMG', '7.62×51mm NATO', 42, 820, 0.060, 75, 75, 6.5, 'A', 0.60, 0.28, 7, ''],
+  ['crossbow', '석궁', 'XB', '석궁 볼트(화살)', 105, 100, 0.3, 1, 1, 3.4, 'S', 1.0, 0.25, 5, ''],
+  ['p92', 'P92', 'HG', '9×19mm 파라벨룸', 34, 380, 0.135, 15, 20, 2.0, 'S', 0.9, 0.4, 2, 'mx'],
   ['p1911', 'P1911', 'HG', '.45 ACP', 42, 250, 0.110, 7, 12, 2.1, 'S', 1.1, 0.5, 2, 'mx'],
-  ['p18c', 'P18C', 'HG', '9mm', 23, 375, 0.060, 17, 25, 2.0, 'SA', 0.7, 0.4, 2, 'mx'],
-  ['r1895', 'R1895', 'HG', '7.62mm', 64, 330, 0.40, 7, 7, 3.0, 'S', 1.6, 0.6, 2, 'm'],
+  ['p18c', 'P18C', 'HG', '9×19mm 파라벨룸', 23, 375, 0.060, 17, 25, 2.0, 'SA', 0.7, 0.4, 2, 'mx'],
+  ['r1895', 'R1895', 'HG', '7.62×38mmR 나강', 64, 330, 0.40, 7, 7, 3.0, 'S', 1.6, 0.6, 2, 'm'],
   ['r45', 'R45', 'HG', '.45 ACP', 65, 330, 0.25, 6, 6, 2.2, 'S', 1.6, 0.6, 2, ''],
   ['deagle', 'Desert Eagle', 'HG', '.50 AE', 62, 420, 0.20, 7, 10, 2.2, 'S', 2.2, 0.7, 2, 'x'],
-  ['skorpion', 'Skorpion', 'HG', '9mm', 22, 300, 0.070, 20, 40, 2.6, 'SA', 0.45, 0.25, 2, 'gxs'],
+  ['skorpion', 'Skorpion', 'HG', '.32 ACP (7.65×17mm)', 22, 300, 0.070, 20, 40, 2.6, 'SA', 0.45, 0.25, 2, 'gxs'],
 ];
 const CAT_NAME = { AR: '돌격소총', SMG: '기관단총', DMR: '지정사수소총', SR: '저격소총', SG: '산탄총', LMG: '경기관총', HG: '권총', XB: '석궁' };
 const CAT_INFO = {
@@ -90,11 +90,48 @@ const SCOPES = [
 const MUZZLES = { comp: '보정기', flash: '소염기', supp: '소음기', choke: '초크', duck: '덕빌' };
 const GRIPS = { vert: '수직 손잡이', angled: '앵글 손잡이', half: '하프 그립', thumb: '엄지 그립', light: '라이트 그립', laser: '레이저 사이트' };
 const STOCKS = { tac: '전술 개머리판', cheek: '칙패드', loops: '총알 고리' };
+const MAGS = { ext: '대용량 탄창', qd: '퀵드로우 탄창', extqd: '대용량 퀵드로우' };
+// 파츠 효과 (배그 PC 기준) — 총 고르기 화면에 그대로 보여줘요
+const ATT_FX = {
+  muzzle: {
+    comp: { rv: 0.85, rh: 0.9, shake: 0.7, d: '수직 반동 -15% · 수평 반동 -10% · 화면 흔들림 -30%' },
+    flash: { rv: 0.9, rh: 0.9, hide: 1, d: '수직 반동 -10% · 수평 반동 -10% · 총구 불꽃 안 보임' },
+    supp: { supp: 1, hide: 1, d: '총소리가 작아져 멀리서 잘 안 들림 · 총구 불꽃 안 보임 · AI가 위치를 잘 못 찾음' },
+    choke: { spread: 0.75, d: '산탄 퍼짐 -25% (멀리까지 모여서 날아감)' },
+    duck: { spreadV: 0.6, spreadH: 1.15, d: '산탄 세로 퍼짐 -40% · 가로로 넓게 퍼짐' },
+  },
+  grip: {
+    vert: { rv: 0.85, d: '수직 반동 -15%' },
+    angled: { rh: 0.85, adsTime: 0.8, d: '수평 반동 -15% · 조준 속도 +20%' },
+    half: { rv: 0.92, rh: 0.92, recovery: 1.2, d: '수직·수평 반동 -8% · 반동 회복 +20%' },
+    thumb: { rv: 0.95, adsTime: 0.7, d: '수직 반동 -5% · 조준 속도 +30%' },
+    light: { rh: 0.9, recovery: 1.1, sway: 0.85, d: '수평 반동 -10% · 첫발 반동 회복 +10% · 흔들림 -15%' },
+    laser: { hip: 0.7, d: '비조준(지향) 사격 퍼짐 -30% · 움직이며 쏠 때 더 정확' },
+  },
+  mag: {
+    ext: { ext: 1, d: '탄창 크기 늘어남' },
+    qd: { reload: 0.7, d: '장전 시간 -30%' },
+    extqd: { ext: 1, reload: 0.7, d: '탄창 크기 늘어남 · 장전 시간 -30%' },
+  },
+  stock: {
+    tac: { rv: 0.92, rh: 0.9, sway: 0.85, d: '수직 반동 -8% · 수평 반동 -10% · 흔들림 -15%' },
+    cheek: { rv: 0.85, sway: 0.75, d: '수직 반동 -15% · 조준경 흔들림 -25%' },
+    loops: { reload: 0.75, d: '한 발씩 넣는 장전 +25% 빠름' },
+  },
+};
+function magOptions(w) { return w.slots.includes('x') ? ['ext', 'qd', 'extqd'] : []; }
+function stockOptions(w) {
+  if (!w.slots.includes('s')) return [];
+  if (w.cat === 'SR') return ['cheek', 'loops'];
+  if (w.cat === 'DMR') return ['cheek'];
+  if (w.cat === 'SG') return ['loops'];
+  return ['tac'];
+}
 
 function muzzleOptions(w) { if (!w.slots.includes('m')) return []; if (w.cat === 'SG') return ['choke', 'duck']; if (w.cat === 'HG') return ['supp']; return ['comp', 'flash', 'supp']; }
 function gripOptions(w) { return w.slots.includes('g') ? Object.keys(GRIPS) : []; }
 function scopeOptions(w) { if (w.scopeMax < 0) return []; if (w.cat === 'SG') return ['iron']; return SCOPES.slice(0, w.scopeMax + 1).map(s => s.id); }
-function stockType(w) { if (!w.slots.includes('s')) return null; if (w.cat === 'SR') return w.id === 'kar98k' || w.id === 'mosin' ? 'cheek' : 'cheek'; if (w.cat === 'DMR') return 'cheek'; return 'tac'; }
+function stockType(w) { const o = stockOptions(w); return o.length ? o[0] : null; }
 function defaultScope(w) {
   const o = scopeOptions(w); if (!o.length) return null;
   const want = { AR: 'reddot', SMG: 'holo', DMR: '4x', SR: '8x', SG: 'reddot', LMG: 'reddot', HG: 'reddot', XB: 'reddot' }[w.cat];
@@ -104,12 +141,15 @@ function defaultScope(w) {
 function fullAttachments(id, choice = {}) {
   const w = WEAPONS[id];
   const mo = muzzleOptions(w), go = gripOptions(w);
+  const xo = magOptions(w), so = stockOptions(w);
+  // '' 은 '없음'으로 고른 것
+  const pickOr = (v, opts, def) => !opts.length ? null : v === '' ? null : v && opts.includes(v) ? v : def;
   return {
     scope: choice.scope && scopeOptions(w).includes(choice.scope) ? choice.scope : defaultScope(w),
-    muzzle: mo.length ? (choice.muzzle && mo.includes(choice.muzzle) ? choice.muzzle : (w.cat === 'SG' ? 'choke' : w.cat === 'HG' ? 'supp' : 'comp')) : null,
-    grip: go.length ? (choice.grip && go.includes(choice.grip) ? choice.grip : (w.cat === 'DMR' ? 'half' : 'vert')) : null,
-    mag: w.slots.includes('x') ? 'extqd' : null,
-    stock: stockType(w),
+    muzzle: pickOr(choice.muzzle, mo, w.cat === 'SG' ? 'choke' : w.cat === 'HG' ? 'supp' : 'comp'),
+    grip: pickOr(choice.grip, go, w.cat === 'DMR' ? 'half' : 'vert'),
+    mag: pickOr(choice.mag, xo, 'extqd'),
+    stock: pickOr(choice.stock, so, so[0]),
   };
 }
 // 지금 실제 배율 (Win94 Alt+우클릭 4배율, 휠 줌 포함)
@@ -127,25 +167,16 @@ function weaponStats(id, att) {
   if (w.integrated) s.scopeZoom = 4;
   if (w.cat === 'XB') { s.suppressed = true; s.flashHidden = true; }
   if (att.scope) s.scopeZoom = scopeZoom(att.scope);
-  switch (att.muzzle) {
-    case 'comp': s.rv *= 0.85; s.rh *= 0.82; break;
-    case 'flash': s.rv *= 0.9; s.rh *= 0.9; s.flashHidden = true; break;
-    case 'supp': s.suppressed = true; s.flashHidden = true; break;
-    case 'choke': s.pelletSpread *= 0.6; break;
-    case 'duck': s.pelletSpread *= 0.8; break;
+  s.spreadMul = 1; s.spreadV = 1; s.spreadH = 1; s.shake = 1;
+  for (const key of ['muzzle', 'grip', 'mag', 'stock']) {
+    const fx = att[key] && ATT_FX[key][att[key]]; if (!fx) continue;
+    if (fx.rv) s.rv *= fx.rv; if (fx.rh) s.rh *= fx.rh; if (fx.adsTime) s.adsTime *= fx.adsTime;
+    if (fx.recovery) s.recovery *= fx.recovery; if (fx.sway) s.sway *= fx.sway; if (fx.hip) s.hip *= fx.hip;
+    if (fx.reload) s.reload *= fx.reload; if (fx.ext) s.mag = w.ext; if (fx.shake) s.shake *= fx.shake;
+    if (fx.supp) s.suppressed = true; if (fx.hide) s.flashHidden = true;
+    if (fx.spread) s.spreadMul *= fx.spread; if (fx.spreadV) s.spreadV *= fx.spreadV; if (fx.spreadH) s.spreadH *= fx.spreadH;
   }
-  switch (att.grip) {
-    case 'vert': s.rv *= 0.85; s.recovery *= 1.1; break;
-    case 'angled': s.rh *= 0.8; s.adsTime *= 0.8; break;
-    case 'half': s.rv *= 0.92; s.rh *= 0.92; s.recovery *= 1.2; break;
-    case 'thumb': s.rv *= 0.95; s.adsTime *= 0.7; break;
-    case 'light': s.rh *= 0.88; s.recovery *= 1.1; break;
-    case 'laser': s.hip *= 0.7; break;
-  }
-  if (att.mag === 'extqd') { s.mag = w.ext; s.reload *= 0.75; }
-  if (att.stock === 'tac') { s.rv *= 0.92; s.rh *= 0.9; s.sway *= 0.85; }
-  if (att.stock === 'cheek') { s.rv *= 0.85; s.sway *= 0.75; }
-  if (w.cat === 'SG') s.ads = s.pelletSpread * 0.7;
+  if (w.cat === 'SG') { s.pelletSpread *= s.spreadMul; s.ads = s.pelletSpread * 0.7; s.hip *= s.spreadMul; }
   return s;
 }
 
@@ -252,7 +283,7 @@ function buildGunModel(id, att) {
   }
   // 탄창
   let mag = null;
-  const ext = att.mag === 'extqd' ? 1.35 : 1;
+  const ext = att.mag === 'extqd' || att.mag === 'ext' ? 1.35 : 1;
   const magZ = st.bullpup ? 0.05 : -0.08;
   switch (st.mag) {
     case 'str': mag = M(BX(0.03, 0.12 * ext, 0.05), GUNMAT.black, 0, -0.07 * ext, magZ, 0.12); break;
@@ -313,6 +344,10 @@ function buildGunModel(id, att) {
   if (w.integrated) { addScope(g, '4x', 0.11, -0.05, info); g.add(M(CY(0.024, 0.024, B, 10), GUNMAT.black, 0, 0.035, recF - B / 2, Math.PI / 2)); }
   else if (att.scope && att.scope !== 'iron') addScope(g, att.scope, 0.0, -0.06, info);
   gunExtras(g, id, { body, furn, R, B, recF, hgL, att, scoped: !!(att.scope && att.scope !== 'iron') });
+  if (g.userData.mag && !info.magMesh) { info.magMesh = g.userData.mag; info.magHome = g.userData.mag.position.clone(); }
+  // 장전 동작용: 탄 넣는 방식 + 장전 손잡이 위치
+  info.loadType = info.magMesh && st.mag !== 'tube' ? 'mag' : 'shell';
+  info.boltPos = w.cat === 'HG' ? new V3(0, 0.05, 0.02) : /akm|beryl|mk47|ace32|groza|sks|dragunov|s12k|dp28/.test(id) ? new V3(0.05, 0.045, -0.02) : new V3(0.0, 0.075, 0.1);
   info.eject.position.set(0.03, 0.05, -0.05);
   g.add(info.muzzle, info.eject);
   return info;
@@ -474,18 +509,26 @@ function gunExtras(g, id, o) {
 function addScope(g, scope, yOff, zc, info, small) {
   const base = small ? 0.072 : 0.07;
   const s = new THREE.Group(); g.add(s);
-  if (scope === 'reddot') {
-    s.add(M(BX(0.026, 0.012, 0.045), GUNMAT.black, 0, base + 0.006, zc));
-    const fr = M(new THREE.TorusGeometry(0.019, 0.004, 6, 18), GUNMAT.black, 0, base + 0.032, zc - 0.015); s.add(fr);
-    s.add(M(new THREE.CircleGeometry(0.018, 18), GUNMAT.lensRed, 0, base + 0.032, zc - 0.015));
-    info.sightY = base + 0.032;
-  } else if (scope === 'holo') {
-    s.add(M(BX(0.036, 0.014, 0.06), GUNMAT.black, 0, base + 0.007, zc));
-    s.add(M(BX(0.004, 0.04, 0.05), GUNMAT.black, 0.02, base + 0.03, zc));
-    s.add(M(BX(0.004, 0.04, 0.05), GUNMAT.black, -0.02, base + 0.03, zc));
-    s.add(M(BX(0.044, 0.005, 0.05), GUNMAT.black, 0, base + 0.052, zc));
-    s.add(M(new THREE.PlaneGeometry(0.036, 0.034), GUNMAT.lensRed, 0, base + 0.032, zc - 0.02));
-    info.sightY = base + 0.032;
+  if (scope === 'reddot') { // 배그 레드 도트: 짧은 원통형 조준기 (마운트 위, 오른쪽에 밝기 다이얼)
+    const y = base + 0.034, r = 0.0175, L = 0.05;
+    s.add(M(BX(0.028, 0.008, 0.05), GUNMAT.black, 0, base + 0.004, zc));                // 레일 마운트
+    s.add(M(BX(0.018, y - r - base, 0.03), GUNMAT.black, 0, base + (y - r - base) / 2 + 0.004, zc)); // 받침
+    const tube = M(CY(r, r, L, 20, true), GUNMAT.black, 0, y, zc, Math.PI / 2); tube.material = tube.material.clone(); tube.material.side = THREE.DoubleSide; s.add(tube);
+    s.add(M(new THREE.TorusGeometry(r, 0.0022, 6, 20), GUNMAT.black, 0, y, zc - L / 2));  // 앞 테두리
+    s.add(M(new THREE.TorusGeometry(r, 0.0022, 6, 20), GUNMAT.black, 0, y, zc + L / 2));  // 뒤 테두리
+    s.add(M(CY(0.007, 0.007, 0.012, 10), GUNMAT.dark, r + 0.004, y, zc, 0, 0, Math.PI / 2)); // 밝기 다이얼
+    s.add(M(CY(0.006, 0.006, 0.01, 10), GUNMAT.dark, 0, y + r + 0.004, zc));              // 위 조절 다이얼
+    s.add(M(new THREE.CircleGeometry(r * 0.95, 20), GUNMAT.lensRed, 0, y, zc - L / 2 + 0.003));
+    info.sightY = y;
+  } else if (scope === 'holo') { // 배그 홀로그램: 네모난 창 + 위 덮개 + 뒤쪽 배터리 칸
+    const y = base + 0.032;
+    s.add(M(BX(0.034, 0.016, 0.075), GUNMAT.black, 0, base + 0.008, zc + 0.008));          // 아래 몸통
+    s.add(M(BX(0.03, 0.022, 0.026), GUNMAT.black, 0, base + 0.026, zc + 0.034));           // 뒤 배터리·버튼 칸
+    for (const sx of [-1, 1]) s.add(M(BX(0.004, 0.04, 0.04), GUNMAT.black, sx * 0.019, y + 0.003, zc - 0.012)); // 옆 창틀
+    s.add(M(BX(0.042, 0.005, 0.044), GUNMAT.black, 0, y + 0.024, zc - 0.012));             // 위 덮개
+    s.add(M(BX(0.034, 0.004, 0.004), GUNMAT.dark, 0, y - 0.016, zc - 0.033));              // 창 아래 테
+    s.add(M(new THREE.PlaneGeometry(0.034, 0.036), GUNMAT.lensRed, 0, y + 0.003, zc - 0.03));
+    info.sightY = y + 0.003;
   } else {
     const z = scopeZoom(scope);
     const len = { 2: 0.1, 3: 0.14, 4: 0.17, 6: 0.2, 8: 0.26, 15: 0.32 }[z] || 0.16;

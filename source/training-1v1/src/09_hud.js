@@ -95,9 +95,10 @@ const HUD = {
     const zoom = w ? effZoom(w) : 1;
     const full = p.adsT > 0.85 && scope && zoom >= 2 && scope !== 'iron' && CAM.blend < 0.5;
     UI('scope', 'style.display', full ? 'block' : 'none');
-    if (full) { UI('scope', 'className', 'sc-' + scope); }
+    const rv = scope ? ((SETTINGS.ret || {})[scope] || 0) : 0; // PgUp/PgDn 으로 고른 조준점 모양
+    if (full) { UI('scope', 'className', 'sc-' + scope + (rv ? ' rv' + rv : '')); }
     const dotOn = p.adsT > 0.9 && (scope === 'reddot' || scope === 'holo') && CAM.blend < 0.5;
-    UI('ret', 'style.display', dotOn ? 'block' : 'none'); if (dotOn) UI('ret', 'className', 'r-' + scope);
+    UI('ret', 'style.display', dotOn ? 'block' : 'none'); if (dotOn) UI('ret', 'className', 'r-' + scope + (rv ? ' rv' + rv : ''));
     const isSG = p.mode === 'gun' && w && w.stats.cat === 'SG';
     const showSG = isSG && !p.dead && !(p.sprint && Math.hypot(p.vel.x, p.vel.z) > 3);
     const showCross = !isSG && !(p.adsT > 0.5 && CAM.blend < 0.5) && !p.dead && p.mode === 'gun' && !(p.sprint && Math.hypot(p.vel.x, p.vel.z) > 3);
@@ -119,9 +120,10 @@ const HUD = {
       const focal = (innerHeight / 2) / Math.tan(camera.fov * DEG / 2);
       const gap = Math.max(4, Math.tan(sp * DEG) * focal);
       this.gap = damp(this.gap || gap, gap, 18, dt);
-      const g = Math.round(this.gap * 2) / 2;
-      UI('ch-t', 'style.transform', `translate(-50%, ${-g - 10}px)`); UI('ch-b', 'style.transform', `translate(-50%, ${g}px)`);
-      UI('ch-l', 'style.transform', `translate(${-g - 10}px, -50%)`); UI('ch-r', 'style.transform', `translate(${g}px, -50%)`);
+      const X = SETTINGS.xh, L = X.len;
+      const g = X.dyn ? Math.max(X.gap, Math.round(this.gap * 2) / 2 - 4 + X.gap) : X.gap; // 발로란트처럼 고정할 수도 있어요
+      UI('ch-t', 'style.transform', `translate(0, ${-g - L}px)`); UI('ch-b', 'style.transform', `translate(0, ${g}px)`);
+      UI('ch-l', 'style.transform', `translate(${-g - L}px, 0)`); UI('ch-r', 'style.transform', `translate(${g}px, 0)`);
     }
     UI('dot', 'style.display', !p.dead && (p.mode === 'throw' || p.mode === 'fist') ? 'block' : 'none');
     // 맞힘 표시
@@ -152,14 +154,19 @@ const HUD = {
     this.drawCompass();
     this.updateArc(p);
   },
+  assist(victim) { // 어시스트 표시 (화면 가운데 아래, 잠깐)
+    const el = $('assist'); if (!el) return;
+    el.innerHTML = `<b>어시스트</b> ${esc(victim ? victim.name : '')}`; el.style.opacity = 1; el.style.transform = 'translate(-50%,0)';
+    clearTimeout(this._asT); this._asT = setTimeout(() => { el.style.opacity = 0; el.style.transform = 'translate(-50%,8px)'; }, 1800);
+  },
   showBoard(on) {
     const b = $('board');
     if (!on) { b.style.display = 'none'; return; }
-    const row = (a, me) => `<tr class="${me ? 'me' : ''} ${a.dead ? 'dead' : ''}"><td>${esc(a.name)}${me ? ' (나)' : ''}</td><td>${a.kills || 0}</td><td>${a.deaths || 0}</td><td>${((a.kills || 0) / Math.max(1, a.deaths || 0)).toFixed(2)}</td><td>${a.heads || 0}</td></tr>`;
-    let h = `<h3>점수판 · 라운드 ${G.round} · ${G.score[G.myTeam || 0]} : ${G.score[1 - (G.myTeam || 0)]}</h3><table><tr><th>이름</th><th>킬</th><th>데스</th><th>K/D</th><th>헤드샷</th></tr>`;
+    const row = (a, me) => `<tr class="${me ? 'me' : ''} ${a.dead ? 'dead' : ''}"><td>${esc(a.name)}${me ? ' (나)' : ''}</td><td>${a.kills || 0}</td><td>${a.assists || 0}</td><td>${a.deaths || 0}</td><td>${((a.kills || 0) / Math.max(1, a.deaths || 0)).toFixed(2)}</td><td>${a.heads || 0}</td></tr>`;
+    let h = `<h3>점수판 · 라운드 ${G.round} · ${G.score[G.myTeam || 0]} : ${G.score[1 - (G.myTeam || 0)]}</h3><table><tr><th>이름</th><th>킬</th><th>어시</th><th>데스</th><th>K/D</th><th>헤드샷</th></tr>`;
     if (G.mode === 'mp') {
       for (const t of [G.myTeam, 1 - G.myTeam]) {
-        h += `<tr><td class="tb" colspan="5" style="color:${TEAM_COLOR[t]}">${TEAM_NAME[t]} 팀${t === G.myTeam ? ' (우리)' : ''} · ${G.score[t]}점</td></tr>`;
+        h += `<tr><td class="tb" colspan="6" style="color:${TEAM_COLOR[t]}">${TEAM_NAME[t]} 팀${t === G.myTeam ? ' (우리)' : ''} · ${G.score[t]}점</td></tr>`;
         const list = ACTORS.filter(a => a.team === t && !a.gone).sort((x, y) => (y.kills || 0) - (x.kills || 0));
         for (const a of list) h += row(a, a === PLAYER);
       }
