@@ -224,6 +224,7 @@ const CY = (r1, r2, h, s = 10, open = false) => new THREE.CylinderGeometry(r1, r
 
 // 총 모델: 총구는 -z 방향, 원점은 방아쇠 위치
 function buildGunModel(id, att) {
+  if (typeof GUN_NEW !== 'undefined' && GUN_NEW[id]) return buildGunNew(id, att);
   const w = WEAPONS[id], st = GUN_STYLE[id] || { body: 'black', rec: 0.34, bar: 0.25, mag: 'str' };
   const g = new THREE.Group();
   const body = GUNMAT[st.body], furn = st.furn ? GUNMAT[st.furn] : body;
