@@ -53,15 +53,27 @@ function buildSoldier(opt) {
   const headC = new THREE.Object3D(); headC.position.y = 0.14; neck.add(headC);
   // 조준 묶음 (팔 + 총)
   const aim = new THREE.Group(); aim.position.set(0, 0.44, 0); spine.add(aim);
-  const gunMount = new THREE.Group(); gunMount.position.set(0.07, -0.06, -0.3); aim.add(gunMount);
+  // 총은 오른쪽 어깨에 개머리판을 대고 들어요 (가슴을 뚫고 들어가지 않게)
+  const gunMount = new THREE.Group(); gunMount.position.set(0.1, -0.03, 0); aim.add(gunMount);
   const arms = new THREE.Group(); aim.add(arms);
+  let gz = -0.3, lHand = null, lFore = null, lElbow = null, lHome = null, curCat = 'AR';
+  const foreGeo = new THREE.CylinderGeometry(0.042, 0.05, 1, 8);
+  function fitFore() { // 왼쪽 아래팔: 팔꿈치 → 손
+    if (!lFore) return; const d = _v1.copy(lHand.position).sub(lElbow), L = d.length();
+    lFore.position.copy(lElbow).addScaledVector(d, 0.5); lFore.scale.set(1, L, 1); lFore.quaternion.setFromUnitVectors(new V3(0, 1, 0), d.normalize());
+  }
   function setArms(cat) {
+    curCat = cat;
     while (arms.children.length) arms.remove(arms.children[0]);
-    const long = cat !== 'HG';
-    const sR = new V3(0.2, 0.0, 0.02), eR = new V3(0.24, -0.2, -0.12), hR = new V3(0.07, -0.1, -0.27);
-    const sL = new V3(-0.2, 0.0, 0.02), eL = long ? new V3(-0.16, -0.2, -0.3) : new V3(-0.15, -0.2, -0.16), hL = long ? new V3(0.05, -0.06, -0.52) : new V3(0.05, -0.1, -0.28);
+    const long = cat !== 'HG', mx = gunMount.position.x, my = gunMount.position.y;
+    const sR = new V3(0.2, 0.0, 0.02), sL = new V3(-0.2, 0.0, 0.02);
+    const hR = new V3(mx, my - 0.06, gz + 0.02);                                           // 오른손: 손잡이
+    const hL = long ? new V3(mx - 0.01, my - 0.03, gz - 0.3) : new V3(mx - 0.02, my - 0.075, gz + 0.03); // 왼손: 총열 덮개 (권총은 두 손으로)
+    const eR = new V3(0.26, -0.2, (sR.z + hR.z) / 2 + 0.05), eL = new V3(-0.14, -0.22, (sL.z + hL.z) / 2);
     arms.add(limbMesh(sR, eR, 0.06, 0.055, shirt), limbMesh(eR, hR, 0.05, 0.042, shirt), S(new THREE.SphereGeometry(0.045, 8, 6), glove, hR.x, hR.y, hR.z));
-    arms.add(limbMesh(sL, eL, 0.06, 0.055, shirt), limbMesh(eL, hL, 0.05, 0.042, shirt), S(new THREE.SphereGeometry(0.045, 8, 6), glove, hL.x, hL.y, hL.z));
+    arms.add(limbMesh(sL, eL, 0.06, 0.055, shirt));
+    lHand = S(new THREE.SphereGeometry(0.045, 8, 6), glove, hL.x, hL.y, hL.z); lHome = hL.clone(); lElbow = eL;
+    lFore = new THREE.Mesh(foreGeo, shirt); lFore.castShadow = true; arms.add(lHand, lFore); fitFore();
     arms.add(S(new THREE.SphereGeometry(0.07, 8, 6), shirt, 0.2, 0, 0.02), S(new THREE.SphereGeometry(0.07, 8, 6), shirt, -0.2, 0, 0.02));
   }
   setArms('AR');
@@ -76,8 +88,16 @@ function buildSoldier(opt) {
       vest.visible = v > 0; if (v > 0) vestMat.color.setHex(ARMOR.vest.color[v]);
     },
     setGun(model) {
-      if (this.gun) gunMount.remove(this.gun);
-      this.gun = model; if (model) gunMount.add(model);
+      if (this.gun) { gunMount.remove(this.gun); if (this.gun.userData.mag && this.gun.userData.magHome) { this.gun.userData.mag.position.copy(this.gun.userData.magHome); this.gun.userData.mag.visible = true; } }
+      this.gun = model; gz = -0.3;
+      if (model) {
+        model.position.set(0, 0, 0); model.rotation.set(0, 0, 0);
+        const box = new THREE.Box3().setFromObject(model), short = box.max.z - box.min.z < 0.4;
+        gz = short ? -0.42 : -0.15 - box.max.z;   // 개머리판 끝이 어깨 앞에 오도록
+        model.position.z = gz;
+        if (model.userData.mag && !model.userData.magHome) model.userData.magHome = model.userData.mag.position.clone();
+        gunMount.add(model);
+      }
     },
     setVisible(v) { root.visible = v; },
     setShirt(c) { shirt.color.setHex(c); },
@@ -118,7 +138,27 @@ function buildSoldier(opt) {
       aim.rotation.x = (prone ? Math.PI / 2 : 0) - spine.rotation.x + (st.sprint ? -0.5 : pitch);
       aim.rotation.y = st.sprint ? 0.6 : 0;
       neck.rotation.x = (prone ? Math.PI / 2 * 0.85 : 0) - spine.rotation.x + pitch * 0.7;
-      aim.position.z = st.reloadT > 0 ? Math.sin(st.reloadT * Math.PI) * 0.03 : 0;
+      aim.position.z = 0;
+      // 3인칭 장전: 총을 살짝 기울이고 왼손으로 탄창을 빼서 버리고 새 탄창을 끼워요
+      const g = this.gun, mag = g && g.userData.mag, mh = g && g.userData.magHome;
+      const rk = st.reloadT || 0, tilt = rk > 0 ? Math.min(1, rk / 0.1) * Math.min(1, (1 - rk) / 0.12) : 0;
+      gunMount.rotation.z = tilt * 0.45; gunMount.rotation.x = tilt * 0.12;
+      if (lHand) {
+        const H = lHand.position; H.copy(lHome);
+        if (rk > 0 && mag && mh) {
+          const magW = _v2.set(0, mh.y - 0.06, mh.z + gz).applyEuler(gunMount.rotation).add(gunMount.position); // 탄창 아래 (aim 좌표)
+          const down = _v3.set(-0.05, -0.45, -0.15);
+          const sm = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+          mag.visible = true; mag.position.copy(mh);
+          if (rk < 0.12) H.lerpVectors(lHome, magW, sm(0, 0.12, rk));
+          else if (rk < 0.24) { const t = sm(0.12, 0.24, rk); mag.position.y = mh.y - 0.14 * t; H.copy(magW); H.y -= 0.14 * t; }
+          else if (rk < 0.42) { const t = (rk - 0.24) / 0.18; mag.position.y = mh.y - 0.14 - 1.2 * t * t; mag.visible = t < 0.75; H.copy(magW).lerp(down, sm(0.24, 0.38, rk)); }
+          else if (rk < 0.58) { const t = sm(0.42, 0.58, rk); H.copy(down).lerp(magW, t); H.y -= 0.14 * t; mag.visible = t > 0.2; mag.position.y = mh.y - 0.14; }
+          else if (rk < 0.68) { const t = sm(0.58, 0.66, rk); mag.position.y = mh.y - 0.14 * (1 - t); H.copy(magW); H.y -= 0.14 * (1 - t); }
+          else H.lerpVectors(magW, lHome, sm(0.68, 0.86, rk));
+        } else if (mag && mh) { mag.position.copy(mh); mag.visible = true; }
+        fitFore();
+      }
       // 파쿠르 동작: 손 짚고 → 다리 접어 넘기기 / 올라서기
       if (st.vault >= 0) {
         const u = st.vault, e = (x) => x * x * (3 - 2 * x);

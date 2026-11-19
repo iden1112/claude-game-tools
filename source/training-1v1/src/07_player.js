@@ -320,6 +320,7 @@ function updateViewmodel(dt, hsp) {
     const k = clamp(1 - p.reloadT / p.reloadDur, 0, 1), r = reloadPose(k, p, info);
     rz += r.rz; rx += r.rx; ry += r.ry; pos.x += r.x; pos.y += r.y; pos.z += r.z;
   } else {
+    VM.rlBlend = 0;
     if (info.magMesh) { info.magMesh.position.copy(info.magHome); info.magMesh.rotation.x = info.magRot0 !== undefined ? info.magRot0 : info.magMesh.rotation.x; info.magMesh.visible = !info.xbBolt || p.w.mag > 0; }
     if (VM.lhand) VM.lhand.position.copy(VM.lhome);
   }
@@ -338,6 +339,8 @@ function fitForearm() { // 아래팔을 손 → 팔꿈치로 맞추기 (손이 �
   const f = VM.lfore, L = VM.lhand; if (!f || !L) return;
   const off = _rv.copy(L.position).sub(VM.lhome);
   const e = _rv2.copy(VM.lelbow).addScaledVector(off, 1.0);
+  const rb = VM.rlBlend || 0; // 장전 중엔 팔꿈치를 아래로 (아래팔이 카메라를 가리지 않게)
+  if (rb > 0) e.lerp(new V3(L.position.x - 0.03, L.position.y - 0.32, L.position.z + 0.04), rb);
   const d = new V3().copy(e).sub(L.position), len = d.length();
   f.position.copy(L.position).addScaledVector(d, 0.5); f.scale.set(1, len, 1);
   f.quaternion.setFromUnitVectors(new V3(0, 1, 0), d.normalize());
@@ -351,6 +354,7 @@ function reloadPose(k, p, info) {
   const out = { rx: 0, ry: 0, rz: 0, x: 0, y: 0, z: 0 };
   const tilt = sstep(0, 0.12, k) * (1 - sstep(0.86, 1, k));
   const L = VM.lhand, H0 = VM.lhome, mag = info.magMesh, M0 = info.magHome;
+  VM.rlBlend = tilt;
   if (info.magRot0 === undefined && mag) info.magRot0 = mag.rotation.x;
   const setHand = (v) => { if (L) L.position.copy(v); };
   if (info.xbBolt) { // 석궁: 손으로 화살을 얹어요
@@ -361,6 +365,9 @@ function reloadPose(k, p, info) {
   }
   if (info.loadType === 'mag' && mag) {
     out.rz = tilt * 0.34; out.rx = -tilt * 0.04; out.ry = tilt * 0.1; out.y = tilt * 0.03; out.x = -tilt * 0.02; out.z = -tilt * 0.1;
+    // 탄창을 빼고 끼우는 동안엔 총을 더 들어 올리고 돌려서 탄창이 화면에 보이게 (배그처럼)
+    const show = sstep(0.05, 0.15, k) * (1 - sstep(0.66, 0.8, k));
+    out.rz += show * 0.28; out.rx += show * 0.1; out.y += show * 0.06; out.x -= show * 0.05; out.z -= show * 0.14;
     const below = _rv2.copy(M0); below.y -= 0.13;
     const grip = (m) => _rv.copy(m).add(new V3(0, -0.055, 0.0));
     const Hdown = new V3(-0.04, -0.42, -0.25);

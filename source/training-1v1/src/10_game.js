@@ -26,7 +26,7 @@ function goMenu() {
   for (const t of RANGE.targets) t.soldier.setVisible(false);
   for (const id in REMOTES) REMOTES[id].soldier.setVisible(false);
   G.myTeam = 0; PLAYER.team = undefined;
-  BOT.soldier.setVisible(true);
+  BOT.soldier.setVisible(false); PLAYER.soldier.setVisible(false); // 메뉴 화면엔 사람 모형을 세워 두지 않아요
   ACTORS.length = 0; ACTORS.push(PLAYER, BOT);
   if (document.pointerLockElement) document.exitPointerLock();
 }
@@ -421,6 +421,7 @@ function frame() {
   safe('fx', () => { updateFX(dt || 0.0001); fx.update(dt, camera); });
   if (playing) safe('cam', () => updatePlayerCamera(dt || 0.0001));
   else VM.root.visible = false;
+  if (window.__camOverride && playing) { const o = window.__camOverride; camera.position.set(...o.pos); camera.lookAt(...o.look); VM.root.visible = false; } // 테스트용 카메라
   safe('hud', () => HUD.update(dt));
   renderer.autoClear = true;
   renderer.render(scene, camera);

@@ -1,7 +1,7 @@
 // ================= 시작 =================
 applyQuality();
 buildWorld();
-createPlayer(); createBot();
+createPlayer(); createBot(); BOT.soldier.setVisible(false); PLAYER.soldier.setVisible(false); // 시작 화면엔 사람 모형 없이
 PLAYER.setLoadout(playerLoadoutList()); BOT.setLoadout(botLoadout());
 PLAYER.pos.set(-3, 0, -30); BOT.pos.set(3, 0, 30); BOT.yaw = 0; PLAYER.yaw = Math.PI;
 for (const a of ACTORS) a.afterMove(0);

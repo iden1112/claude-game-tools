@@ -6,7 +6,7 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 9; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 10; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 const STANCE_CODE = { stand: 0, crouch: 1, prone: 2 }, STANCE_NAME = ['stand', 'crouch', 'prone'];
@@ -394,7 +394,7 @@ function applyRound(m) {
   // 나간 사람 정리, 새 사람 만들기
   for (const id in REMOTES) if (!m.players.find(p => p.id === id)) removeRemote(id);
   for (const id in NET.bots) if (!m.players.find(p => p.id === id)) removeBot(id);
-  ACTORS.length = 0; ACTORS.push(PLAYER);
+  ACTORS.length = 0; ACTORS.push(PLAYER); BOT.soldier.setVisible(false); // 1대1용 AI는 멀티·팀전에서 숨겨요
   for (const p of m.players) {
     if (p.id === NET.id) continue;
     const r = NET.host && p.bot ? ensureBot(p.id, p.name, p.team) : ensureRemote(p.id);
@@ -455,7 +455,7 @@ function netRecv(m) {
       if (m.m === 'f') { if (r.mode !== 'fist') { r.mode = 'fist'; r.soldier.setGun(null); r.soldier.setArms('HG'); } }
       else if (m.m === 't') { if (r.mode !== 'throw' || r.throwType !== m.tt) { r.mode = 'throw'; r.throwType = m.tt; r.soldier.setGun(buildGrenadeModel(m.tt)); r.soldier.setArms('HG'); } }
       else if (r.weapons.length && (r.mode !== 'gun' || r.cur !== m.w)) { r.cur = clamp(m.w, 0, r.weapons.length - 1); r.mode = 'gun'; r.soldier.setGun(r.w.model); r.soldier.setArms(r.w.stats.cat); }
-      r.reloadT = m.rl ? 0.5 : 0; r.reloadDur = 1;
+      r.reloadT = m.rl ? 1 - m.rl : 0; r.reloadDur = 1; // 장전 진행도 (상대 장전 동작도 맞게)
       r.netVault = m.vt === undefined ? -1 : m.vt; r.netVaultOver = !!m.vo;
       break;
     }
@@ -507,7 +507,7 @@ function netUpdate(dt) {
     netSend({
       t: 'st', p: [+p.pos.x.toFixed(3), +p.pos.y.toFixed(3), +p.pos.z.toFixed(3)], v: [+p.vel.x.toFixed(2), +p.vel.z.toFixed(2)], y: +p.yaw.toFixed(4), pi: +p.pitch.toFixed(4),
       s: STANCE_CODE[p.stance], l: +p.lean.toFixed(2), a: +p.adsT.toFixed(2), sp: p.sprint ? 1 : 0, h: Math.round(p.health * 10) / 10, d: p.dead ? 1 : 0,
-      hl: p.helmet.lv, hd: Math.round(p.helmet.dur), vl: p.vest.lv, vd: Math.round(p.vest.dur), w: p.cur, m: p.mode === 'throw' ? 't' : p.mode === 'fist' ? 'f' : 'g', tt: p.throwType, rl: p.reloadT > 0 ? 1 : 0, vt: p.vault ? +Math.min(1, p.vault.t).toFixed(2) : -1, vo: p.vault && p.vault.over ? 1 : 0,
+      hl: p.helmet.lv, hd: Math.round(p.helmet.dur), vl: p.vest.lv, vd: Math.round(p.vest.dur), w: p.cur, m: p.mode === 'throw' ? 't' : p.mode === 'fist' ? 'f' : 'g', tt: p.throwType, rl: p.reloadT > 0 ? Math.max(0.01, +(1 - p.reloadT / (p.reloadDur || 1)).toFixed(2)) : 0, vt: p.vault ? +Math.min(1, p.vault.t).toFixed(2) : -1, vo: p.vault && p.vault.over ? 1 : 0,
     }, '*', sid);
     const lo = { t: 'lo', list: p.weapons.map(w => ({ id: w.id, att: w.att })) };
     const key = JSON.stringify(lo.list);
