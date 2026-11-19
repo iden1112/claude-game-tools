@@ -863,15 +863,16 @@ function arA2(K, t, v = 0.035) { K.C(t, t + 0.05, v, 0.0105, 0.0105, Md(), 10); 
 function akSlant(K, t) { K.C(t, t + 0.04, 0.035, 0.011, 0.011, Md(), 10); K.P([t + 0.02, 0.048, t + 0.04, 0.048, t + 0.04, 0.038], 0.024, Md()); return t + 0.04; }
 
 function buildGunNew(id, att) {
-  const w = WEAPONS[id], g = new THREE.Group(), K = gk(g);
+  const w = WEAPONS[id], g = new THREE.Group(); let K = gk(g);
   const info = { group: g, muzzle: new THREE.Object3D(), eject: new THREE.Object3D(), sightY: 0.083, magMesh: null };
   const ext = att.mag === 'ext' || att.mag === 'extqd';
   const scoped = !!(att.scope && att.scope !== 'iron') && !w.integrated;
   const d = GUN_NEW[id](K, { att, ext, scoped, w });
   const bore = d.bore ?? (w.cat === 'HG' ? 0.05 : 0.035), cat = w.cat;
   let tip = d.tip;
-  // 총구 장치
-  const mz = att.muzzle;
+  // 총구 장치 (꺾이는 총열이면 총열 쪽에)
+  const mz = att.muzzle, K0 = K;
+  { const BK = d.brk ? d.brk.K : K; K = Object.assign({}, K0, BK); }
   if (!d.noMuzzle && mz === 'supp') {
     const L = cat === 'SR' ? 0.21 : cat === 'HG' ? 0.12 : cat === 'SMG' ? 0.15 : 0.18, r = cat === 'HG' ? 0.0145 : cat === 'SR' || cat === 'DMR' ? 0.023 : 0.021;
     K.C(tip - 0.008, tip + 0.012, bore, r * 0.7, r, Mb(), 16); K.C(tip + 0.012, tip + L, bore, r, r, Mb(), 18);
@@ -890,6 +891,7 @@ function buildGunNew(id, att) {
   else if (mz === 'duck') { K.C(tip - 0.004, tip + 0.025, bore, 0.016, 0.016, Md(), 12); K.P([tip + 0.02, bore + 0.006, tip + 0.09, bore + 0.004, tip + 0.09, bore - 0.004, tip + 0.02, bore - 0.006], 0.05, Md()); tip += 0.09; }
   else if (d.dev) tip = d.dev(K, tip, bore);
   info.muzzle.position.set(0, bore, -tip);
+  K = K0;
   // 손잡이(그립) 파츠
   if (d.fg && att.grip && !d.noGripAtt) {
     const [fu, fv] = d.fg, B = Mb();
@@ -910,13 +912,14 @@ function buildGunNew(id, att) {
     addScope(s.g, w.integrated ? '4x' : att.scope, 0, -(d.scopeU ?? 0.06), info, cat === 'HG');
     info.sightY += s.g.position.y;
   } else if (d.bead) { // 산탄총: 총열 위 구슬 가늠쇠
-    const [bu, bv] = d.bead; K.S(bu, bv, 0.0055, GMX.bead).userData.keep = true;
+    const [bu, bv] = d.bead; (d.brk ? d.brk.K : K).S(bu, bv, 0.0055, GMX.bead).userData.keep = true;
     if (d.rib) K.B(d.rib[0], d.rib[1], d.rib[2], bv - 0.004, 0.01, Md());
     info.sightY = bv; info.sgBead = true;
   } else info.sightY = d.sightY ?? d.ironY ?? (cat === 'HG' ? 0.077 : 0.083);
   // 탄창·장전
   if (d.mag) { const m = d.mag.g; info.magMesh = m; info.magHome = m.position.clone(); g.userData.mag = m; }
   info.loadType = d.load || (d.mag ? 'mag' : 'shell');
+  if (d.brk) { info.brk = d.brk.g; g.userData.brk = d.brk.g; info.breech = new V3(0, d.breech[1], -d.breech[0]); }
   const b = d.bolt || [0, 0.075, -0.1]; info.boltPos = new V3(b[0], b[1], -b[2]);
   const e = d.ej || [0.02, bore + 0.01]; info.eject.position.set(0.03, e[1], -e[0]);
   g.add(info.muzzle, info.eject);
@@ -1099,5 +1102,55 @@ Object.assign(GUN_NEW, {
     mag.B(-0.05, 0.05, -0.04, -0.03, 0.077, GMX.odgD);
     if (!o.scoped) { K.B(-0.07, -0.04, 0.092, 0.098, 0.018, A); for (const sx of [-1, 1]) K.P([-0.068, 0.098, -0.042, 0.098, -0.048, 0.112, -0.062, 0.112], 0.004, A, sx * 0.01); K.ring(-0.055, 0.104, 0.005, 0.002, A); }
     return { tip: 0.73, mag, fg: [0.33, -0.042], noGripAtt: true, railV: 0.092, ironY: 0.104, dev: arA2, bolt: [-0.034, 0.04, 0.05] };
+  },
+});
+
+// ---------------- 꺾어서 장전하는 산탄총 (S686, 소드오프): 총열 묶음이 경첩에서 아래로 꺾여요 ----------------
+function shiftKit(k, du, dv) { // 좌표를 경첩 기준으로 옮겨 그리는 도구
+  const sp = (pts) => pts.map((x, i) => i % 2 ? x - dv : x - du);
+  return {
+    g: k.g,
+    C: (u0, u1, v, ...r) => k.C(u0 - du, u1 - du, v - dv, ...r),
+    B: (u0, u1, v0, v1, ...r) => k.B(u0 - du, u1 - du, v0 - dv, v1 - dv, ...r),
+    P: (pts, ...r) => k.P(sp(pts), ...r),
+    ring: (u, v, ...r) => k.ring(u - du, v - dv, ...r),
+    S: (u, v, ...r) => k.S(u - du, v - dv, ...r),
+  };
+}
+function shellMesh() { // 산탄 한 발: 빨간 플라스틱 + 놋쇠 밑동 (앞쪽이 -z)
+  const s = new THREE.Group();
+  const body = new THREE.Mesh(CY(0.0092, 0.0092, 0.058, 10), SHELL_MAT.red); body.rotation.x = Math.PI / 2; body.position.z = -0.005; s.add(body);
+  const base = new THREE.Mesh(CY(0.0098, 0.0098, 0.013, 10), GMX.brass); base.rotation.x = Math.PI / 2; base.position.z = 0.029; s.add(base);
+  return s;
+}
+const SHELL_MAT = { red: new THREE.MeshStandardMaterial({ color: 0xa32418, roughness: 0.55 }) };
+Object.assign(GUN_NEW, {
+  s686(K, o) { // S686: 위아래 2연발, 은색 몸통, 나무 개머리 — 총열+앞손잡이는 경첩(u 0.11)에서 꺾여요
+    const W = GMX.woodL, S = GX.silver, R = GMX.blue, hu = 0.11, hv = 0.004;
+    K.P([-0.06, 0.07, -0.06, -0.006, 0.11, -0.006, 0.11, 0.07], 0.038, S);
+    K.P([0.0, 0.07, 0.03, 0.082, 0.05, 0.074, 0.03, 0.068], 0.012, R);                     // 여는 레버
+    K.P([-0.06, 0.06, -0.38, 0.034, -0.395, 0.032, -0.395, -0.1, -0.38, -0.104, -0.09, -0.04, -0.06, -0.004], 0.038, W, 0, [[-0.1, -0.03, -0.12, -0.07, -0.13, -0.035]]);
+    K.pgrip(W, 'revolver', -0.04, 0.0, 0.034);
+    K.guard(R, -0.02, 0.034);
+    const bk = K.sub(hu, hv), B = shiftKit(bk, hu, hv);
+    B.C(0.11, 0.7, 0.035, 0.012, 0.012, R); B.C(0.11, 0.7, 0.062, 0.012, 0.012, R);
+    B.B(0.11, 0.7, 0.074, 0.078, 0.008, R); B.B(0.11, 0.7, 0.045, 0.052, 0.012, R);
+    B.P([0.12, 0.05, 0.12, 0.0, 0.14, -0.01, 0.34, -0.01, 0.36, 0.0, 0.36, 0.05], 0.042, W);
+    B.ring(0.112, 0.035, 0.0085, 0.0018, GMX.brass); B.ring(0.112, 0.062, 0.0085, 0.0018, GMX.brass); // 약실 속 탄피
+    return { tip: 0.7, bore: 0.062, fg: [0.25, -0.01], bead: [0.69, 0.082], dev: (K, t) => t, load: 'break', brk: { K: B, g: bk.g, u: hu, v: hv }, breech: [0.11, 0.048], bolt: [0.0, 0.0, 0.1] };
+  },
+  sawed(K, o) { // 소드오프: 좌우 2연발을 짧게 자르고 개머리를 권총손잡이로 깎은 모양 — 총열은 경첩(u 0.09)에서 꺾여요
+    const W = GMX.wood, R = GMX.blue, hu = 0.09, hv = 0.012;
+    K.P([-0.05, 0.05, -0.05, 0.008, 0.0, -0.002, 0.08, -0.002, 0.09, 0.014, 0.09, 0.054, 0.06, 0.058, -0.03, 0.058], 0.05, R);
+    K.P([-0.06, 0.06, -0.03, 0.068, -0.0, 0.064, -0.04, 0.056], 0.012, R);
+    for (const sx of [-1, 1]) K.P([-0.03, 0.06, ...bz(-0.03, 0.06, -0.045, 0.08, -0.06, 0.084), -0.055, 0.09, -0.02, 0.064], 0.006, R, sx * 0.013);
+    K.P([-0.05, 0.05, ...bz(-0.05, 0.05, -0.09, 0.04, -0.1, 0.005), ...bz(-0.1, 0.005, -0.105, -0.06, -0.09, -0.1), -0.06, -0.104, ...bz(-0.06, -0.104, -0.052, -0.06, -0.032, -0.02), -0.02, -0.004], 0.036, GMX.woodR);
+    K.P([0.035, -0.004, 0.04, -0.024, 0.03, -0.034, -0.025, -0.034, -0.03, -0.02, -0.025, -0.004], 0.012, R, 0, [[0.03, -0.008, 0.03, -0.028, -0.02, -0.028, -0.02, -0.008]]);
+    for (const u of [0.012, -0.006]) K.P([u, -0.004, u + 0.004, -0.016, u, -0.026, u - 0.004, -0.024, u - 0.002, -0.004], 0.005, Ms());
+    const bk = K.sub(hu, hv), B = shiftKit(bk, hu, hv);
+    for (const sx of [-1, 1]) { B.C(0.09, 0.37, 0.04, 0.0135, 0.0135, R, 14, sx * 0.0138); B.C(0.364, 0.37, 0.04, 0.0105, 0.0105, GMX.rubber, 12, sx * 0.0138); B.ring(0.092, 0.04, 0.009, 0.0018, GMX.brass, sx * 0.0138); }
+    B.B(0.09, 0.37, 0.05, 0.056, 0.008, R); B.B(0.09, 0.37, 0.022, 0.03, 0.02, R);
+    B.P([0.09, 0.034, 0.09, 0.006, ...bz(0.09, 0.006, 0.1, -0.008, 0.13, -0.01), 0.2, -0.01, ...bz(0.2, -0.01, 0.23, -0.008, 0.24, 0.02), 0.24, 0.034], 0.05, W);
+    return { tip: 0.37, bore: 0.04, fg: [0.16, -0.01], noGripAtt: true, bead: [0.36, 0.06], dev: (K, t) => t, load: 'break', brk: { K: B, g: bk.g, u: hu, v: hv }, breech: [0.09, 0.04], bolt: [0.0, 0.0, 0.1] };
   },
 });

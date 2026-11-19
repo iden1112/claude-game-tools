@@ -148,6 +148,7 @@ function buildSoldier(opt) {
       } else if (st.pinUp) { aim.rotation.x += 0.45; aim.rotation.z = -0.2; }
       // 3인칭 장전: 총을 살짝 기울이고 왼손으로 탄창을 빼서 버리고 새 탄창을 끼워요
       const g = this.gun, mag = g && g.userData.mag, mh = g && g.userData.magHome;
+      if (g && g.userData.brk) { const rk0 = st.reloadT || 0; g.userData.brk.rotation.x = rk0 > 0 ? -0.75 * Math.min(1, Math.max(0, (rk0 - 0.06) / 0.1)) * (1 - Math.min(1, Math.max(0, (rk0 - 0.8) / 0.06))) : 0; }
       const rk = st.reloadT || 0, tilt = rk > 0 ? Math.min(1, rk / 0.1) * Math.min(1, (1 - rk) / 0.12) : 0;
       gunMount.rotation.z = tilt * 0.45; gunMount.rotation.x = tilt * 0.12;
       if (lHand) {

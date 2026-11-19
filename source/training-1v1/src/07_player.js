@@ -337,7 +337,8 @@ function updateViewmodel(dt, hsp) {
   } else {
     VM.rlBlend = 0;
     if (info.magMesh) { info.magMesh.position.copy(info.magHome); info.magMesh.rotation.x = info.magRot0 !== undefined ? info.magRot0 : info.magMesh.rotation.x; info.magMesh.visible = !info.xbBolt || p.w.mag > 0; }
-    if (VM.lhand) VM.lhand.position.copy(VM.lhome);
+    if (VM.lhand) { VM.lhand.position.copy(VM.lhome); if (VM.lhand.userData.shells) VM.lhand.userData.shells.visible = false; }
+    if (info.brk) info.brk.rotation.x = 0; if (info.ejShells) for (const s of info.ejShells) s.visible = false;
   }
   // 볼트 당기기
   if (p.boltT > 0 && p.w.stats.def.interval > 0.5) { const k = 1 - p.boltT / p.w.stats.def.interval, e = Math.sin(clamp((k - 0.08) / 0.85, 0, 1) * Math.PI); rz -= e * 0.42; ry -= e * 0.12; pos.y -= e * 0.035; pos.z += e * 0.05; pos.x -= e * 0.02; }
@@ -378,6 +379,30 @@ function reloadPose(k, p, info) {
     out.rz = tilt * 0.3; out.rx = tilt * 0.15; out.y = -tilt * 0.05;
     info.xbBolt.visible = k > 0.55; info.xbBolt.position.z = M0.z + (k < 0.85 ? 0.25 * (0.85 - k) : 0);
     if (L) setHand(_rv.copy(H0).lerp(_rv2.set(0, 0.04, M0.z + 0.1), Math.sin(clamp(k, 0, 1) * Math.PI)));
+    return out;
+  }
+  if (info.loadType === 'break' && info.brk) { // 꺾어서 장전 (S686·소드오프): 열고 → 빈 탄피 튀어나옴 → 두 발 넣고 → 탁 닫기
+    const open = sstep(0.06, 0.16, k) * (1 - sstep(0.8, 0.86, k));
+    info.brk.rotation.x = -0.75 * open;
+    out.rx = tilt * 0.32; out.rz = tilt * 0.22; out.ry = tilt * 0.12; out.y = tilt * 0.02; out.x = -tilt * 0.03; out.z = -tilt * 0.06;
+    const snap = Math.max(0, 1 - Math.abs(k - 0.85) / 0.025); out.rx += snap * 0.08; out.y += snap * 0.01;
+    // 빈 탄피 두 개가 뒤로 튀어나와요
+    if (!info.ejShells) { info.ejShells = [shellMesh(), shellMesh()]; for (const s of info.ejShells) { s.visible = false; info.group.add(s); } }
+    const B0 = info.breech, et = (k - 0.15) / 0.18;
+    info.ejShells.forEach((s, i) => {
+      s.visible = et > 0 && et < 1;
+      if (s.visible) { s.position.set(B0.x + (i ? 0.014 : -0.014) + et * (i ? 0.12 : 0.07), B0.y + 0.03 + et * 0.14 - et * et * 0.32, B0.z + 0.02 + et * 0.05); s.rotation.set(et * 6 * (i ? 1 : -1), et * 3, 0); }
+    });
+    // 손에 든 새 탄 두 발
+    if (L && !L.userData.shells) { const g2 = new THREE.Group(); for (const sx of [-1, 1]) { const s = shellMesh(); s.position.set(sx * 0.011, 0.028, -0.03); g2.add(s); } g2.visible = false; L.add(g2); L.userData.shells = g2; }
+    const hs = L && L.userData.shells;
+    const Hd = new V3(0.02, -0.32, 0.1), above = _rv2.copy(B0).add(new V3(0, 0.0, 0.12));
+    if (k < 0.22) setHand(_rv.copy(H0).lerp(Hd, sstep(0.08, 0.22, k)));
+    else if (k < 0.42) setHand(Hd);
+    else if (k < 0.62) setHand(_rv.copy(Hd).lerp(above, sstep(0.42, 0.6, k)));
+    else if (k < 0.72) setHand(_rv.copy(above).lerp(_rv2.copy(B0).add(new V3(0, -0.02, 0.06)), sstep(0.62, 0.7, k)));
+    else setHand(_rv.copy(B0).add(new V3(0, -0.02, 0.06)).lerp(H0, sstep(0.72, 0.9, k)));
+    if (hs) { hs.visible = k > 0.4 && k < 0.7; hs.position.z = -sstep(0.62, 0.7, k) * 0.05; hs.rotation.x = 0.0; }
     return out;
   }
   if (info.loadType === 'mag' && mag) {
