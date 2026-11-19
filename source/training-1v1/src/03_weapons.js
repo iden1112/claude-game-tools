@@ -72,7 +72,7 @@ CAT_INFO.FIST = { body: 1.0, head: 2.0, limb: 0.8, hip: 0, ads: 0, adsTime: 0.2,
 const FIST_ST = { def: { id: 'fist', name: '맨손', cat: 'FIST', dmg: 18, vel: 0 }, cat: 'FIST' };
 for (const r of WEAPON_TABLE) {
   const [id, name, cat, ammo, dmg, vel, interval, mag, ext, reload, modes, rv, rh, scopeMax, slots] = r;
-  WEAPONS[id] = { id, name, cat, ammo, dmg, vel, interval, mag, ext, reload, modes, rv, rh, scopeMax, slots, pellets: cat === 'SG' ? (id === 'o12' ? 8 : 9) : 1, bolt: cat === 'SR' && interval > 1, integrated: id === 'vss' };
+  WEAPONS[id] = { id, name, cat, ammo, dmg, vel, interval, mag, ext, reload, modes, rv, rh, scopeMax, slots, pellets: cat === 'SG' ? (id === 'o12' ? 8 : 9) : 1, bolt: cat === 'SR' && interval > 1, integrated: id === 'vss', side: cat === 'HG' || id === 'sawed' }; // side: 3번(권총) 칸에 들어가는 총 — 배그처럼 소드오프도 권총 칸
 }
 
 // ================= 파츠 =================

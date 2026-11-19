@@ -1044,7 +1044,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 34; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 35; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -2394,7 +2394,7 @@ CAT_INFO.FIST = { body: 1.0, head: 2.0, limb: 0.8, hip: 0, ads: 0, adsTime: 0.2,
 const FIST_ST = { def: { id: 'fist', name: '맨손', cat: 'FIST', dmg: 18, vel: 0 }, cat: 'FIST' };
 for (const r of WEAPON_TABLE) {
   const [id, name, cat, ammo, dmg, vel, interval, mag, ext, reload, modes, rv, rh, scopeMax, slots] = r;
-  WEAPONS[id] = { id, name, cat, ammo, dmg, vel, interval, mag, ext, reload, modes, rv, rh, scopeMax, slots, pellets: cat === 'SG' ? (id === 'o12' ? 8 : 9) : 1, bolt: cat === 'SR' && interval > 1, integrated: id === 'vss' };
+  WEAPONS[id] = { id, name, cat, ammo, dmg, vel, interval, mag, ext, reload, modes, rv, rh, scopeMax, slots, pellets: cat === 'SG' ? (id === 'o12' ? 8 : 9) : 1, bolt: cat === 'SR' && interval > 1, integrated: id === 'vss', side: cat === 'HG' || id === 'sawed' }; // side: 3번(권총) 칸에 들어가는 총 — 배그처럼 소드오프도 권총 칸
 }
 
 // ================= 파츠 =================
@@ -5972,9 +5972,9 @@ try { const s = JSON.parse(localStorage.getItem('tg1v1_loadout') || 'null'); if 
 // 배그처럼: 1·2번은 주무기, 3번은 권총
 (function fixLoadoutSlots() {
   const sl = LOADOUT.slots, def = [{ id: 'm416' }, { id: 'kar98k' }];
-  let hg = sl.slice(0, 2).find(x => WEAPONS[x.id].cat === 'HG');
-  for (let i = 0; i < 2; i++) if (!sl[i] || WEAPONS[sl[i].id].cat === 'HG') sl[i] = Object.assign({ id: def[i].id }, fullAttachments(def[i].id));
-  if (!sl[2] || WEAPONS[sl[2].id].cat !== 'HG') sl[2] = hg || Object.assign({ id: 'p92' }, fullAttachments('p92'));
+  let hg = sl.slice(0, 2).find(x => WEAPONS[x.id].side);
+  for (let i = 0; i < 2; i++) if (!sl[i] || WEAPONS[sl[i].id].side) sl[i] = Object.assign({ id: def[i].id }, fullAttachments(def[i].id));
+  if (!sl[2] || !WEAPONS[sl[2].id].side) sl[2] = hg || Object.assign({ id: 'p92' }, fullAttachments('p92'));
   sl.length = 3;
 })();
 function saveLoadout() { try { localStorage.setItem('tg1v1_loadout', JSON.stringify(LOADOUT)); } catch (e) {} }
@@ -6152,7 +6152,7 @@ function openLoadout() {
   if (G.state !== 'pre' && G.state !== 'menu' && G.state !== 'range') { HUD.toast('라운드 시작 전에만 총을 바꿀 수 있어요'); return; }
   if ($('rangemenu').style.display !== 'none') closeRangeMenu(true);
   G.menuOpen = true; $('loadout').style.display = 'flex';
-  LO.cat = WEAPONS[LOADOUT.slots[LO.slot].id].cat;
+  LO.cat = LO.slot === 2 ? 'HG' : WEAPONS[LOADOUT.slots[LO.slot].id].cat;
   if (document.pointerLockElement) document.exitPointerLock();
   renderLoadout();
 }
@@ -6171,7 +6171,7 @@ function renderLoadout() {
   const sl = LOADOUT.slots[LO.slot];
   $('lo-slots').innerHTML = LOADOUT.slots.map((s, i) => `<button class="${i === LO.slot ? 'on' : ''}" data-slot="${i}"><small>${i + 1}번 ${i === 2 ? '권총' : '주무기'}</small>${WEAPONS[s.id].name}</button>`).join('');
   $('lo-cats').innerHTML = Object.keys(CAT_NAME).filter(c => LO.slot === 2 ? c === 'HG' : c !== 'HG').map(c => `<button class="${c === LO.cat ? 'on' : ''}" data-cat="${c}">${CAT_NAME[c]}</button>`).join('');
-  $('lo-guns').innerHTML = Object.values(WEAPONS).filter(w => w.cat === LO.cat).map(w => `<button class="gun ${w.id === sl.id ? 'on' : ''}" data-gun="${w.id}"><b>${w.name}</b><small>${w.ammo} · ${w.dmg}${w.pellets > 1 ? '×' + w.pellets : ''}</small></button>`).join('');
+  $('lo-guns').innerHTML = Object.values(WEAPONS).filter(w => LO.slot === 2 ? w.side : w.cat === LO.cat && !w.side).map(w => `<button class="gun ${w.id === sl.id ? 'on' : ''}" data-gun="${w.id}"><b>${w.name}</b><small>${w.ammo} · ${w.dmg}${w.pellets > 1 ? '×' + w.pellets : ''}</small></button>`).join('');
   const w = WEAPONS[sl.id], att = fullAttachments(sl.id, sl), st = weaponStats(sl.id, att);
   const rpm = Math.round(60 / w.interval);
   let html = `<h3>${w.name} <small>${CAT_NAME[w.cat]} · ${w.ammo}</small></h3>`;
@@ -6210,7 +6210,7 @@ function setupLoadoutUI() {
   $('loadout').addEventListener('click', (e) => {
     const t = e.target.closest('button'); if (!t) return;
     const sl = LOADOUT.slots[LO.slot];
-    if (t.dataset.slot !== undefined) { LO.slot = +t.dataset.slot; LO.cat = WEAPONS[LOADOUT.slots[LO.slot].id].cat; }
+    if (t.dataset.slot !== undefined) { LO.slot = +t.dataset.slot; LO.cat = LO.slot === 2 ? 'HG' : WEAPONS[LOADOUT.slots[LO.slot].id].cat; }
     else if (t.dataset.cat) LO.cat = t.dataset.cat;
     else if (t.dataset.gun) { LOADOUT.slots[LO.slot] = { id: t.dataset.gun }; Object.assign(LOADOUT.slots[LO.slot], fullAttachments(t.dataset.gun)); }
     else if (t.dataset.att) sl[t.dataset.att] = t.dataset.val;
