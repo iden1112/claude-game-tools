@@ -1,5 +1,5 @@
 'use strict';
-const GAME_BUILD = 32; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 33; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -566,7 +566,23 @@ const AU = (() => {
       noise(out, t, 2.2, 'lowpass', 380, 0.6, 1.6 * s.vol + 0.15, 0.01);
       tone(out, t, 0.9, 90, 28, 1.2 * s.vol + 0.1);
     },
-    pin() { if (!ctx) return; const out = chain(spatial(null)); tone(out, ctx.currentTime, 0.08, 3200, 2600, 0.15, 'triangle'); noise(out, ctx.currentTime + 0.05, 0.05, 'bandpass', 3000, 3, 0.25); },
+    pin(pos) { // 수류탄 핀 뽑기: 철컥(고리 당김) → 스르륵(핀 빠짐) → 팅~(쇠 울림)
+      if (!ctx) return; const s = spatial(pos || null); if (pos && s.dist > 25) return; const out = chain(s), t = ctx.currentTime, v = pos ? s.vol : 1;
+      noise(out, t, 0.018, 'highpass', 3500, 0.7, 0.55 * v);
+      tone(out, t, 0.03, 1800, 1200, 0.12 * v, 'square');
+      noise(out, t + 0.035, 0.09, 'bandpass', 5200, 4, 0.22 * v);
+      noise(out, t + 0.045, 0.06, 'bandpass', 2600, 3, 0.18 * v);
+      tone(out, t + 0.12, 0.45, 4300, 4240, 0.11 * v);
+      tone(out, t + 0.12, 0.32, 6350, 6300, 0.05 * v);
+      tone(out, t + 0.12, 0.2, 2950, 2900, 0.06 * v, 'triangle');
+    },
+    spoon(pos) { // 던질 때 안전손잡이(스푼)가 튕겨 나가는 소리: 핑!
+      if (!ctx) return; const s = spatial(pos || null); if (pos && s.dist > 25) return; const out = chain(s), t = ctx.currentTime, v = pos ? s.vol : 1;
+      noise(out, t, 0.02, 'highpass', 2500, 0.8, 0.35 * v);
+      tone(out, t + 0.01, 0.28, 3600, 2900, 0.1 * v, 'triangle');
+      tone(out, t + 0.01, 0.18, 7200, 6500, 0.035 * v);
+      noise(out, t + 0.02, 0.12, 'lowpass', 900, 0.8, 0.25 * v); // 팔 휘두르는 바람 소리
+    },
     bounce(pos) { if (!ctx) return; const s = spatial(pos); if (s.dist > 40) return; const out = chain(s); tone(out, ctx.currentTime, 0.06, 900, 500, 0.3 * s.vol, 'triangle'); },
     smoke(pos) { if (!ctx) return; const s = spatial(pos), out = chain(s); noise(out, ctx.currentTime, 3.0, 'bandpass', 2400, 0.4, 0.5 * s.vol + 0.05, 0.2); },
     flash(pos) { if (!ctx) return; const s = spatial(pos), out = chain(s); noise(out, ctx.currentTime, 0.4, 'highpass', 1200, 0.5, 1.2 * s.vol + 0.1); },

@@ -163,10 +163,12 @@ class Actor {
     this.afterMove(dt);
   }
   afterMove(dt) {
+    if (this.throwAnimT > 0) this.throwAnimT -= dt;
+    if (this.pinAnimT > 0) this.pinAnimT -= dt;
     const s = this.soldier;
     s.root.position.copy(this.pos); s.root.rotation.y = this.yaw;
     const hsp = Math.hypot(this.vel.x, this.vel.z);
-    s.animate({ speed: hsp, stance: this.stance, sprint: this.sprint && hsp > 3, air: !this.onGround && !this.vault, lean: this.lean, pitch: this.pitch, dead: this.dead, stanceH: s.body.position.y, reloadT: this.reloadT > 0 ? 1 - this.reloadT / (this.reloadDur || 1) : 0, vault: this.vault ? Math.min(1, this.vault.t) : (this.netVault >= 0 ? this.netVault : -1), vaultOver: this.vault ? this.vault.over : !!this.netVaultOver }, dt);
+    s.animate({ speed: hsp, stance: this.stance, sprint: this.sprint && hsp > 3, air: !this.onGround && !this.vault, lean: this.lean, pitch: this.pitch, dead: this.dead, stanceH: s.body.position.y, reloadT: this.reloadT > 0 ? 1 - this.reloadT / (this.reloadDur || 1) : 0, vault: this.vault ? Math.min(1, this.vault.t) : (this.netVault >= 0 ? this.netVault : -1), vaultOver: this.vault ? this.vault.over : !!this.netVaultOver, thr: this.throwAnimT > 0 ? 1 - this.throwAnimT / 0.5 : 0, thrUnder: this.throwUnder, pinUp: this.mode === 'throw' && this.pin }, dt);
     soldierHitboxes(s, this.hitbox);
     // 눈 위치 (기울이기 포함)
     const right = _v1.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
@@ -356,7 +358,7 @@ class Actor {
   }
   pullPin() {
     if (this.mode !== 'throw' || this.pin || this.switchT > 0 || this.throwables[this.throwType] <= 0 || this.dead) return;
-    this.pin = true; this.cookT = -1; if (this.isPlayer) AU.pin();
+    this.pin = true; this.cookT = -1; this.pinAnimT = 0.35; AU.pin(this.isPlayer ? null : this.pos);
   }
   cook() { if (this.pin && this.cookT < 0) { this.cookT = 0; if (this.isPlayer) AU.click(0.2, 2600); } }
   throwVelocity(under, out) {
@@ -379,7 +381,8 @@ class Actor {
     throwGrenade(this, type, o, v, Math.max(0.05, fuse));
     if ((this.isPlayer || this.netBot) && NET.active) netSend({ t: 'nade', type, o: o.toArray(), v: v.toArray(), fuse: Math.max(0.05, fuse) }, '*', this.isPlayer ? NET.id : this.netId);
     this.throwables[type]--; this.pin = false; this.cookT = -1;
-    if (this.isPlayer) AU.click(0.15, 900);
+    AU.spoon(this.isPlayer ? null : this.pos);
+    this.throwAnimT = 0.5; this.throwUnder = !!under;
     this.afterThrow();
   }
   afterThrow() {

@@ -561,6 +561,6 @@ function buildGrenadeModel(type) {
   if (type === 'frag') { const b = M(new THREE.SphereGeometry(0.035, 12, 10), mat, 0, 0, 0); b.scale.y = 1.2; g.add(b); }
   else g.add(M(CY(0.028, 0.028, 0.11, 12), mat, 0, 0, 0));
   g.add(M(BX(0.012, 0.03, 0.04), GUNMAT.steel, 0.012, 0.05, 0));
-  g.add(M(new THREE.TorusGeometry(0.012, 0.003, 6, 12), GUNMAT.steel, -0.02, 0.06, 0));
+  const ring = M(new THREE.TorusGeometry(0.012, 0.003, 6, 12), GUNMAT.steel, -0.02, 0.06, 0); g.add(ring); g.userData.ring = ring; // 핀 고리
   return g;
 }

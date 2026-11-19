@@ -479,7 +479,7 @@ function netRecv(m) {
       applyBulletDamage({ owner: r, st, dmg: m.dmg, dist: m.dist, start: new V3() }, victim, m.part, new V3().fromArray(m.hp), new V3().fromArray(m.dir));
       break;
     }
-    case 'nade': { const r = REMOTES[from]; if (r) throwGrenade(r, m.type, new V3().fromArray(m.o), new V3().fromArray(m.v), m.fuse); break; }
+    case 'nade': { const r = REMOTES[from]; if (r) { throwGrenade(r, m.type, new V3().fromArray(m.o), new V3().fromArray(m.v), m.fuse); r.throwAnimT = 0.5; r.throwUnder = m.v[1] < 1.6 && Math.hypot(m.v[0], m.v[2]) < 12; AU.spoon(r.pos); } break; }
     case 'boom': { const r = REMOTES[from]; if (r) explodeGrenade(m.type, new V3().fromArray(m.p), r, true); break; }
     case 'died': {
       const r = REMOTES[from]; if (!r || r.dead) break;

@@ -49,9 +49,10 @@ function buildViewmodel() {
     const lg = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), vmGlove); lg.scale.set(1.2, 1, 1.4); L.add(lg);
     const elbow = hg ? new V3(-0.12, -0.25, 0.3) : new V3(-0.16, -0.2, 0.12);
     const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 1, 8), vmSleeve); // 아래팔: 손을 따라 늘었다 줄었다
-    if (!hg) VM.arms.add(limbMesh(elbow, new V3(-0.2, -0.3, 0.45), 0.045, 0.05, vmSleeve));
-    VM.lhand = L; VM.lhome = lH.clone(); VM.lfore = fore; VM.lelbow = elbow;
-    VM.arms.add(rg, L, fore); fitForearm();
+    const up = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 1, 8), vmSleeve); // 위팔: 어깨 → 팔꿈치 (팔꿈치는 손 위치에 맞춰 자연스럽게 굽혀요)
+    VM.lsh = hg ? new V3(-0.2, -0.4, 0.5) : new V3(-0.2, -0.3, 0.45);
+    VM.lhand = L; VM.lhome = lH.clone(); VM.lfore = fore; VM.lup = up; VM.lelbow = elbow;
+    VM.arms.add(rg, L, fore, up); fitForearm();
     VM.arms.add(limbMesh(rH, new V3(0.1, -0.22, 0.35), 0.035, 0.045, vmSleeve));
     info.group.add(VM.arms);
   }
@@ -295,9 +296,22 @@ function updateViewmodel(dt, hsp) {
     return;
   }
   if (p.mode === 'throw') {
-    const raise = p.pin ? 1 : 0;
-    g.position.set(0.2 + bob * 0.01, -0.2 + VM.switchY + raise * 0.06 + bob2 * 0.008, -0.35 + raise * 0.12);
-    g.rotation.set(raise * 0.4, 0, raise * -0.3);
+    VM.raiseT = damp(VM.raiseT || 0, p.pin ? 1 : 0, 10, dt);
+    const r = VM.raiseT;
+    let x = 0.16 + r * 0.04 + bob * 0.01, y = -0.15 + VM.switchY + r * 0.07 + bob2 * 0.008, z = -0.5 + r * 0.06, rx = r * 0.45, rz = r * -0.3;
+    if (g.userData.ring) g.userData.ring.visible = !p.pin;
+    // 핀 뽑기: 고리를 잡아당기는 순간 수류탄이 옆으로 끌렸다가 돌아와요
+    if (p.pinAnimT > 0) { const j = Math.sin((1 - p.pinAnimT / 0.35) * Math.PI); x -= j * 0.05; y += j * 0.025; rz += j * 0.5; rx -= j * 0.15; }
+    // 던지기: 멀리(위에서 앞으로 휘두르기) / 가까이(아래에서 앞으로 굴리듯)
+    const thr = p.throwAnimT > 0;
+    for (const c of g.children) if (c !== VM.arms) c.visible = !thr && (c !== g.userData.ring || !p.pin);
+    if (thr) {
+      const k = 1 - p.throwAnimT / 0.5, s = smooth01(Math.min(1, k / 0.42)), drop = smooth01(Math.max(0, (k - 0.5) / 0.5));
+      if (p.throwUnder) { x = lerp(0.17, 0.04, s); y = lerp(-0.26, -0.1, s) - drop * 0.3; z = lerp(-0.42, -0.72, s); rx = lerp(-0.7, 0.5, s); rz = lerp(0.1, -0.1, s); }
+      else { x = lerp(0.22, 0.02, s); y = lerp(-0.03, -0.22, s) - drop * 0.25; z = lerp(-0.4, -0.72, s); rx = lerp(1.0, -0.9, s); rz = lerp(-0.5, 0.25, s); }
+      VM.switchY = -0.25; VM.raiseT = 0;
+    }
+    g.position.set(x, y, z); g.rotation.set(rx, 0, rz);
     return;
   }
   const info = VM.info, cat = p.w.stats.cat;
@@ -335,16 +349,18 @@ function updateViewmodel(dt, hsp) {
   fitForearm();
 }
 
-function fitForearm() { // 아래팔을 손 → 팔꿈치로 맞추기 (손이 아래로 가면 팔꿈치도 조금 따라감)
+const _ikD = new V3(), _ikP = new V3(), _ikE = new V3(), _ikU = new V3(0, 1, 0), _ikT = new V3();
+function fitSeg(m, a, b) { const d = _ikT.copy(b).sub(a), L = Math.max(0.001, d.length()); m.position.copy(a).addScaledVector(d, 0.5); m.scale.set(1, L, 1); m.quaternion.setFromUnitVectors(_ikU, d.multiplyScalar(1 / L)); }
+function fitForearm() { // 왼팔: 어깨 → 팔꿈치 → 손 (두 마디 IK). 팔꿈치는 늘 아래·바깥쪽으로 굽어서 꺾여 보이지 않아요
   const f = VM.lfore, L = VM.lhand; if (!f || !L) return;
-  const off = _rv.copy(L.position).sub(VM.lhome);
-  const e = _rv2.copy(VM.lelbow).addScaledVector(off, 1.0);
-  const rb = VM.rlBlend || 0; // 장전 중엔 팔꿈치를 아래로 (아래팔이 카메라를 가리지 않게)
-  if (rb > 0) e.lerp(new V3(L.position.x - 0.03, L.position.y - 0.32, L.position.z + 0.04), rb);
-  const d = new V3().copy(e).sub(L.position), len = d.length();
-  f.position.copy(L.position).addScaledVector(d, 0.5); f.scale.set(1, len, 1);
-  f.quaternion.setFromUnitVectors(new V3(0, 1, 0), d.normalize());
-  f.visible = off.y > -0.16; L.visible = off.y > -0.3; // 화면 아래로 내려간 팔은 숨겨요 (카메라 앞을 가리지 않게)
+  const S = VM.lsh, H = L.position, A = 0.36, B = 0.4;
+  const d = _ikD.copy(H).sub(S), dist = d.length(), len = clamp(dist, 0.12, A + B - 0.004); d.multiplyScalar(1 / Math.max(dist, 0.001));
+  const x = (A * A - B * B + len * len) / (2 * len), h = Math.sqrt(Math.max(0, A * A - x * x));
+  const pole = _ikP.set(-0.55, -1, 0.15); pole.addScaledVector(d, -pole.dot(d)).normalize();
+  const E = _ikE.copy(S).addScaledVector(d, x).addScaledVector(pole, h);
+  fitSeg(f, E, H); if (VM.lup) fitSeg(VM.lup, S, E);
+  const off = H.y - VM.lhome.y;
+  f.visible = off > -0.2; L.visible = off > -0.3; if (VM.lup) VM.lup.visible = f.visible; // 화면 아래로 내려간 팔은 숨겨요
 }
 // ================= 배그 같은 장전 동작 =================
 // k: 0→1 진행. 총을 기울이고 → 왼손으로 탄창 빼서 버리고 → 새 탄창 꺼내 끼우고 → (다 쏜 뒤면) 장전 손잡이 당기기

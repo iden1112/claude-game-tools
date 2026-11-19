@@ -139,6 +139,13 @@ function buildSoldier(opt) {
       aim.rotation.y = st.sprint ? 0.6 : 0;
       neck.rotation.x = (prone ? Math.PI / 2 * 0.85 : 0) - spine.rotation.x + pitch * 0.7;
       aim.position.z = 0;
+      // 던지기: 위로 젖혔다가 앞으로 휘두르기 (가까이 던지기는 아래에서 위로)
+      aim.rotation.z = 0;
+      if (st.thr > 0) {
+        const k = st.thr, sw = Math.sin(Math.min(1, k / 0.55) * Math.PI / 2), back = 1 - sw;
+        if (st.thrUnder) { aim.rotation.x += -0.9 * back + 0.5 * sw * (1 - k); }
+        else { aim.rotation.x += 0.9 * back * (1 - k) - 0.8 * sw * (1 - k); aim.rotation.z = -0.35 * back * (1 - k); }
+      } else if (st.pinUp) { aim.rotation.x += 0.45; aim.rotation.z = -0.2; }
       // 3인칭 장전: 총을 살짝 기울이고 왼손으로 탄창을 빼서 버리고 새 탄창을 끼워요
       const g = this.gun, mag = g && g.userData.mag, mh = g && g.userData.magHome;
       const rk = st.reloadT || 0, tilt = rk > 0 ? Math.min(1, rk / 0.1) * Math.min(1, (1 - rk) / 0.12) : 0;
