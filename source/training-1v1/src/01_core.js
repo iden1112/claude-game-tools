@@ -1,5 +1,5 @@
 'use strict';
-const GAME_BUILD = 33; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 34; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -576,6 +576,10 @@ const AU = (() => {
       tone(out, t + 0.12, 0.32, 6350, 6300, 0.05 * v);
       tone(out, t + 0.12, 0.2, 2950, 2900, 0.06 * v, 'triangle');
     },
+    ping(enemy) { // 핑 찍는 소리: 띠링 (적 표시는 조금 더 높고 급하게)
+      if (!ctx) return; const out = chain(spatial(null)), t = ctx.currentTime, f = enemy ? 1.25 : 1;
+      tone(out, t, 0.09, 1320 * f, 1320 * f, 0.16); tone(out, t + 0.08, 0.18, 1760 * f, 1760 * f, 0.14);
+    },
     spoon(pos) { // 던질 때 안전손잡이(스푼)가 튕겨 나가는 소리: 핑!
       if (!ctx) return; const s = spatial(pos || null); if (pos && s.dist > 25) return; const out = chain(s), t = ctx.currentTime, v = pos ? s.vol : 1;
       noise(out, t, 0.02, 'highpass', 2500, 0.8, 0.35 * v);
@@ -614,7 +618,7 @@ const INPUT = {
   locked: false,
   consume() { this.pressed = {}; this.mdx = 0; this.mdy = 0; this.lmbPressed = this.rmbPressed = this.rmbReleased = this.lmbReleased = false; this.wheel = 0; },
 };
-const BLOCK_KEYS = ['Tab', 'AltLeft', 'AltRight', 'Space', 'Backquote', 'KeyQ', 'KeyE', 'F1'];
+const BLOCK_KEYS = ['F3', 'Tab', 'AltLeft', 'AltRight', 'Space', 'Backquote', 'KeyQ', 'KeyE', 'F1'];
 addEventListener('keydown', (e) => {
   if (BLOCK_KEYS.includes(e.code) || (INPUT.locked && e.code !== 'Escape')) e.preventDefault();
   if (!INPUT.keys[e.code]) INPUT.pressed[e.code] = true;

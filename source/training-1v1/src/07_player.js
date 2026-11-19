@@ -151,6 +151,7 @@ function playerInput(dt) {
   if (P.Digit1) p.equip(0); if (P.Digit2) p.equip(1); if (P.Digit3) p.equip(2);
   if (P.Digit5 || P.KeyG) p.equipThrow();
   if (P.KeyX) p.holster(); // 총 넣기 → 맨손
+  if (P.F3 && !p.dead) playerPing(); // 핑 찍기
   if ((P.PageUp || P.PageDown) && p.mode === 'gun' && p.w && p.adsT > 0.5) { // 배그처럼 조준점 모양 바꾸기
     const sid = effScopeId(p.w);
     if (sid && sid !== 'iron') {

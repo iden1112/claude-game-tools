@@ -54,7 +54,11 @@ html.touch body{overscroll-behavior:none}
     ['메뉴', 'left:10px;top:8px', 'menu', 'sm'],
     ['시점', 'left:64px;top:8px', 'KeyV', 'sm'],
     ['점수', 'left:118px;top:8px', 'board', 'sm'],
-    ['파츠', 'left:172px;top:8px', 'loadout', 'sm'],
+    ['총<br>고르기', 'left:172px;top:4px', 'loadout', ''],
+    ['핑', 'right:128px;bottom:256px', 'F3', 'sm'],
+    ['1', 'right:300px;bottom:236px', 'Digit1', 'sm'],
+    ['2', 'right:352px;bottom:236px', 'Digit2', 'sm'],
+    ['3', 'right:404px;bottom:236px', 'Digit3', 'sm'],
   ];
   for (const [label, pos, act, cls] of BTN) {
     const b = document.createElement('div'); b.className = 'tb ' + cls; b.style.cssText = pos; b.innerHTML = label; b.dataset.act = act; root.appendChild(b);
@@ -66,7 +70,7 @@ html.touch body{overscroll-behavior:none}
     else if (act === 'next') { if (down) INPUT.wheel += 1; }
     else if (act === 'board') HUD.showBoard(down);
     else if (act === 'menu') { if (down) { INPUT.locked = false; INPUT.keys = {}; INPUT.lmb = INPUT.rmb = false; if (window.onPointerUnlock) window.onPointerUnlock(); } }
-    else if (act === 'loadout') { if (down) { INPUT.keys = {}; INPUT.lmb = INPUT.rmb = false; if (G.mode === 'range') openRangeMenu(); else openLoadout(); } }
+    else if (act === 'loadout') { if (down) { INPUT.keys = {}; INPUT.lmb = INPUT.rmb = false; openLoadout(); } }
     else { if (down && !INPUT.keys[act]) INPUT.pressed[act] = true; INPUT.keys[act] = down; }
   };
 

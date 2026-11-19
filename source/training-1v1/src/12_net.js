@@ -459,6 +459,7 @@ function netRecv(m) {
       r.netVault = m.vt === undefined ? -1 : m.vt; r.netVaultOver = !!m.vo;
       break;
     }
+    case 'ping': { const r = REMOTES[from]; if (r && r.team === G.myTeam) placePing(new V3().fromArray(m.p), r.name, !!m.e); break; }
     case 'punch': { const r = REMOTES[from]; if (r) { r.punchT = 0.28; AU.punch(false, r.pos); } break; }
     case 'shot': {
       const r = REMOTES[from]; if (!r || !r.weapons.length) break;

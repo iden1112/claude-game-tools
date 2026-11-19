@@ -295,7 +295,7 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
 <div id="pause" class="overlay" style="display:none"><div class="panel" style="max-width:520px">
   <h2 id="pause-title">일시정지</h2><p style="color:#9aa4ad;font-size:13px;margin-bottom:14px">화면을 누르거나 아래 버튼을 누르면 계속해요.</p>
   <div id="pause-settings"></div>
-  <div class="row"><button class="btn" id="btn-resume">계속하기</button><button class="btn sub" id="btn-quit">처음 화면</button></div>
+  <div class="row"><button class="btn" id="btn-resume">계속하기</button><button class="btn sub" id="btn-pload">총 고르기</button><button class="btn sub" id="btn-quit">처음 화면</button></div>
 </div></div>
 <div id="loadout" class="overlay"><div class="panel">
   <div id="lo-top"><div id="lo-slots"></div><div style="font-size:12px;color:#9aa4ad">총을 고르면 <b style="color:#ffd24a">풀파츠</b>로 시작해요</div></div>
@@ -1044,7 +1044,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 33; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 34; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -1621,6 +1621,10 @@ const AU = (() => {
       tone(out, t + 0.12, 0.32, 6350, 6300, 0.05 * v);
       tone(out, t + 0.12, 0.2, 2950, 2900, 0.06 * v, 'triangle');
     },
+    ping(enemy) { // 핑 찍는 소리: 띠링 (적 표시는 조금 더 높고 급하게)
+      if (!ctx) return; const out = chain(spatial(null)), t = ctx.currentTime, f = enemy ? 1.25 : 1;
+      tone(out, t, 0.09, 1320 * f, 1320 * f, 0.16); tone(out, t + 0.08, 0.18, 1760 * f, 1760 * f, 0.14);
+    },
     spoon(pos) { // 던질 때 안전손잡이(스푼)가 튕겨 나가는 소리: 핑!
       if (!ctx) return; const s = spatial(pos || null); if (pos && s.dist > 25) return; const out = chain(s), t = ctx.currentTime, v = pos ? s.vol : 1;
       noise(out, t, 0.02, 'highpass', 2500, 0.8, 0.35 * v);
@@ -1659,7 +1663,7 @@ const INPUT = {
   locked: false,
   consume() { this.pressed = {}; this.mdx = 0; this.mdy = 0; this.lmbPressed = this.rmbPressed = this.rmbReleased = this.lmbReleased = false; this.wheel = 0; },
 };
-const BLOCK_KEYS = ['Tab', 'AltLeft', 'AltRight', 'Space', 'Backquote', 'KeyQ', 'KeyE', 'F1'];
+const BLOCK_KEYS = ['F3', 'Tab', 'AltLeft', 'AltRight', 'Space', 'Backquote', 'KeyQ', 'KeyE', 'F1'];
 addEventListener('keydown', (e) => {
   if (BLOCK_KEYS.includes(e.code) || (INPUT.locked && e.code !== 'Escape')) e.preventDefault();
   if (!INPUT.keys[e.code]) INPUT.pressed[e.code] = true;
@@ -5124,6 +5128,7 @@ function playerInput(dt) {
   if (P.Digit1) p.equip(0); if (P.Digit2) p.equip(1); if (P.Digit3) p.equip(2);
   if (P.Digit5 || P.KeyG) p.equipThrow();
   if (P.KeyX) p.holster(); // 총 넣기 → 맨손
+  if (P.F3 && !p.dead) playerPing(); // 핑 찍기
   if ((P.PageUp || P.PageDown) && p.mode === 'gun' && p.w && p.adsT > 0.5) { // 배그처럼 조준점 모양 바꾸기
     const sid = effScopeId(p.w);
     if (sid && sid !== 'iron') {
@@ -6314,6 +6319,7 @@ function setupMenus() {
   };
   $('btn-range').onclick = () => { AU.init(); enterRange(); };
   $('btn-loadout').onclick = () => { AU.init(); openLoadout(); };
+  $('btn-pload').onclick = () => { $('pause').style.display = 'none'; $('start-settings').appendChild($('settings')); openLoadout(); };
   $('btn-resume').onclick = () => { $('pause').style.display = 'none'; $('start-settings').appendChild($('settings')); lockPointer(); };
   $('btn-quit').onclick = () => goMenu();
   $('btn-again').onclick = () => { $('end').style.display = 'none'; if (G.mode === 'mp') { netStartGame(); lockPointer(); } else GAME.startMatch(); };
@@ -7109,6 +7115,7 @@ function netRecv(m) {
       r.netVault = m.vt === undefined ? -1 : m.vt; r.netVaultOver = !!m.vo;
       break;
     }
+    case 'ping': { const r = REMOTES[from]; if (r && r.team === G.myTeam) placePing(new V3().fromArray(m.p), r.name, !!m.e); break; }
     case 'punch': { const r = REMOTES[from]; if (r) { r.punchT = 0.28; AU.punch(false, r.pos); } break; }
     case 'shot': {
       const r = REMOTES[from]; if (!r || !r.weapons.length) break;
@@ -7785,7 +7792,11 @@ html.touch body{overscroll-behavior:none}
     ['메뉴', 'left:10px;top:8px', 'menu', 'sm'],
     ['시점', 'left:64px;top:8px', 'KeyV', 'sm'],
     ['점수', 'left:118px;top:8px', 'board', 'sm'],
-    ['파츠', 'left:172px;top:8px', 'loadout', 'sm'],
+    ['총<br>고르기', 'left:172px;top:4px', 'loadout', ''],
+    ['핑', 'right:128px;bottom:256px', 'F3', 'sm'],
+    ['1', 'right:300px;bottom:236px', 'Digit1', 'sm'],
+    ['2', 'right:352px;bottom:236px', 'Digit2', 'sm'],
+    ['3', 'right:404px;bottom:236px', 'Digit3', 'sm'],
   ];
   for (const [label, pos, act, cls] of BTN) {
     const b = document.createElement('div'); b.className = 'tb ' + cls; b.style.cssText = pos; b.innerHTML = label; b.dataset.act = act; root.appendChild(b);
@@ -7797,7 +7808,7 @@ html.touch body{overscroll-behavior:none}
     else if (act === 'next') { if (down) INPUT.wheel += 1; }
     else if (act === 'board') HUD.showBoard(down);
     else if (act === 'menu') { if (down) { INPUT.locked = false; INPUT.keys = {}; INPUT.lmb = INPUT.rmb = false; if (window.onPointerUnlock) window.onPointerUnlock(); } }
-    else if (act === 'loadout') { if (down) { INPUT.keys = {}; INPUT.lmb = INPUT.rmb = false; if (G.mode === 'range') openRangeMenu(); else openLoadout(); } }
+    else if (act === 'loadout') { if (down) { INPUT.keys = {}; INPUT.lmb = INPUT.rmb = false; openLoadout(); } }
     else { if (down && !INPUT.keys[act]) INPUT.pressed[act] = true; INPUT.keys[act] = down; }
   };
 
@@ -7853,6 +7864,66 @@ html.touch body{overscroll-behavior:none}
     requestAnimationFrame(loop);
   })();
   return { on: true };
+})();
+
+// ================= 핑 (F3) =================
+// 바라보는 곳에 노란 표시를 찍어요. 적을 보고 찍으면 빨간 표시. 같은 팀에게도 보여요 (멀티).
+const PINGS = [];
+const pingBox = document.createElement('div'); pingBox.id = 'pings';
+pingBox.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:6';
+document.body.appendChild(pingBox);
+(() => { const st = document.createElement('style'); st.textContent = `
+#pings .pg{position:absolute;transform:translate(-50%,-100%);text-align:center;font:700 12px system-ui,sans-serif;color:#ffd24a;text-shadow:0 1px 3px #000;white-space:nowrap}
+#pings .pg i{display:block;margin:0 auto 2px;width:14px;height:14px;background:#ffd24a;transform:rotate(45deg);box-shadow:0 0 6px rgba(0,0,0,.7);border:2px solid #fff3b0}
+#pings .pg.e{color:#ff5a4a}#pings .pg.e i{background:#ff4030;border-color:#ffc0b8}
+#pings .pg.edge{opacity:.85}
+#pings .pg small{display:block;font-size:10px;color:#fff;opacity:.85}`; document.head.appendChild(st); })();
+// 3D 표시: 바닥 고리 + 빛기둥
+const PING_MAT = { y: new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.55, depthWrite: false }), e: new THREE.MeshBasicMaterial({ color: 0xff4030, transparent: true, opacity: 0.55, depthWrite: false }) };
+function placePing(pos, by, enemy) {
+  for (let i = PINGS.length - 1; i >= 0; i--) if (PINGS[i].by === by) { scene.remove(PINGS[i].g); PINGS.splice(i, 1); } // 한 사람당 하나
+  const g = new THREE.Group(), m = enemy ? PING_MAT.e : PING_MAT.y;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.05, 6, 24), m); ring.rotation.x = Math.PI / 2; ring.position.y = 0.05; g.add(ring);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 6, 6, 1, true), m); beam.position.y = 3; g.add(beam);
+  g.position.copy(pos); scene.add(g);
+  PINGS.push({ pos: pos.clone(), t: enemy ? 6 : 10, by, enemy, g, name: by });
+  AU.ping(enemy);
+}
+function playerPing() {
+  const o = camera.position.clone(), d = camera.getWorldDirection(new V3());
+  const hit = raycastWorld(o, d, 800);
+  let dist = hit ? hit.t : 400, pos = o.clone().addScaledVector(d, dist), enemy = false;
+  // 적을 보고 찍었는지 (조준선 근처 + 벽에 안 가려짐)
+  let best = 0.035;
+  for (const a of ACTORS) {
+    if (a === PLAYER || a.dead || a.gone || (a.team !== undefined && a.team === PLAYER.team && G.mode === 'mp')) continue;
+    const c = _pv.copy(a.pos); c.y += a.stance === 'prone' ? 0.3 : 1.1;
+    const v = c.clone().sub(o), L = v.length(); if (L > dist + 1) continue;
+    const ang = v.normalize().angleTo(d); if (ang < best + 0.6 / Math.max(L, 1)) { best = ang; pos = a.pos.clone(); enemy = true; }
+  }
+  if (!hit && !enemy) { pos.y = Math.max(0, pos.y); }
+  placePing(pos, 'me', enemy);
+  if (NET.active) netSend({ t: 'ping', p: pos.toArray().map(x => +x.toFixed(2)), e: enemy ? 1 : 0 });
+}
+const _pv = new V3();
+let _pingLast = performance.now();
+(function pingLoop() {
+  const now = performance.now(), dt = Math.min(0.1, (now - _pingLast) / 1000); _pingLast = now;
+  let h = '';
+  const live = typeof isPlaying === 'function' && isPlaying();
+  for (let i = PINGS.length - 1; i >= 0; i--) {
+    const P = PINGS[i]; P.t -= dt;
+    if (P.t <= 0 || !live) { scene.remove(P.g); PINGS.splice(i, 1); continue; }
+    P.g.children[0].scale.setScalar(1 + 0.15 * Math.sin(now / 160));
+    const v = _pv.copy(P.pos); v.y += 0.9; v.project(camera);
+    let x = v.x, y = v.y, edge = false;
+    if (v.z > 1) { x = -x; y = -y; edge = true; }                  // 뒤쪽이면 화면 가장자리로
+    if (Math.abs(x) > 0.95 || Math.abs(y) > 0.92) { const k = Math.max(Math.abs(x) / 0.95, Math.abs(y) / 0.92); x /= k; y /= k; edge = true; }
+    const m = Math.round(P.pos.distanceTo(camera.position));
+    h += `<div class="pg ${P.enemy ? 'e' : ''} ${edge ? 'edge' : ''}" style="left:${((x + 1) / 2 * innerWidth) | 0}px;top:${((1 - y) / 2 * innerHeight) | 0}px"><i></i>${m}m${P.by !== 'me' ? `<small>${esc(P.name)}</small>` : ''}</div>`;
+  }
+  if (h !== pingBox._h) { pingBox.innerHTML = h; pingBox._h = h; }
+  requestAnimationFrame(pingLoop);
 })();
 
 // ================= 시작 =================

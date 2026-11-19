@@ -353,6 +353,7 @@ function setupMenus() {
   };
   $('btn-range').onclick = () => { AU.init(); enterRange(); };
   $('btn-loadout').onclick = () => { AU.init(); openLoadout(); };
+  $('btn-pload').onclick = () => { $('pause').style.display = 'none'; $('start-settings').appendChild($('settings')); openLoadout(); };
   $('btn-resume').onclick = () => { $('pause').style.display = 'none'; $('start-settings').appendChild($('settings')); lockPointer(); };
   $('btn-quit').onclick = () => goMenu();
   $('btn-again').onclick = () => { $('end').style.display = 'none'; if (G.mode === 'mp') { netStartGame(); lockPointer(); } else GAME.startMatch(); };
