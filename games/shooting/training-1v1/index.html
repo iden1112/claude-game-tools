@@ -1044,7 +1044,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 37; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 38; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -5836,8 +5836,8 @@ const HUD = {
     else if (info && info.dir) this.dmgDirs.push({ x: PLAYER.pos.x - info.dir.x * 5, z: PLAYER.pos.z - info.dir.z * 5, t: 2.2 });
   },
   flashbang(p) { this.flashV = Math.min(4, Math.max(this.flashV, p * 4)); },
-  toast(t) { const e = $('toast'); e.textContent = t; e.style.opacity = 1; this.toastT = 1.2; },
-  message(t, sub, sec = 2.5, cls = '') { $('msg').innerHTML = `<div class="m1 ${cls}">${t}</div>${sub ? `<div class="m2">${sub}</div>` : ''}`; $('msg').style.opacity = 1; this.msgT = sec; },
+  toast(t) { $('toast').textContent = t; UI('toast', 'style.opacity', 1); this.toastT = 1.2; },
+  message(t, sub, sec = 2.5, cls = '') { $('msg').innerHTML = `<div class="m1 ${cls}">${t}</div>${sub ? `<div class="m2">${sub}</div>` : ''}`; UI('msg', 'style.opacity', 1); this.msgT = sec; },
   addFeed(html) {
     const d = document.createElement('div'); d.className = 'feedrow'; d.innerHTML = html; $('feed').prepend(d);
     setTimeout(() => d.style.opacity = 0, 6000); setTimeout(() => d.remove(), 7000);
