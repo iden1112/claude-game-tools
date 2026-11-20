@@ -472,6 +472,7 @@ function netRecv(m) {
       for (const id in NET.bots) NET.bots[id].hearShot && NET.bots[id].hearShot(r, w.stats.suppressed);
       break;
     }
+    case 'dealt': recordDealt(m.n, m.d); break;
     case 'hit': { // 누가 나(또는 방장의 AI)를 맞힘 → 맞은 쪽에서 피해 계산
       const r = REMOTES[from];
       const victim = NET.host && NET.bots[m.to] ? NET.bots[m.to] : PLAYER;

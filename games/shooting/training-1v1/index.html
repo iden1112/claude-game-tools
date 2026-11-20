@@ -1044,7 +1044,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 36; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 37; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -4745,9 +4745,13 @@ class Actor {
     const k = this.onGround ? 11 : 1.5;
     this.vel.x = damp(this.vel.x, tx, k, dt); this.vel.z = damp(this.vel.z, tz, k, dt);
     // 점프 / 넘기
-    if (this.jumpReq && !this.dead) {
-      this.jumpReq = false;
-      if (this.onGround && !this.tryVault()) {
+    // 점프: 누른 뒤 0.15초 동안 기억 + 땅에서 막 떨어진 0.12초 안에도 점프 허용 (달리다 작은 턱·경사에서 씹히지 않게)
+    if (this.jumpReq) { this.jumpBuf = 0.15; this.jumpReq = false; }
+    if (this.jumpBuf > 0) this.jumpBuf -= dt;
+    this.airT = this.onGround ? 0 : (this.airT || 0) + dt;
+    if (this.jumpBuf > 0 && !this.dead && (this.onGround || (this.airT < 0.12 && this.vel.y <= 0.5))) {
+      this.jumpBuf = 0;
+      if (!this.tryVault()) {
         if (this.stance === 'prone') this.setStance('crouch');
         else if (this.stance === 'crouch') this.setStance('stand');
         else { this.vel.y = JUMP_V; this.onGround = false; this.ads = false; }
@@ -5009,6 +5013,11 @@ class Actor {
   }
   damage(dmg, from, info) {
     if (this.dead || (G.state !== 'live' && G.state !== 'range')) return;
+    const real = Math.max(0, Math.min(dmg, this.health));
+    if (from && from !== this && real > 0 && !this.dummy) { // 라운드 끝에 보여줄 '넣은 딜'
+      if (from === PLAYER) recordDealt(this.name, real);
+      else if (from.remote && NET.active && (this === PLAYER || this.netBot)) netSend({ t: 'dealt', d: +real.toFixed(1), n: this.name }, from.netId);
+    }
     this.health -= dmg; this.lastDamage = 0;
     if (from && from !== this && dmg > 0) { if (!this.dmgLog) this.dmgLog = new Map(); this.dmgLog.set(from, performance.now()); } // 어시스트용 기록
     if (this.onDamage) this.onDamage(dmg, from, info);
@@ -6062,7 +6071,7 @@ const enemy = () => BOT;
 
 function goMenu() {
   if (NET.active || NET.peer || NET.bc) { netSend({ t: 'bye' }); netReset(); }
-  G.state = 'menu'; G.mode = 'arena'; G.menuOpen = false;
+  G.state = 'menu'; G.mode = 'arena'; G.menuOpen = false; stopPlayerInput(); HUD.showDealt(false);
   WORLD.bounds = WORLD.map.bounds; clearCombat();
   for (const id of ['pause', 'end', 'loadout', 'rangemenu', 'mp']) $(id).style.display = 'none';
   $('start-settings').appendChild($('settings'));
@@ -6109,7 +6118,7 @@ const GAME = {
       if (side) { const ai = BOT.ai; if (ai.goal) ai.goal.set(-ai.goal.x, 0, -ai.goal.z); }
       BOT.ai.flip = side;
     }
-    G.state = 'pre'; G.preT = G.round === 1 ? 10 : 8; G.roundT = ROUND_TIME;
+    G.state = 'pre'; G.preT = G.round === 1 ? 10 : 8; G.roundT = ROUND_TIME; G.dealt = new Map(); HUD.showDealt(false);
     HUD.message(`라운드 ${G.round}`, `~ 키로 총 바꾸기 · ${G.winTo}점 먼저 따면 승리`, 3);
     buildViewmodel();
     if (mp) { NET.myLoadoutKey = ''; }
@@ -6138,7 +6147,7 @@ const GAME = {
     }
     PLAYER.netLoKey = '';
     CAM.eyeSmooth.copy(PLAYER.eyePos); CAM.spec = null;
-    G.state = 'pre'; G.preT = G.round === 1 ? 10 : 8; G.roundT = ROUND_TIME;
+    G.state = 'pre'; G.preT = G.round === 1 ? 10 : 8; G.roundT = ROUND_TIME; G.dealt = new Map(); HUD.showDealt(false);
     const n0 = NET.lobby.players.filter(p => p.team === 0).length, n1 = NET.lobby.players.length - n0;
     HUD.message(`라운드 ${G.round}`, `${TEAM_NAME[G.myTeam]} 팀 · ${n0}대${n1} · ~ 키로 총 바꾸기 · ${G.winTo}점 선승`, 3);
     buildViewmodel();
@@ -6149,7 +6158,7 @@ const GAME = {
     if (w < 0) HUD.message('무승부', sub || '양쪽 모두 쓰러졌어요', 3.5);
     else if (w === G.myTeam) HUD.message('라운드 승리', sub || `${TEAM_NAME[w]} 팀이 이겼어요`, 3.5, 'win');
     else HUD.message('라운드 패배', sub || `${TEAM_NAME[w]} 팀이 이겼어요`, 3.5, 'lose');
-    G.state = 'post'; G.postT = 4; PLAYER.trigger = false;
+    G.state = 'post'; G.postT = 4; PLAYER.trigger = false; HUD.showDealt(true);
   },
   goLive() {
     G.state = 'live'; AU.beep(990, 0.25, 0.3); HUD.message('전투 시작!', '', 1.2);
@@ -6178,7 +6187,7 @@ const GAME = {
     HUD.addFeed(`<span class="${killer === PLAYER ? 'me' : 'en'}">${kname}</span> <i>[${info && info.weapon || ''}]</i> <span class="${victim === PLAYER ? 'me' : 'en'}">${victim.name}</span>${head}${dist}`);
     if (pWin) HUD.message('라운드 승리', `${info && info.weapon || ''}${head ? ' · 헤드샷' : ''}${dist}`, 3.5, 'win');
     else HUD.message('라운드 패배', `${E.name}의 ${info && info.weapon || ''}${dist}`, 3.5, 'lose');
-    G.state = 'post'; G.postT = 4;
+    G.state = 'post'; G.postT = 4; HUD.showDealt(true);
     PLAYER.trigger = false;
   },
   timeUp() {
@@ -6193,7 +6202,7 @@ const GAME = {
     if (res === 0) HUD.message('시간 종료', '무승부 - 점수 없음', 3);
     else if (res > 0) HUD.message('시간 종료', '체력이 더 많아서 승리', 3, 'win');
     else HUD.message('시간 종료', '체력이 더 적어서 패배', 3, 'lose');
-    G.state = 'post'; G.postT = 3.5;
+    G.state = 'post'; G.postT = 3.5; HUD.showDealt(true);
   },
   update(dt) {
     const mpClient = G.mode === 'mp' && !NET.host;
@@ -6214,7 +6223,7 @@ const GAME = {
     }
   },
   endMatch() {
-    G.state = 'over';
+    G.state = 'over'; stopPlayerInput(); HUD.showDealt(true);
     document.exitPointerLock && document.exitPointerLock();
     const me = G.myTeam || 0, win = G.score[me] > G.score[1 - me];
     $('end').style.display = 'flex';
@@ -6406,6 +6415,7 @@ function setupMenus() {
   $('start-settings').appendChild($('settings'));
   canvasEl.addEventListener('click', () => { if (isPlaying() && !G.menuOpen && !INPUT.locked) { $('pause').style.display = 'none'; lockPointer(); } });
   window.onPointerUnlock = () => {
+    INPUT.keys = {}; INPUT.lmb = INPUT.rmb = false; // 잠금이 풀리면 눌린 키를 놓은 걸로 (키가 눌린 채로 남지 않게)
     if (G.menuOpen || G.state === 'menu' || G.state === 'over') return;
     $('pause-settings').appendChild($('settings'));
     $('pause').style.display = 'flex';
@@ -7207,6 +7217,7 @@ function netRecv(m) {
       for (const id in NET.bots) NET.bots[id].hearShot && NET.bots[id].hearShot(r, w.stats.suppressed);
       break;
     }
+    case 'dealt': recordDealt(m.n, m.d); break;
     case 'hit': { // 누가 나(또는 방장의 AI)를 맞힘 → 맞은 쪽에서 피해 계산
       const r = REMOTES[from];
       const victim = NET.host && NET.bots[m.to] ? NET.bots[m.to] : PLAYER;
@@ -8003,6 +8014,41 @@ let _pingLast = performance.now();
   }
   if (h !== pingBox._h) { pingBox.innerHTML = h; pingBox._h = h; }
   requestAnimationFrame(pingLoop);
+})();
+
+// ================= 라운드 끝: 상대에게 넣은 딜 =================
+function recordDealt(name, d) {
+  if (!G.dealt) G.dealt = new Map();
+  const e = G.dealt.get(name) || { d: 0, hits: 0 }; e.d += d; e.hits++; G.dealt.set(name, e);
+}
+// 게임이 끝나거나 메뉴로 갈 때 눌린 키·움직임을 모두 멈춰요 (한 방향으로 계속 걸어가는 문제)
+function stopPlayerInput() {
+  INPUT.keys = {}; INPUT.lmb = INPUT.rmb = false; INPUT.mdx = INPUT.mdy = 0;
+  const p = typeof PLAYER !== 'undefined' && PLAYER; if (!p) return;
+  p.wish.set(0, 0, 0); p.vel.x = 0; p.vel.z = 0; p.trigger = false; p.sprint = false; p.jumpReq = false; p.jumpBuf = 0;
+}
+(() => {
+  const st = document.createElement('style');
+  st.textContent = `#dealt{position:fixed;right:18px;top:38%;transform:translateY(-50%);z-index:7;min-width:200px;padding:12px 14px;border-radius:10px;
+  background:rgba(12,14,18,.78);border:1px solid rgba(255,255,255,.12);color:#eee;font:600 13px system-ui,sans-serif;display:none;pointer-events:none}
+#dealt h4{margin:0 0 8px;font-size:13px;color:#ffd24a;letter-spacing:.5px}
+#dealt .r{display:flex;align-items:baseline;gap:8px;padding:3px 0;border-top:1px solid rgba(255,255,255,.07)}
+#dealt .r span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
+#dealt .r b{font-size:18px;color:#fff}
+#dealt .r small{color:#9aa;font-weight:500}
+#dealt .t{margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.2);display:flex;justify-content:space-between}
+#dealt .t b{color:#ffd24a;font-size:18px}`;
+  document.head.appendChild(st);
+  const el = document.createElement('div'); el.id = 'dealt'; document.body.appendChild(el);
+  HUD.showDealt = (on) => {
+    if (!on) { el.style.display = 'none'; return; }
+    const rows = [...(G.dealt || new Map())].sort((a, b) => b[1].d - a[1].d);
+    let tot = 0, h = '<h4>이번 라운드 넣은 딜</h4>';
+    if (!rows.length) h += '<div class="r"><span>맞힌 적 없음</span><b>0</b></div>';
+    for (const [n, e] of rows) { tot += e.d; h += `<div class="r"><span>${esc(n)}</span><b>${Math.round(e.d)}</b><small>${e.hits}회 맞힘</small></div>`; }
+    if (rows.length > 1) h += `<div class="t"><span>합계</span><b>${Math.round(tot)}</b></div>`;
+    el.innerHTML = h; el.style.display = 'block';
+  };
 })();
 
 // ================= 시작 =================

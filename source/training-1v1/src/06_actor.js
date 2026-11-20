@@ -133,9 +133,13 @@ class Actor {
     const k = this.onGround ? 11 : 1.5;
     this.vel.x = damp(this.vel.x, tx, k, dt); this.vel.z = damp(this.vel.z, tz, k, dt);
     // 점프 / 넘기
-    if (this.jumpReq && !this.dead) {
-      this.jumpReq = false;
-      if (this.onGround && !this.tryVault()) {
+    // 점프: 누른 뒤 0.15초 동안 기억 + 땅에서 막 떨어진 0.12초 안에도 점프 허용 (달리다 작은 턱·경사에서 씹히지 않게)
+    if (this.jumpReq) { this.jumpBuf = 0.15; this.jumpReq = false; }
+    if (this.jumpBuf > 0) this.jumpBuf -= dt;
+    this.airT = this.onGround ? 0 : (this.airT || 0) + dt;
+    if (this.jumpBuf > 0 && !this.dead && (this.onGround || (this.airT < 0.12 && this.vel.y <= 0.5))) {
+      this.jumpBuf = 0;
+      if (!this.tryVault()) {
         if (this.stance === 'prone') this.setStance('crouch');
         else if (this.stance === 'crouch') this.setStance('stand');
         else { this.vel.y = JUMP_V; this.onGround = false; this.ads = false; }
@@ -397,6 +401,11 @@ class Actor {
   }
   damage(dmg, from, info) {
     if (this.dead || (G.state !== 'live' && G.state !== 'range')) return;
+    const real = Math.max(0, Math.min(dmg, this.health));
+    if (from && from !== this && real > 0 && !this.dummy) { // 라운드 끝에 보여줄 '넣은 딜'
+      if (from === PLAYER) recordDealt(this.name, real);
+      else if (from.remote && NET.active && (this === PLAYER || this.netBot)) netSend({ t: 'dealt', d: +real.toFixed(1), n: this.name }, from.netId);
+    }
     this.health -= dmg; this.lastDamage = 0;
     if (from && from !== this && dmg > 0) { if (!this.dmgLog) this.dmgLog = new Map(); this.dmgLog.set(from, performance.now()); } // 어시스트용 기록
     if (this.onDamage) this.onDamage(dmg, from, info);

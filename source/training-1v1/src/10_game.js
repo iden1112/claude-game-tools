@@ -17,7 +17,7 @@ const enemy = () => BOT;
 
 function goMenu() {
   if (NET.active || NET.peer || NET.bc) { netSend({ t: 'bye' }); netReset(); }
-  G.state = 'menu'; G.mode = 'arena'; G.menuOpen = false;
+  G.state = 'menu'; G.mode = 'arena'; G.menuOpen = false; stopPlayerInput(); HUD.showDealt(false);
   WORLD.bounds = WORLD.map.bounds; clearCombat();
   for (const id of ['pause', 'end', 'loadout', 'rangemenu', 'mp']) $(id).style.display = 'none';
   $('start-settings').appendChild($('settings'));
@@ -64,7 +64,7 @@ const GAME = {
       if (side) { const ai = BOT.ai; if (ai.goal) ai.goal.set(-ai.goal.x, 0, -ai.goal.z); }
       BOT.ai.flip = side;
     }
-    G.state = 'pre'; G.preT = G.round === 1 ? 10 : 8; G.roundT = ROUND_TIME;
+    G.state = 'pre'; G.preT = G.round === 1 ? 10 : 8; G.roundT = ROUND_TIME; G.dealt = new Map(); HUD.showDealt(false);
     HUD.message(`라운드 ${G.round}`, `~ 키로 총 바꾸기 · ${G.winTo}점 먼저 따면 승리`, 3);
     buildViewmodel();
     if (mp) { NET.myLoadoutKey = ''; }
@@ -93,7 +93,7 @@ const GAME = {
     }
     PLAYER.netLoKey = '';
     CAM.eyeSmooth.copy(PLAYER.eyePos); CAM.spec = null;
-    G.state = 'pre'; G.preT = G.round === 1 ? 10 : 8; G.roundT = ROUND_TIME;
+    G.state = 'pre'; G.preT = G.round === 1 ? 10 : 8; G.roundT = ROUND_TIME; G.dealt = new Map(); HUD.showDealt(false);
     const n0 = NET.lobby.players.filter(p => p.team === 0).length, n1 = NET.lobby.players.length - n0;
     HUD.message(`라운드 ${G.round}`, `${TEAM_NAME[G.myTeam]} 팀 · ${n0}대${n1} · ~ 키로 총 바꾸기 · ${G.winTo}점 선승`, 3);
     buildViewmodel();
@@ -104,7 +104,7 @@ const GAME = {
     if (w < 0) HUD.message('무승부', sub || '양쪽 모두 쓰러졌어요', 3.5);
     else if (w === G.myTeam) HUD.message('라운드 승리', sub || `${TEAM_NAME[w]} 팀이 이겼어요`, 3.5, 'win');
     else HUD.message('라운드 패배', sub || `${TEAM_NAME[w]} 팀이 이겼어요`, 3.5, 'lose');
-    G.state = 'post'; G.postT = 4; PLAYER.trigger = false;
+    G.state = 'post'; G.postT = 4; PLAYER.trigger = false; HUD.showDealt(true);
   },
   goLive() {
     G.state = 'live'; AU.beep(990, 0.25, 0.3); HUD.message('전투 시작!', '', 1.2);
@@ -133,7 +133,7 @@ const GAME = {
     HUD.addFeed(`<span class="${killer === PLAYER ? 'me' : 'en'}">${kname}</span> <i>[${info && info.weapon || ''}]</i> <span class="${victim === PLAYER ? 'me' : 'en'}">${victim.name}</span>${head}${dist}`);
     if (pWin) HUD.message('라운드 승리', `${info && info.weapon || ''}${head ? ' · 헤드샷' : ''}${dist}`, 3.5, 'win');
     else HUD.message('라운드 패배', `${E.name}의 ${info && info.weapon || ''}${dist}`, 3.5, 'lose');
-    G.state = 'post'; G.postT = 4;
+    G.state = 'post'; G.postT = 4; HUD.showDealt(true);
     PLAYER.trigger = false;
   },
   timeUp() {
@@ -148,7 +148,7 @@ const GAME = {
     if (res === 0) HUD.message('시간 종료', '무승부 - 점수 없음', 3);
     else if (res > 0) HUD.message('시간 종료', '체력이 더 많아서 승리', 3, 'win');
     else HUD.message('시간 종료', '체력이 더 적어서 패배', 3, 'lose');
-    G.state = 'post'; G.postT = 3.5;
+    G.state = 'post'; G.postT = 3.5; HUD.showDealt(true);
   },
   update(dt) {
     const mpClient = G.mode === 'mp' && !NET.host;
@@ -169,7 +169,7 @@ const GAME = {
     }
   },
   endMatch() {
-    G.state = 'over';
+    G.state = 'over'; stopPlayerInput(); HUD.showDealt(true);
     document.exitPointerLock && document.exitPointerLock();
     const me = G.myTeam || 0, win = G.score[me] > G.score[1 - me];
     $('end').style.display = 'flex';
@@ -361,6 +361,7 @@ function setupMenus() {
   $('start-settings').appendChild($('settings'));
   canvasEl.addEventListener('click', () => { if (isPlaying() && !G.menuOpen && !INPUT.locked) { $('pause').style.display = 'none'; lockPointer(); } });
   window.onPointerUnlock = () => {
+    INPUT.keys = {}; INPUT.lmb = INPUT.rmb = false; // 잠금이 풀리면 눌린 키를 놓은 걸로 (키가 눌린 채로 남지 않게)
     if (G.menuOpen || G.state === 'menu' || G.state === 'over') return;
     $('pause-settings').appendChild($('settings'));
     $('pause').style.display = 'flex';
