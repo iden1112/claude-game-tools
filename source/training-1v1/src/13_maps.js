@@ -146,9 +146,14 @@ function pillar(F, lx, lz, s = 0.9, h = 4, mat = M2.stone) {
 const _dodeca = new THREE.DodecahedronGeometry(1, 0);
 function rock(F, lx, lz, w = 2, h = 1.4, d, snowy) {
   d = d || w * 0.85;
-  F.box(lx, 0, lz, w, h, d, M2.rock, { invisible: true, kind: 'solid' });
+  // 충돌: 바위 모양(둥근 12면체)에 맞게 층마다 팔각형(상자 2개를 엇갈려)으로 — 큰 상자 하나면 모서리 빈 곳도 막혀요
+  for (const [y0, y1, f] of [[0, 0.22, 0.66], [0.22, 0.7, 0.92], [0.7, 0.92, 0.72]]) {
+    const bh = (y1 - y0) * h;
+    F.box(lx, y0 * h, lz, w * f, bh, d * f * 0.62, M2.rock, { invisible: true, kind: 'solid' });
+    F.box(lx, y0 * h, lz, w * f * 0.62, bh, d * f, M2.rock, { invisible: true, kind: 'solid' });
+  }
   const m = new THREE.Mesh(_dodeca, snowy ? M2.rockSnow : M2.rock);
-  m.scale.set(w / 1.86, h / 1.7, d / 1.86); m.rotation.set(mr(-0.2, 0.2), 0, mr(-0.2, 0.2)); F.mesh(m, lx, h / 2 - 0.05, lz, mr(0, 1));
+  m.scale.set(w / 1.86, h / 1.7, d / 1.86); m.rotation.set(mr(-0.12, 0.12), 0, mr(-0.12, 0.12)); F.mesh(m, lx, h / 2 - 0.05, lz, MR() < 0.5 ? 0 : Math.PI);
 }
 function pine(F, lx, lz, s = 1, snowy) {
   F.box(lx, 0, lz, 0.55 * s, 3.2 * s, 0.55 * s, M2.trunk, { invisible: true, kind: 'wood' });

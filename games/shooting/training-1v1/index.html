@@ -1044,7 +1044,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 38; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 39; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -6751,7 +6751,7 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 10; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 11; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 const STANCE_CODE = { stand: 0, crouch: 1, prone: 2 }, STANCE_NAME = ['stand', 'crouch', 'prone'];
@@ -7478,9 +7478,14 @@ function pillar(F, lx, lz, s = 0.9, h = 4, mat = M2.stone) {
 const _dodeca = new THREE.DodecahedronGeometry(1, 0);
 function rock(F, lx, lz, w = 2, h = 1.4, d, snowy) {
   d = d || w * 0.85;
-  F.box(lx, 0, lz, w, h, d, M2.rock, { invisible: true, kind: 'solid' });
+  // 충돌: 바위 모양(둥근 12면체)에 맞게 층마다 팔각형(상자 2개를 엇갈려)으로 — 큰 상자 하나면 모서리 빈 곳도 막혀요
+  for (const [y0, y1, f] of [[0, 0.22, 0.66], [0.22, 0.7, 0.92], [0.7, 0.92, 0.72]]) {
+    const bh = (y1 - y0) * h;
+    F.box(lx, y0 * h, lz, w * f, bh, d * f * 0.62, M2.rock, { invisible: true, kind: 'solid' });
+    F.box(lx, y0 * h, lz, w * f * 0.62, bh, d * f, M2.rock, { invisible: true, kind: 'solid' });
+  }
   const m = new THREE.Mesh(_dodeca, snowy ? M2.rockSnow : M2.rock);
-  m.scale.set(w / 1.86, h / 1.7, d / 1.86); m.rotation.set(mr(-0.2, 0.2), 0, mr(-0.2, 0.2)); F.mesh(m, lx, h / 2 - 0.05, lz, mr(0, 1));
+  m.scale.set(w / 1.86, h / 1.7, d / 1.86); m.rotation.set(mr(-0.12, 0.12), 0, mr(-0.12, 0.12)); F.mesh(m, lx, h / 2 - 0.05, lz, MR() < 0.5 ? 0 : Math.PI);
 }
 function pine(F, lx, lz, s = 1, snowy) {
   F.box(lx, 0, lz, 0.55 * s, 3.2 * s, 0.55 * s, M2.trunk, { invisible: true, kind: 'wood' });
