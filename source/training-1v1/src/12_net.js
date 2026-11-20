@@ -6,11 +6,12 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 13; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 14; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 // 개인전 (1v1v1v1): 최대 4명, 한 사람이 한 팀(팀 번호 0~3). 2명 이상이면 시작할 수 있어요
 const isFFA = () => !!(NET.lobby && NET.lobby.ffa);
+function ffaMaps() { return MAP_LIST.ffa.concat(MAP_LIST[4]); } // 개인전 전용 맵 + 4대4 맵
 function ffaTeams(L) { L.players.forEach((p, i) => { p.team = i; }); }
 function teamLabel(t) { if (isFFA()) { const p = NET.lobby.players.find(x => x.team === t); return p ? (p.id === NET.id ? '나' : p.name) : '?'; } return TEAM_NAME[t] + ' 팀'; }
 const STANCE_CODE = { stand: 0, crouch: 1, prone: 2 }, STANCE_NAME = ['stand', 'crouch', 'prone'];
@@ -366,7 +367,7 @@ function renderLobby() {
     return h + '</div>';
   };
   if (L.ffa) { // 개인전: 4자리 한 줄
-    const maps = MAP_LIST[4] || [], cur = L.map && maps.includes(L.map) ? L.map : 'random';
+    const maps = ffaMaps(), cur = L.map && maps.includes(L.map) ? L.map : 'random';
     const mapBtns = [`<button class="${cur === 'random' ? 'on' : ''}" data-map="random" ${host ? '' : 'disabled'}>랜덤</button>`].concat(maps.map(id => `<button class="${cur === id ? 'on' : ''}" data-map="${id}" ${host ? '' : 'disabled'}>${MAP_DEFS[id].name}</button>`)).join('');
     let col = `<div class="tcol" style="flex:1"><h4 style="color:#ffd24a">개인전 <small>${L.players.length}/4 · 모두가 적이에요</small></h4>`;
     for (const p of L.players) col += `<div class="pl">${p.id === 'h' ? '👑 ' : p.bot ? '🤖 ' : ''}${esc(p.name)}${p.id === me ? ' <em>(나)</em>' : ''}${host && p.bot ? `<button data-kick="${p.id}">AI 빼기</button>` : ''}</div>`;
@@ -407,8 +408,8 @@ function myLoadoutMsg() { return { t: 'lo', list: PLAYER.weapons.map(w => ({ id:
 // ---------- 라운드 (방장이 정함) ----------
 function netStartGame() {
   const L = NET.lobby;
-  const maps = MAP_LIST[L.size] || ['arena'];
-  NET.matchMap = L.map && maps.includes(L.map) ? L.map : maps[(Math.random() * maps.length) | 0];
+  const maps = L.ffa ? ffaMaps() : MAP_LIST[L.size] || ['arena'], rnd = L.ffa ? MAP_LIST.ffa : maps; // 개인전 랜덤은 전용 맵에서
+  NET.matchMap = L.map && maps.includes(L.map) ? L.map : rnd[(Math.random() * rnd.length) | 0];
   NET.active = true; G.mode = 'mp';
   G.score = L.ffa ? [0, 0, 0, 0] : [0, 0]; G.round = 0; G.time = 0;
   netNextRound();
@@ -420,8 +421,8 @@ function netNextRound() {
   const spawns = {}, SZ = Math.abs(D.spawnZ), gap = Math.min(5, (D.bounds.maxX - 4) * 2 / Math.max(1, L.size));
   if (L.ffa) { // 개인전: 네 자리(양쪽 끝 왼·오른쪽)를 라운드마다 돌려요. 2명이면 서로 반대편 끝
     const g4 = Math.min(5, (D.bounds.maxX - 4) * 2 / 4), X = 1.5 * g4;
-    const slots = [[-X, -SZ], [X, SZ], [X, -SZ], [-X, SZ]];
-    L.players.forEach((p, i) => { const s = slots[(i + round - 1) % 4]; spawns[p.id] = [+(s[0] + rand(-0.5, 0.5)).toFixed(2), s[1], s[1] < 0 ? Math.PI : 0]; });
+    const slots = D.ffaSpawns || [[-X, -SZ], [X, SZ], [X, -SZ], [-X, SZ]];
+    L.players.forEach((p, i) => { const s = slots[(i + round - 1) % 4]; spawns[p.id] = [+(s[0] + rand(-0.4, 0.4)).toFixed(2), +s[1].toFixed(2), D.ffaSpawns ? +Math.atan2(s[0], s[1]).toFixed(3) : s[1] < 0 ? Math.PI : 0]; });
   } else
   for (const team of [0, 1]) {
     const ps = L.players.filter(p => p.team === team);

@@ -1044,7 +1044,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 42; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 43; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -6420,7 +6420,7 @@ function setupMenus() {
   try { Object.assign(aiSel, JSON.parse(localStorage.getItem('tg1v1_ai') || '{}')); } catch (e) {}
   const drawAI = () => {
     $('ai-size').innerHTML = [1, 2, 3, 4].map(n => `<button class="${aiSel.size === n ? 'on' : ''}" data-n="${n}">${n}대${n}</button>`).join(' ') + ` <button class="${aiSel.size === 'ffa' ? 'on' : ''}" data-n="ffa">개인전 1v1v1v1</button>`;
-    const list = MAP_LIST[aiSel.size === 'ffa' ? 4 : aiSel.size] || [];
+    const list = (aiSel.size === 'ffa' ? ffaMaps() : MAP_LIST[aiSel.size]) || [];
     if (aiSel.map !== 'random' && !list.includes(aiSel.map)) aiSel.map = 'random';
     $('ai-map').innerHTML = `<option value="random">랜덤</option>` + list.map(id => `<option value="${id}">${MAP_DEFS[id].name}</option>`).join('');
     $('ai-map').value = aiSel.map;
@@ -6788,11 +6788,12 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 13; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 14; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 // 개인전 (1v1v1v1): 최대 4명, 한 사람이 한 팀(팀 번호 0~3). 2명 이상이면 시작할 수 있어요
 const isFFA = () => !!(NET.lobby && NET.lobby.ffa);
+function ffaMaps() { return MAP_LIST.ffa.concat(MAP_LIST[4]); } // 개인전 전용 맵 + 4대4 맵
 function ffaTeams(L) { L.players.forEach((p, i) => { p.team = i; }); }
 function teamLabel(t) { if (isFFA()) { const p = NET.lobby.players.find(x => x.team === t); return p ? (p.id === NET.id ? '나' : p.name) : '?'; } return TEAM_NAME[t] + ' 팀'; }
 const STANCE_CODE = { stand: 0, crouch: 1, prone: 2 }, STANCE_NAME = ['stand', 'crouch', 'prone'];
@@ -7148,7 +7149,7 @@ function renderLobby() {
     return h + '</div>';
   };
   if (L.ffa) { // 개인전: 4자리 한 줄
-    const maps = MAP_LIST[4] || [], cur = L.map && maps.includes(L.map) ? L.map : 'random';
+    const maps = ffaMaps(), cur = L.map && maps.includes(L.map) ? L.map : 'random';
     const mapBtns = [`<button class="${cur === 'random' ? 'on' : ''}" data-map="random" ${host ? '' : 'disabled'}>랜덤</button>`].concat(maps.map(id => `<button class="${cur === id ? 'on' : ''}" data-map="${id}" ${host ? '' : 'disabled'}>${MAP_DEFS[id].name}</button>`)).join('');
     let col = `<div class="tcol" style="flex:1"><h4 style="color:#ffd24a">개인전 <small>${L.players.length}/4 · 모두가 적이에요</small></h4>`;
     for (const p of L.players) col += `<div class="pl">${p.id === 'h' ? '👑 ' : p.bot ? '🤖 ' : ''}${esc(p.name)}${p.id === me ? ' <em>(나)</em>' : ''}${host && p.bot ? `<button data-kick="${p.id}">AI 빼기</button>` : ''}</div>`;
@@ -7189,8 +7190,8 @@ function myLoadoutMsg() { return { t: 'lo', list: PLAYER.weapons.map(w => ({ id:
 // ---------- 라운드 (방장이 정함) ----------
 function netStartGame() {
   const L = NET.lobby;
-  const maps = MAP_LIST[L.size] || ['arena'];
-  NET.matchMap = L.map && maps.includes(L.map) ? L.map : maps[(Math.random() * maps.length) | 0];
+  const maps = L.ffa ? ffaMaps() : MAP_LIST[L.size] || ['arena'], rnd = L.ffa ? MAP_LIST.ffa : maps; // 개인전 랜덤은 전용 맵에서
+  NET.matchMap = L.map && maps.includes(L.map) ? L.map : rnd[(Math.random() * rnd.length) | 0];
   NET.active = true; G.mode = 'mp';
   G.score = L.ffa ? [0, 0, 0, 0] : [0, 0]; G.round = 0; G.time = 0;
   netNextRound();
@@ -7202,8 +7203,8 @@ function netNextRound() {
   const spawns = {}, SZ = Math.abs(D.spawnZ), gap = Math.min(5, (D.bounds.maxX - 4) * 2 / Math.max(1, L.size));
   if (L.ffa) { // 개인전: 네 자리(양쪽 끝 왼·오른쪽)를 라운드마다 돌려요. 2명이면 서로 반대편 끝
     const g4 = Math.min(5, (D.bounds.maxX - 4) * 2 / 4), X = 1.5 * g4;
-    const slots = [[-X, -SZ], [X, SZ], [X, -SZ], [-X, SZ]];
-    L.players.forEach((p, i) => { const s = slots[(i + round - 1) % 4]; spawns[p.id] = [+(s[0] + rand(-0.5, 0.5)).toFixed(2), s[1], s[1] < 0 ? Math.PI : 0]; });
+    const slots = D.ffaSpawns || [[-X, -SZ], [X, SZ], [X, -SZ], [-X, SZ]];
+    L.players.forEach((p, i) => { const s = slots[(i + round - 1) % 4]; spawns[p.id] = [+(s[0] + rand(-0.4, 0.4)).toFixed(2), +s[1].toFixed(2), D.ffaSpawns ? +Math.atan2(s[0], s[1]).toFixed(3) : s[1] < 0 ? Math.PI : 0]; });
   } else
   for (const team of [0, 1]) {
     const ps = L.players.filter(p => p.team === team);
@@ -7522,6 +7523,11 @@ function S(fn, x, z, rot, ...args) {
   callP(fn, LF(x, z, rot), args); callP(fn, LF(-x, -z, rot + 2), args);
   if (MSPOTS) { const bz = z < 0 ? -z : z, bx = z < 0 ? -x : x; MSPOTS.push([bx, bz + 2.2]); }
 }
+// 네 방향으로 똑같이 (개인전 맵: 90도씩 돌려서 4번)
+function Q(fn, x, z, rot, ...args) {
+  let px = x, pz = z;
+  for (let k = 0; k < 4; k++) { callP(fn, LF(px, pz, rot + k), args); if (MSPOTS) MSPOTS.push([px, pz]); const t = px; px = pz; pz = -t; }
+}
 // 가운데에 한 번만 (그 자체가 대칭인 것)
 function C(fn, x, z, rot, ...args) { callP(fn, LF(x, z, rot), args); if (MSPOTS) MSPOTS.push([x, z + 4]); }
 
@@ -7767,7 +7773,7 @@ function outskirts(W, L, kind) { // 둘레 바깥 꾸미기 (보기용, 충돌 �
 
 // ---- 맵 정의 ----
 // size: 한 팀 인원 (1~4), W·L: 크기, theme: 하늘색, floor: 바닥, wall: 둘레
-const MAP_LIST = { 1: [], 2: [], 3: [], 4: [] };
+const MAP_LIST = { 1: [], 2: [], 3: [], 4: [], ffa: [] };
 function defMap(id, name, size, W, L, theme, build) {
   MAP_DEFS[id] = { id, name, size, theme, bounds: { minX: -W / 2, maxX: W / 2, minZ: -L / 2, maxZ: L / 2 }, spawnZ: -(L / 2 - 3.5), W, L, build };
   MAP_LIST[size].push(id);
@@ -7934,6 +7940,38 @@ defMap('t4_fort', '숲 속 요새', 4, 80, 110, 'forest', mapBuilder(403, 80, 11
   S(rock, -30, -10, 0, 4, 2.4); S(rock, 12, -28, 0, 3, 1.6); S(rock, -18, -48, 0, 3.5, 1.8); S(rock, 4, -46, 0, 3, 1.4);
   S(house, -30, -32, 0, 6, 5, 3, M2.log, { door: ['f', 'r'], win: ['b'], roof: true, stairs: 'l' });
   S(scaf, 30, -48, 0, 3, 3, 4, 'z-');
+}));
+
+// ===== 개인전 (1v1v1v1) 전용: 네모난 맵, 네 모서리에서 시작, 90도씩 똑같은 모양 =====
+function defFFA(id, name, W, theme, build) {
+  defMap(id, name, 'ffa', W, W, theme, build);
+  const X = W / 2 - 4.5;
+  MAP_DEFS[id].ffaSpawns = [[-X, -X], [X, X], [X, -X], [-X, X]]; // 대각선 반대편부터
+}
+defFFA('f_plaza', '사거리 광장', 64, 'base', mapBuilder(501, 64, 64, MAT.asphalt, 'concrete', 'city', (hw) => {
+  C(fountain, 0, 0, 0);
+  Q(house, 0, -16, 0, 9, 7, 3.4, MAT.brick, { door: ['f', 'b'], win: ['l', 'r'], roof: true, stairs: 'l' });
+  Q(carF, -8, -6, 0, true, 1); Q(jersey, 8, -8, 0, 4, true); Q(crates, 13, -21, 0); Q(barrels, -13, -24, 0);
+  Q(sandbag, 21, -11, 0, 3, false); Q(stall, -6, -27, 0, 2);
+}));
+defFFA('f_ruins', '무너진 신전', 64, 'dusk', mapBuilder(502, 64, 64, M2.dirt, 'rock', null, (hw) => {
+  C(well, 0, 0, 0);
+  Q(pillar, 5, -5, 0, 0.9, 4); Q(pillar, 0, -8, 0, 0.9, 3.2, M2.stone);
+  Q(broken, 0, -14, 0, 8, true, M2.stone); Q(arch, 13, -13, 0, 5, 4.5, true);
+  Q(rock, -10, -21, 0, 3.2, 1.8); Q(wallL, 19, -4, 0, 6, 2.2, false, M2.stone); Q(pillar, -19, -15, 0, 1.1, 3.6);
+  Q(rock, 8, -25, 0, 2.6, 1.4); Q(broken, -12, -6, 0, 5, false, M2.stone); Q(wallL, 6, -20, 0, 4, 1.6, true, M2.stone);
+}));
+defFFA('f_snow', '눈 덮인 숲속 오두막', 64, 'snow', mapBuilder(503, 64, 64, M2.snow, 'rockSnow', 'snowpines', (hw) => {
+  C(house, 0, 0, 0, 7, 7, 3, M2.log, { door: ['f', 'b', 'l', 'r'], win: [], roof: false, pitched: true, pitchMat: M2.snowCap });
+  Q(pine, -6, -12, 0, 1.1, true); Q(pine, 11, -17, 0, 1.2, true); Q(pine, -20, -9, 0, 1.0, true);
+  Q(rock, 3, -21, 0, 3, 1.6, 0, true); Q(logs, -13, -8, 0, 4, false); Q(tent, 17, -6, 0);
+  Q(rock, -17, -21, 0, 2.6, 2.0, 0, true); Q(logs, 6, -9, 0, 3, true);
+  Q(rock, 13, -6, 0, 2.4, 1.5, 0, true); Q(logs, -5, -24, 0, 4, true); Q(pine, 21, -14, 0, 0.9, true);
+}));
+defFFA('f_yard', '컨테이너 야적장', 66, 'gray', mapBuilder(504, 66, 66, MAT.concrete, 'fence', 'cranes', (hw) => {
+  C(cont, 0, 0, 0, true, true, 0); C(cont, 0, 0, 0, false, true, 1, 2.6);
+  Q(cont, 0, -15, 0, true, true, 2); Q(cont, -13, -12, 0, false, false, 3); Q(crates, 10, -9, 0);
+  Q(scaf, 19, -16, 0, 3, 3, 4, 'z-'); Q(barrels, -6, -24, 0); Q(cont, 22, -3, 0, false, true, 4); Q(jersey, -19, -3, 0, 4, false);
 }));
 
 // ================= 폰(터치) 조작 =================

@@ -343,7 +343,7 @@ function setupMenus() {
   try { Object.assign(aiSel, JSON.parse(localStorage.getItem('tg1v1_ai') || '{}')); } catch (e) {}
   const drawAI = () => {
     $('ai-size').innerHTML = [1, 2, 3, 4].map(n => `<button class="${aiSel.size === n ? 'on' : ''}" data-n="${n}">${n}대${n}</button>`).join(' ') + ` <button class="${aiSel.size === 'ffa' ? 'on' : ''}" data-n="ffa">개인전 1v1v1v1</button>`;
-    const list = MAP_LIST[aiSel.size === 'ffa' ? 4 : aiSel.size] || [];
+    const list = (aiSel.size === 'ffa' ? ffaMaps() : MAP_LIST[aiSel.size]) || [];
     if (aiSel.map !== 'random' && !list.includes(aiSel.map)) aiSel.map = 'random';
     $('ai-map').innerHTML = `<option value="random">랜덤</option>` + list.map(id => `<option value="${id}">${MAP_DEFS[id].name}</option>`).join('');
     $('ai-map').value = aiSel.map;

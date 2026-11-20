@@ -85,6 +85,11 @@ function S(fn, x, z, rot, ...args) {
   callP(fn, LF(x, z, rot), args); callP(fn, LF(-x, -z, rot + 2), args);
   if (MSPOTS) { const bz = z < 0 ? -z : z, bx = z < 0 ? -x : x; MSPOTS.push([bx, bz + 2.2]); }
 }
+// 네 방향으로 똑같이 (개인전 맵: 90도씩 돌려서 4번)
+function Q(fn, x, z, rot, ...args) {
+  let px = x, pz = z;
+  for (let k = 0; k < 4; k++) { callP(fn, LF(px, pz, rot + k), args); if (MSPOTS) MSPOTS.push([px, pz]); const t = px; px = pz; pz = -t; }
+}
 // 가운데에 한 번만 (그 자체가 대칭인 것)
 function C(fn, x, z, rot, ...args) { callP(fn, LF(x, z, rot), args); if (MSPOTS) MSPOTS.push([x, z + 4]); }
 
@@ -330,7 +335,7 @@ function outskirts(W, L, kind) { // 둘레 바깥 꾸미기 (보기용, 충돌 �
 
 // ---- 맵 정의 ----
 // size: 한 팀 인원 (1~4), W·L: 크기, theme: 하늘색, floor: 바닥, wall: 둘레
-const MAP_LIST = { 1: [], 2: [], 3: [], 4: [] };
+const MAP_LIST = { 1: [], 2: [], 3: [], 4: [], ffa: [] };
 function defMap(id, name, size, W, L, theme, build) {
   MAP_DEFS[id] = { id, name, size, theme, bounds: { minX: -W / 2, maxX: W / 2, minZ: -L / 2, maxZ: L / 2 }, spawnZ: -(L / 2 - 3.5), W, L, build };
   MAP_LIST[size].push(id);
@@ -497,4 +502,36 @@ defMap('t4_fort', '숲 속 요새', 4, 80, 110, 'forest', mapBuilder(403, 80, 11
   S(rock, -30, -10, 0, 4, 2.4); S(rock, 12, -28, 0, 3, 1.6); S(rock, -18, -48, 0, 3.5, 1.8); S(rock, 4, -46, 0, 3, 1.4);
   S(house, -30, -32, 0, 6, 5, 3, M2.log, { door: ['f', 'r'], win: ['b'], roof: true, stairs: 'l' });
   S(scaf, 30, -48, 0, 3, 3, 4, 'z-');
+}));
+
+// ===== 개인전 (1v1v1v1) 전용: 네모난 맵, 네 모서리에서 시작, 90도씩 똑같은 모양 =====
+function defFFA(id, name, W, theme, build) {
+  defMap(id, name, 'ffa', W, W, theme, build);
+  const X = W / 2 - 4.5;
+  MAP_DEFS[id].ffaSpawns = [[-X, -X], [X, X], [X, -X], [-X, X]]; // 대각선 반대편부터
+}
+defFFA('f_plaza', '사거리 광장', 64, 'base', mapBuilder(501, 64, 64, MAT.asphalt, 'concrete', 'city', (hw) => {
+  C(fountain, 0, 0, 0);
+  Q(house, 0, -16, 0, 9, 7, 3.4, MAT.brick, { door: ['f', 'b'], win: ['l', 'r'], roof: true, stairs: 'l' });
+  Q(carF, -8, -6, 0, true, 1); Q(jersey, 8, -8, 0, 4, true); Q(crates, 13, -21, 0); Q(barrels, -13, -24, 0);
+  Q(sandbag, 21, -11, 0, 3, false); Q(stall, -6, -27, 0, 2);
+}));
+defFFA('f_ruins', '무너진 신전', 64, 'dusk', mapBuilder(502, 64, 64, M2.dirt, 'rock', null, (hw) => {
+  C(well, 0, 0, 0);
+  Q(pillar, 5, -5, 0, 0.9, 4); Q(pillar, 0, -8, 0, 0.9, 3.2, M2.stone);
+  Q(broken, 0, -14, 0, 8, true, M2.stone); Q(arch, 13, -13, 0, 5, 4.5, true);
+  Q(rock, -10, -21, 0, 3.2, 1.8); Q(wallL, 19, -4, 0, 6, 2.2, false, M2.stone); Q(pillar, -19, -15, 0, 1.1, 3.6);
+  Q(rock, 8, -25, 0, 2.6, 1.4); Q(broken, -12, -6, 0, 5, false, M2.stone); Q(wallL, 6, -20, 0, 4, 1.6, true, M2.stone);
+}));
+defFFA('f_snow', '눈 덮인 숲속 오두막', 64, 'snow', mapBuilder(503, 64, 64, M2.snow, 'rockSnow', 'snowpines', (hw) => {
+  C(house, 0, 0, 0, 7, 7, 3, M2.log, { door: ['f', 'b', 'l', 'r'], win: [], roof: false, pitched: true, pitchMat: M2.snowCap });
+  Q(pine, -6, -12, 0, 1.1, true); Q(pine, 11, -17, 0, 1.2, true); Q(pine, -20, -9, 0, 1.0, true);
+  Q(rock, 3, -21, 0, 3, 1.6, 0, true); Q(logs, -13, -8, 0, 4, false); Q(tent, 17, -6, 0);
+  Q(rock, -17, -21, 0, 2.6, 2.0, 0, true); Q(logs, 6, -9, 0, 3, true);
+  Q(rock, 13, -6, 0, 2.4, 1.5, 0, true); Q(logs, -5, -24, 0, 4, true); Q(pine, 21, -14, 0, 0.9, true);
+}));
+defFFA('f_yard', '컨테이너 야적장', 66, 'gray', mapBuilder(504, 66, 66, MAT.concrete, 'fence', 'cranes', (hw) => {
+  C(cont, 0, 0, 0, true, true, 0); C(cont, 0, 0, 0, false, true, 1, 2.6);
+  Q(cont, 0, -15, 0, true, true, 2); Q(cont, -13, -12, 0, false, false, 3); Q(crates, 10, -9, 0);
+  Q(scaf, 19, -16, 0, 3, 3, 4, 'z-'); Q(barrels, -6, -24, 0); Q(cont, 22, -3, 0, false, true, 4); Q(jersey, -19, -3, 0, 4, false);
 }));
