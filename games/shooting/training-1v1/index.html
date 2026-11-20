@@ -1044,7 +1044,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 41; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 42; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -5279,7 +5279,7 @@ function updatePlayerCamera(dt) {
   // 죽으면 살아있는 팀원 관전
   if (p.dead && G.mode === 'mp') {
     CAM.deadT = (CAM.deadT || 0) + dt;
-    if (CAM.deadT > 2 && (!CAM.spec || CAM.spec.dead || CAM.spec.gone)) CAM.spec = ACTORS.find(r => r !== p && r.team === G.myTeam && !r.dead && !r.gone) || null;
+    if (CAM.deadT > 2 && (!CAM.spec || CAM.spec.dead || CAM.spec.gone)) CAM.spec = ACTORS.find(r => r !== p && (isFFA() || r.team === G.myTeam) && !r.dead && !r.gone) || null;
   } else { CAM.deadT = 0; CAM.spec = null; }
   const S = CAM.spec || p;
   // 파쿠르: 시선이 아래로 숙였다가 올라오고 살짝 기울어짐
@@ -5867,14 +5867,17 @@ const HUD = {
     UI('score', 'style.display', range ? 'none' : 'flex');
     UI('rangehud', 'style.display', range ? 'block' : 'none');
     if (range) this.rangeHud();
-    const mp = G.mode === 'mp', me = G.myTeam || 0;
-    UI('sc-pn', 'textContent', mp ? TEAM_NAME[me] + ' (우리)' : '나');
-    UI('sc-bn', 'textContent', mp ? TEAM_NAME[1 - me] : '봇');
+    const mp = G.mode === 'mp', me = G.myTeam || 0, ffa = mp && isFFA();
+    let top = 1 - me; // 개인전: 오른쪽 칸 = 나를 빼고 점수 1등
+    if (ffa) { top = -1; for (const p of NET.lobby.players) if (p.team !== me && (top < 0 || (G.score[p.team] || 0) > (G.score[top] || 0))) top = p.team; }
+    UI('sc-pn', 'textContent', ffa ? '나' : mp ? TEAM_NAME[me] + ' (우리)' : '나');
+    UI('sc-bn', 'textContent', ffa ? (top >= 0 ? teamLabel(top) + ' (1등 상대)' : '-') : mp ? TEAM_NAME[1 - me] : '봇');
     UI('sc-p', 'style.background', mp ? (me === 0 ? 'rgba(60,140,220,.75)' : 'rgba(210,70,60,.75)') : '');
     UI('sc-b', 'style.background', mp ? (me === 0 ? 'rgba(210,70,60,.75)' : 'rgba(60,140,220,.75)') : '');
     // 점수
-    UI('sc-p', 'textContent', G.score[me]); UI('sc-b', 'textContent', G.score[1 - me]);
-    if (mp) {
+    UI('sc-p', 'textContent', G.score[me] || 0); UI('sc-b', 'textContent', ffa ? (top >= 0 ? G.score[top] || 0 : 0) : G.score[1 - me]);
+    if (ffa) { let n = 0; for (const a of ACTORS) if (!a.dead && !a.gone && a.team !== undefined) n++; UI('sc-alive', 'textContent', `남은 사람 ${n}`); }
+    else if (mp) {
       const pips = (t) => { let s = ''; for (const a of ACTORS) if (a.team === t && !a.gone) s += a.dead ? '○' : '●'; return s; };
       UI('sc-alive', 'textContent', pips(me) + '  vs  ' + pips(1 - me));
     } else UI('sc-alive', 'textContent', '');
@@ -5991,7 +5994,11 @@ const HUD = {
     if (!on) { b.style.display = 'none'; return; }
     const row = (a, me) => `<tr class="${me ? 'me' : ''} ${a.dead ? 'dead' : ''}"><td>${esc(a.name)}${me ? ' (나)' : ''}</td><td>${a.kills || 0}</td><td>${a.assists || 0}</td><td>${a.deaths || 0}</td><td>${((a.kills || 0) / Math.max(1, a.deaths || 0)).toFixed(2)}</td><td>${a.heads || 0}</td></tr>`;
     let h = `<h3>점수판 · 라운드 ${G.round} · ${G.score[G.myTeam || 0]} : ${G.score[1 - (G.myTeam || 0)]}</h3><table><tr><th>이름</th><th>킬</th><th>어시</th><th>데스</th><th>K/D</th><th>헤드샷</th></tr>`;
-    if (G.mode === 'mp') {
+    if (G.mode === 'mp' && isFFA()) {
+      h = `<h3>점수판 · 개인전 · 라운드 ${G.round}</h3><table><tr><th>이름 (점수)</th><th>킬</th><th>어시</th><th>데스</th><th>K/D</th><th>헤드샷</th></tr>`;
+      const list = ACTORS.filter(a => !a.gone && a.team !== undefined).sort((x, y) => (G.score[y.team] || 0) - (G.score[x.team] || 0) || (y.kills || 0) - (x.kills || 0));
+      for (const a of list) h += row(Object.assign(Object.create(a), { name: `${a.name} (${G.score[a.team] || 0}점)` }), a === PLAYER);
+    } else if (G.mode === 'mp') {
       for (const t of [G.myTeam, 1 - G.myTeam]) {
         h += `<tr><td class="tb" colspan="6" style="color:${TEAM_COLOR[t]}">${TEAM_NAME[t]} 팀${t === G.myTeam ? ' (우리)' : ''} · ${G.score[t]}점</td></tr>`;
         const list = ACTORS.filter(a => a.team === t && !a.gone).sort((x, y) => (y.kills || 0) - (x.kills || 0));
@@ -6165,15 +6172,16 @@ const GAME = {
     CAM.eyeSmooth.copy(PLAYER.eyePos); CAM.spec = null;
     G.state = 'pre'; G.preT = G.round === 1 ? 10 : 8; G.roundT = ROUND_TIME; G.dealt = new Map(); HUD.showDealt(false);
     const n0 = NET.lobby.players.filter(p => p.team === 0).length, n1 = NET.lobby.players.length - n0;
-    HUD.message(`라운드 ${G.round}`, `${TEAM_NAME[G.myTeam]} 팀 · ${n0}대${n1} · ~ 키로 총 바꾸기 · ${G.winTo}점 선승`, 3);
+    HUD.message(`라운드 ${G.round}`, isFFA() ? `개인전 ${NET.lobby.players.length}명 · 모두가 적 · ~ 키로 총 바꾸기 · ${G.winTo}점 선승` : `${TEAM_NAME[G.myTeam]} 팀 · ${n0}대${n1} · ~ 키로 총 바꾸기 · ${G.winTo}점 선승`, 3);
     buildViewmodel();
   },
   showRoundEnd(m) {
     const w = m.winner;
-    const sub = m.why === 'time' ? '시간 종료 · 남은 체력이 많은 팀이 이겨요' : '';
-    if (w < 0) HUD.message('무승부', sub || '양쪽 모두 쓰러졌어요', 3.5);
-    else if (w === G.myTeam) HUD.message('라운드 승리', sub || `${TEAM_NAME[w]} 팀이 이겼어요`, 3.5, 'win');
-    else HUD.message('라운드 패배', sub || `${TEAM_NAME[w]} 팀이 이겼어요`, 3.5, 'lose');
+    const ffa = G.mode === 'mp' && isFFA();
+    const sub = m.why === 'time' ? (ffa ? '시간 종료 · 체력이 가장 많은 사람이 이겨요' : '시간 종료 · 남은 체력이 많은 팀이 이겨요') : '';
+    if (w < 0) HUD.message('무승부', sub || (ffa ? '모두 쓰러졌어요' : '양쪽 모두 쓰러졌어요'), 3.5);
+    else if (w === G.myTeam) HUD.message('라운드 승리', sub || (ffa ? '마지막까지 살아남았어요!' : `${TEAM_NAME[w]} 팀이 이겼어요`), 3.5, 'win');
+    else HUD.message('라운드 패배', sub || (ffa ? `${teamLabel(w)} 님이 살아남았어요` : `${TEAM_NAME[w]} 팀이 이겼어요`), 3.5, 'lose');
     G.state = 'post'; G.postT = 4; PLAYER.trigger = false; HUD.showDealt(true);
   },
   goLive() {
@@ -6190,7 +6198,7 @@ const GAME = {
       const cls = (a) => a === PLAYER ? 'me' : a.team === G.myTeam ? 'tm' : 'en';
       const kname = !killer || killer === victim ? '' : `<span class="${cls(killer)}">${esc(killer.name)}</span> `;
       HUD.addFeed(`${kname}<i>[${info && info.weapon || ''}]</i> <span class="${cls(victim)}">${esc(victim.name)}</span>${head}${dist}`);
-      if (victim === PLAYER) HUD.message('쓰러졌어요', teamAlive(G.myTeam) > 0 ? '팀원을 관전해요' : '', 2.5, 'lose');
+      if (victim === PLAYER) HUD.message('쓰러졌어요', isFFA() ? '다른 사람을 관전해요' : teamAlive(G.myTeam) > 0 ? '팀원을 관전해요' : '', 2.5, 'lose');
       if (NET.host) netCheckRoundEnd();
       return;
     }
@@ -6232,7 +6240,7 @@ const GAME = {
     } else if (G.state === 'post') {
       G.postT -= dt;
       if (G.postT <= 0 && !mpClient) {
-        if (G.score[0] >= G.winTo || G.score[1] >= G.winTo) { this.endMatch(); if (G.mode === 'mp') netSend({ t: 'over', score: G.score }); }
+        if (Math.max(...G.score) >= G.winTo) { this.endMatch(); if (G.mode === 'mp') netSend({ t: 'over', score: G.score }); }
         else if (G.mode === 'mp') netNextRound();
         else this.newRound();
       }
@@ -6241,11 +6249,17 @@ const GAME = {
   endMatch() {
     G.state = 'over'; stopPlayerInput(); HUD.showDealt(true);
     document.exitPointerLock && document.exitPointerLock();
-    const me = G.myTeam || 0, win = G.score[me] > G.score[1 - me];
+    const me = G.myTeam || 0, ffa = G.mode === 'mp' && isFFA();
+    const win = ffa ? G.score[me] >= Math.max(...G.score) : G.score[me] > G.score[1 - me];
     $('end').style.display = 'flex';
     $('end-title').textContent = win ? '승리!' : '패배';
     $('end-title').className = win ? 'win' : 'lose';
-    $('end-score').textContent = `${G.score[me]} : ${G.score[1 - me]}`;
+    if (ffa) { // 개인전: 등수와 점수
+      const rank = NET.lobby.players.map(p => ({ n: p.id === NET.id ? '나' : p.name, s: G.score[p.team] || 0 })).sort((a, b) => b.s - a.s);
+      const myRank = 1 + rank.filter(r => r.s > (G.score[me] || 0)).length;
+      $('end-title').textContent = myRank === 1 ? '1등!' : `${myRank}등`;
+      $('end-score').innerHTML = rank.map((r, i) => `<div style="font-size:18px">${i + 1}. ${esc(r.n)} — ${r.s}점</div>`).join('');
+    } else $('end-score').textContent = `${G.score[me]} : ${G.score[1 - me]}`;
     $('btn-again').style.display = G.mode === 'mp' && !NET.host ? 'none' : '';
     $('btn-again').textContent = G.mode === 'mp' ? '같은 맵으로 다시' : '다시 하기';
     $('btn-lobby').style.display = G.mode === 'mp' ? '' : 'none';
@@ -6405,19 +6419,22 @@ function setupMenus() {
   const aiSel = { size: 1, map: 'random' };
   try { Object.assign(aiSel, JSON.parse(localStorage.getItem('tg1v1_ai') || '{}')); } catch (e) {}
   const drawAI = () => {
-    $('ai-size').innerHTML = [1, 2, 3, 4].map(n => `<button class="${aiSel.size === n ? 'on' : ''}" data-n="${n}">${n}대${n}</button>`).join(' ');
-    const list = MAP_LIST[aiSel.size] || [];
+    $('ai-size').innerHTML = [1, 2, 3, 4].map(n => `<button class="${aiSel.size === n ? 'on' : ''}" data-n="${n}">${n}대${n}</button>`).join(' ') + ` <button class="${aiSel.size === 'ffa' ? 'on' : ''}" data-n="ffa">개인전 1v1v1v1</button>`;
+    const list = MAP_LIST[aiSel.size === 'ffa' ? 4 : aiSel.size] || [];
     if (aiSel.map !== 'random' && !list.includes(aiSel.map)) aiSel.map = 'random';
     $('ai-map').innerHTML = `<option value="random">랜덤</option>` + list.map(id => `<option value="${id}">${MAP_DEFS[id].name}</option>`).join('');
     $('ai-map').value = aiSel.map;
     try { localStorage.setItem('tg1v1_ai', JSON.stringify(aiSel)); } catch (e) {}
   };
-  $('ai-size').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { aiSel.size = +b.dataset.n; drawAI(); } });
+  $('ai-size').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { aiSel.size = b.dataset.n === 'ffa' ? 'ffa' : +b.dataset.n; drawAI(); } });
   $('ai-map').addEventListener('change', () => { aiSel.map = $('ai-map').value; drawAI(); });
   drawAI();
   window.AI_SEL = aiSel;
   $('btn-start').onclick = () => {
     AU.init();
+    if (aiSel.size === 'ffa') { // 개인전: AI 3명과 서로 싸워요
+      netHost('local'); NET.lobby.ffa = true; NET.lobby.size = 4; NET.lobby.map = aiSel.map; fillBots(); netStartGame(); lockPointer(); return;
+    }
     if (aiSel.size > 1) { // 팀 대전: 혼자 방을 만들고 빈자리를 AI로 채워서 바로 시작
       netHost('local'); NET.lobby.size = aiSel.size; NET.lobby.map = aiSel.map; fillBots(); netStartGame(); lockPointer(); return;
     }
@@ -6771,9 +6788,13 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 12; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 13; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
+// 개인전 (1v1v1v1): 최대 4명, 한 사람이 한 팀(팀 번호 0~3). 2명 이상이면 시작할 수 있어요
+const isFFA = () => !!(NET.lobby && NET.lobby.ffa);
+function ffaTeams(L) { L.players.forEach((p, i) => { p.team = i; }); }
+function teamLabel(t) { if (isFFA()) { const p = NET.lobby.players.find(x => x.team === t); return p ? (p.id === NET.id ? '나' : p.name) : '?'; } return TEAM_NAME[t] + ' 팀'; }
 const STANCE_CODE = { stand: 0, crouch: 1, prone: 2 }, STANCE_NAME = ['stand', 'crouch', 'prone'];
 try { NET.name = SETTINGS.nick || localStorage.getItem('tg1v1_name') || ''; } catch (e) {}
 if (!NET.name) NET.name = '플레이어' + ((Math.random() * 90 + 10) | 0);
@@ -6964,6 +6985,11 @@ function hostRecv(m) {
     if (m.ver !== NET_VER) { rawSend(m.from, { t: 'reject', from: 'h', to: m.from, why: '방장과 게임 파일 버전이 달라요. 방장도 나도 가장 새 게임 파일(index.html)로 다시 받아서 열어 주세요' }); netStatus('버전이 다른 게임 파일로 누가 들어오려고 했어요. 모두 새 파일로 받아야 해요', 'bad'); return; }
     if (L.players.find(p => p.id === m.from)) { rawSend(m.from, { t: 'welcome', from: 'h', to: m.from }); rawSend(m.from, { t: 'lobby', lobby: L, from: 'h', to: m.from }); return; }
     if (NET.active) { rawSend(m.from, { t: 'reject', from: 'h', to: m.from, why: '이미 게임이 시작됐어요' }); return; }
+    if (L.ffa) { // 개인전: 4자리, 꽉 찼으면 AI 자리를 사람에게
+      if (L.players.length >= 4) { const bt = L.players.slice().reverse().find(p => p.bot); if (!bt) { rawSend(m.from, { t: 'reject', from: 'h', to: m.from, why: '방이 꽉 찼어요 (개인전은 4명)' }); return; } L.players = L.players.filter(p => p !== bt); }
+      L.players.push({ id: m.from, name: String(m.name || '친구').slice(0, 12), team: 0 }); ffaTeams(L);
+      rawSend(m.from, { t: 'welcome', from: 'h', to: m.from }); broadcastLobby(); AU.beep(880, 0.1, 0.2); return;
+    }
     const humans = (t) => L.players.filter(p => p.team === t && !p.bot).length;
     if (L.players.length >= 8) {
       const bot = L.players.find(p => p.bot);
@@ -6985,9 +7011,10 @@ function hostRecv(m) {
   }
   hostRoute(m);
 }
-function autoSize() { const L = NET.lobby; L.size = Math.max(L.size, Math.min(4, Math.max(...[0, 1].map(t => L.players.filter(p => p.team === t).length)))); }
+function autoSize() { const L = NET.lobby; if (L.ffa) return; L.size = Math.max(L.size, Math.min(4, Math.max(...[0, 1].map(t => L.players.filter(p => p.team === t).length)))); }
 function addBot(team) {
   const L = NET.lobby;
+  if (L.ffa) { if (L.players.length < 4) { NET.botN++; L.players.push({ id: 'b' + NET.botN, name: 'AI ' + NET.botN, team: 0, bot: true }); ffaTeams(L); broadcastLobby(); } return; }
   if (L.players.length >= 8 || L.players.filter(p => p.team === team).length >= L.size) return;
   NET.botN++;
   L.players.push({ id: 'b' + NET.botN, name: 'AI ' + NET.botN, team, bot: true });
@@ -6995,6 +7022,7 @@ function addBot(team) {
 }
 function fillBots() {
   const L = NET.lobby;
+  if (L.ffa) { while (L.players.length < 4) { NET.botN++; L.players.push({ id: 'b' + NET.botN, name: 'AI ' + NET.botN, team: 0, bot: true }); } ffaTeams(L); broadcastLobby(); return; }
   for (const t of [0, 1]) while (L.players.filter(p => p.team === t).length < L.size && L.players.length < 8) { NET.botN++; L.players.push({ id: 'b' + NET.botN, name: 'AI ' + NET.botN, team: t, bot: true }); }
   broadcastLobby();
 }
@@ -7110,7 +7138,8 @@ function renderLobby() {
   const box = $('mp-lobby');
   if (!L.players.length) { box.style.display = 'none'; return; }
   box.style.display = 'block';
-  const sizeBtns = [1, 2, 3, 4].map(n => `<button class="${L.size === n ? 'on' : ''}" data-size="${n}" ${host ? '' : 'disabled'}>${n}대${n}</button>`).join('');
+  const sizeBtns = [1, 2, 3, 4].map(n => `<button class="${!L.ffa && L.size === n ? 'on' : ''}" data-size="${n}" ${host ? '' : 'disabled'}>${n}대${n}</button>`).join('')
+    + `<button class="${L.ffa ? 'on' : ''}" data-ffa="1" ${host ? '' : 'disabled'}>개인전 1v1v1v1</button>`;
   const col = (team) => {
     const ps = L.players.filter(p => p.team === team);
     let h = `<div class="tcol t${team}"><h4 style="color:${TEAM_COLOR[team]}">${TEAM_NAME[team]} 팀 <small>${ps.length}/${L.size}</small></h4>`;
@@ -7118,6 +7147,19 @@ function renderLobby() {
     for (let i = ps.length; i < L.size; i++) h += `<div class="pl empty">빈 자리${host && L.players.length < 8 ? `<button data-addbot="${team}">＋ AI 넣기</button>` : ''}</div>`;
     return h + '</div>';
   };
+  if (L.ffa) { // 개인전: 4자리 한 줄
+    const maps = MAP_LIST[4] || [], cur = L.map && maps.includes(L.map) ? L.map : 'random';
+    const mapBtns = [`<button class="${cur === 'random' ? 'on' : ''}" data-map="random" ${host ? '' : 'disabled'}>랜덤</button>`].concat(maps.map(id => `<button class="${cur === id ? 'on' : ''}" data-map="${id}" ${host ? '' : 'disabled'}>${MAP_DEFS[id].name}</button>`)).join('');
+    let col = `<div class="tcol" style="flex:1"><h4 style="color:#ffd24a">개인전 <small>${L.players.length}/4 · 모두가 적이에요</small></h4>`;
+    for (const p of L.players) col += `<div class="pl">${p.id === 'h' ? '👑 ' : p.bot ? '🤖 ' : ''}${esc(p.name)}${p.id === me ? ' <em>(나)</em>' : ''}${host && p.bot ? `<button data-kick="${p.id}">AI 빼기</button>` : ''}</div>`;
+    for (let i = L.players.length; i < 4; i++) col += `<div class="pl empty">빈 자리${host ? `<button data-addbot="0">＋ AI 넣기</button>` : ''}</div>`;
+    col += '</div>';
+    const ok2 = L.players.length >= 2;
+    box.innerHTML = `<div class="attrow"><span>경기 방식</span>${sizeBtns}</div><div class="attrow"><span>맵</span>${mapBtns}</div><div class="teams">${col}</div>`
+      + (host ? `<div class="row" style="margin:12px 0 0"><button class="btn" id="mp-startgame" ${ok2 ? '' : 'disabled'}>게임 시작</button><button class="btn sub" id="mp-fillbots">빈자리 모두 AI로 채우기</button><span class="hint">${ok2 ? '사람이 부족해도 그대로 시작할 수 있어요 (빈자리는 비워 둬도 돼요)' : '2명 이상이어야 해요 (AI 넣기로 채워도 돼요)'}</span></div>`
+        : `<div class="hint" style="margin-top:10px">방장이 게임을 시작하면 바로 들어가요</div>`);
+    return;
+  }
   const t0 = L.players.filter(p => p.team === 0).length, t1 = L.players.length - t0;
   const ok = t0 >= 1 && t1 >= 1 && t0 <= L.size && t1 <= L.size;
   const maps = MAP_LIST[L.size] || [], cur = L.map && maps.includes(L.map) ? L.map : 'random';
@@ -7150,7 +7192,7 @@ function netStartGame() {
   const maps = MAP_LIST[L.size] || ['arena'];
   NET.matchMap = L.map && maps.includes(L.map) ? L.map : maps[(Math.random() * maps.length) | 0];
   NET.active = true; G.mode = 'mp';
-  G.score = [0, 0]; G.round = 0; G.time = 0;
+  G.score = L.ffa ? [0, 0, 0, 0] : [0, 0]; G.round = 0; G.time = 0;
   netNextRound();
 }
 function netNextRound() {
@@ -7158,19 +7200,24 @@ function netNextRound() {
   const flip = round % 2 === 0;
   const map = NET.matchMap || (L.size === 1 ? 'duel' : 'arena'), D = MAP_DEFS[map] || MAP_DEFS.arena;
   const spawns = {}, SZ = Math.abs(D.spawnZ), gap = Math.min(5, (D.bounds.maxX - 4) * 2 / Math.max(1, L.size));
+  if (L.ffa) { // 개인전: 네 자리(양쪽 끝 왼·오른쪽)를 라운드마다 돌려요. 2명이면 서로 반대편 끝
+    const g4 = Math.min(5, (D.bounds.maxX - 4) * 2 / 4), X = 1.5 * g4;
+    const slots = [[-X, -SZ], [X, SZ], [X, -SZ], [-X, SZ]];
+    L.players.forEach((p, i) => { const s = slots[(i + round - 1) % 4]; spawns[p.id] = [+(s[0] + rand(-0.5, 0.5)).toFixed(2), s[1], s[1] < 0 ? Math.PI : 0]; });
+  } else
   for (const team of [0, 1]) {
     const ps = L.players.filter(p => p.team === team);
     const z = (team === 0) !== flip ? -SZ : SZ;
     ps.forEach((p, i) => { const x = (i - (ps.length - 1) / 2) * gap + rand(-0.5, 0.5); spawns[p.id] = [+x.toFixed(2), z, z < 0 ? Math.PI : 0]; });
   }
-  const m = { t: 'round', round, score: G.score, spawns, players: L.players, armor: SETTINGS.armor, winTo: G.winTo, map };
+  const m = { t: 'round', round, score: G.score, spawns, players: L.players, armor: SETTINGS.armor, winTo: G.winTo, map, ffa: !!L.ffa };
   netSend(m); applyRound(m);
 }
 function applyRound(m) {
   NET.active = true; G.mode = 'mp'; setMap(m.map || 'arena');
   for (const id of ['start', 'mp', 'end']) $(id).style.display = 'none';
   SETTINGS.armor = m.armor; G.winTo = m.winTo; G.score = m.score.slice();
-  NET.lobby.players = m.players;
+  NET.lobby.players = m.players; NET.lobby.ffa = !!m.ffa;
   const meP = m.players.find(p => p.id === NET.id); G.myTeam = meP ? meP.team : 0; PLAYER.team = G.myTeam;
   // 나간 사람 정리, 새 사람 만들기
   for (const id in REMOTES) if (!m.players.find(p => p.id === id)) removeRemote(id);
@@ -7194,16 +7241,30 @@ function teamAlive(team) { let n = 0; for (const a of ACTORS) if (a.team === tea
 function teamHealth(team) { let h = 0; for (const a of ACTORS) if (a.team === team && !a.dead && !a.gone) h += a.health; return h; }
 function netCheckRoundEnd() {
   if (!NET.host || G.state !== 'live') return;
-  const a0 = teamAlive(0), a1 = teamAlive(1);
-  if (a0 > 0 && a1 > 0) return;
-  const winner = a0 === 0 && a1 === 0 ? -1 : a0 === 0 ? 1 : 0;
+  let winner;
+  if (isFFA()) { // 개인전: 한 명만 남으면 끝
+    const alive = new Set(); for (const a of ACTORS) if (!a.dead && !a.gone && a.team !== undefined) alive.add(a.team);
+    if (alive.size > 1) return;
+    winner = alive.size === 1 ? [...alive][0] : -1;
+  } else {
+    const a0 = teamAlive(0), a1 = teamAlive(1);
+    if (a0 > 0 && a1 > 0) return;
+    winner = a0 === 0 && a1 === 0 ? -1 : a0 === 0 ? 1 : 0;
+  }
   if (winner >= 0) G.score[winner]++;
   const m = { t: 'rend', winner, score: G.score, why: 'kill' };
   netSend(m); GAME.showRoundEnd(m);
 }
 function netTimeUp() {
-  const h0 = teamHealth(0), h1 = teamHealth(1);
-  const winner = Math.abs(h0 - h1) < 0.5 ? -1 : h0 > h1 ? 0 : 1;
+  let winner;
+  if (isFFA()) { // 개인전 시간 끝: 체력이 가장 많은 사람
+    let best = -1, bh = 0, tie = false;
+    for (const a of ACTORS) if (!a.dead && !a.gone && a.team !== undefined) { if (a.health > bh + 0.5) { best = a.team; bh = a.health; tie = false; } else if (Math.abs(a.health - bh) <= 0.5) tie = true; }
+    winner = tie ? -1 : best;
+  } else {
+    const h0 = teamHealth(0), h1 = teamHealth(1);
+    winner = Math.abs(h0 - h1) < 0.5 ? -1 : h0 > h1 ? 0 : 1;
+  }
   if (winner >= 0) G.score[winner]++;
   const m = { t: 'rend', winner, score: G.score, why: 'time' };
   netSend(m); GAME.showRoundEnd(m);
@@ -7352,7 +7413,14 @@ function setupMP() {
   $('mp-lobby').addEventListener('click', (e) => {
     const t = e.target.closest('button'); if (!t || !NET.host) return;
     const L = NET.lobby;
+    if (t.dataset.ffa) { // 개인전으로: AI부터 빼서 4명 이하로
+      const humans = L.players.filter(p => !p.bot);
+      if (humans.length > 4) { netStatus('개인전은 4명까지예요. 사람이 너무 많아요', 'bad'); return; }
+      while (L.players.length > 4) { const bt = L.players.slice().reverse().find(p => p.bot); L.players = L.players.filter(p => p !== bt); }
+      L.ffa = true; L.size = 4; ffaTeams(L); broadcastLobby(); return;
+    }
     if (t.dataset.size) {
+      if (L.ffa) { L.ffa = false; L.players.forEach((p, i) => { p.team = i % 2; }); }
       L.size = +t.dataset.size;
       // 인원보다 AI 가 많으면 AI 부터 빼기
       for (const tm of [0, 1]) { let ps = L.players.filter(p => p.team === tm); while (ps.length > L.size && ps.some(p => p.bot)) { const bt = ps.filter(p => p.bot).pop(); L.players = L.players.filter(p => p !== bt); ps = L.players.filter(p => p.team === tm); } }
@@ -7361,7 +7429,7 @@ function setupMP() {
     if (t.dataset.map) { L.map = t.dataset.map; broadcastLobby(); }
     if (t.dataset.swap) { const p = L.players.find(x => x.id === t.dataset.swap); if (p) { p.team = 1 - p.team; autoSize(); broadcastLobby(); } }
     if (t.dataset.addbot !== undefined) addBot(+t.dataset.addbot);
-    if (t.dataset.kick) { L.players = L.players.filter(x => x.id !== t.dataset.kick); broadcastLobby(); }
+    if (t.dataset.kick) { L.players = L.players.filter(x => x.id !== t.dataset.kick); if (L.ffa) ffaTeams(L); broadcastLobby(); }
     if (t.id === 'mp-fillbots') fillBots();
     if (t.id === 'mp-startgame') { netStartGame(); lockPointer(); }
   });

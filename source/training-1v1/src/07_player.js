@@ -224,7 +224,7 @@ function updatePlayerCamera(dt) {
   // 죽으면 살아있는 팀원 관전
   if (p.dead && G.mode === 'mp') {
     CAM.deadT = (CAM.deadT || 0) + dt;
-    if (CAM.deadT > 2 && (!CAM.spec || CAM.spec.dead || CAM.spec.gone)) CAM.spec = ACTORS.find(r => r !== p && r.team === G.myTeam && !r.dead && !r.gone) || null;
+    if (CAM.deadT > 2 && (!CAM.spec || CAM.spec.dead || CAM.spec.gone)) CAM.spec = ACTORS.find(r => r !== p && (isFFA() || r.team === G.myTeam) && !r.dead && !r.gone) || null;
   } else { CAM.deadT = 0; CAM.spec = null; }
   const S = CAM.spec || p;
   // 파쿠르: 시선이 아래로 숙였다가 올라오고 살짝 기울어짐

@@ -40,14 +40,17 @@ const HUD = {
     UI('score', 'style.display', range ? 'none' : 'flex');
     UI('rangehud', 'style.display', range ? 'block' : 'none');
     if (range) this.rangeHud();
-    const mp = G.mode === 'mp', me = G.myTeam || 0;
-    UI('sc-pn', 'textContent', mp ? TEAM_NAME[me] + ' (우리)' : '나');
-    UI('sc-bn', 'textContent', mp ? TEAM_NAME[1 - me] : '봇');
+    const mp = G.mode === 'mp', me = G.myTeam || 0, ffa = mp && isFFA();
+    let top = 1 - me; // 개인전: 오른쪽 칸 = 나를 빼고 점수 1등
+    if (ffa) { top = -1; for (const p of NET.lobby.players) if (p.team !== me && (top < 0 || (G.score[p.team] || 0) > (G.score[top] || 0))) top = p.team; }
+    UI('sc-pn', 'textContent', ffa ? '나' : mp ? TEAM_NAME[me] + ' (우리)' : '나');
+    UI('sc-bn', 'textContent', ffa ? (top >= 0 ? teamLabel(top) + ' (1등 상대)' : '-') : mp ? TEAM_NAME[1 - me] : '봇');
     UI('sc-p', 'style.background', mp ? (me === 0 ? 'rgba(60,140,220,.75)' : 'rgba(210,70,60,.75)') : '');
     UI('sc-b', 'style.background', mp ? (me === 0 ? 'rgba(210,70,60,.75)' : 'rgba(60,140,220,.75)') : '');
     // 점수
-    UI('sc-p', 'textContent', G.score[me]); UI('sc-b', 'textContent', G.score[1 - me]);
-    if (mp) {
+    UI('sc-p', 'textContent', G.score[me] || 0); UI('sc-b', 'textContent', ffa ? (top >= 0 ? G.score[top] || 0 : 0) : G.score[1 - me]);
+    if (ffa) { let n = 0; for (const a of ACTORS) if (!a.dead && !a.gone && a.team !== undefined) n++; UI('sc-alive', 'textContent', `남은 사람 ${n}`); }
+    else if (mp) {
       const pips = (t) => { let s = ''; for (const a of ACTORS) if (a.team === t && !a.gone) s += a.dead ? '○' : '●'; return s; };
       UI('sc-alive', 'textContent', pips(me) + '  vs  ' + pips(1 - me));
     } else UI('sc-alive', 'textContent', '');
@@ -164,7 +167,11 @@ const HUD = {
     if (!on) { b.style.display = 'none'; return; }
     const row = (a, me) => `<tr class="${me ? 'me' : ''} ${a.dead ? 'dead' : ''}"><td>${esc(a.name)}${me ? ' (나)' : ''}</td><td>${a.kills || 0}</td><td>${a.assists || 0}</td><td>${a.deaths || 0}</td><td>${((a.kills || 0) / Math.max(1, a.deaths || 0)).toFixed(2)}</td><td>${a.heads || 0}</td></tr>`;
     let h = `<h3>점수판 · 라운드 ${G.round} · ${G.score[G.myTeam || 0]} : ${G.score[1 - (G.myTeam || 0)]}</h3><table><tr><th>이름</th><th>킬</th><th>어시</th><th>데스</th><th>K/D</th><th>헤드샷</th></tr>`;
-    if (G.mode === 'mp') {
+    if (G.mode === 'mp' && isFFA()) {
+      h = `<h3>점수판 · 개인전 · 라운드 ${G.round}</h3><table><tr><th>이름 (점수)</th><th>킬</th><th>어시</th><th>데스</th><th>K/D</th><th>헤드샷</th></tr>`;
+      const list = ACTORS.filter(a => !a.gone && a.team !== undefined).sort((x, y) => (G.score[y.team] || 0) - (G.score[x.team] || 0) || (y.kills || 0) - (x.kills || 0));
+      for (const a of list) h += row(Object.assign(Object.create(a), { name: `${a.name} (${G.score[a.team] || 0}점)` }), a === PLAYER);
+    } else if (G.mode === 'mp') {
       for (const t of [G.myTeam, 1 - G.myTeam]) {
         h += `<tr><td class="tb" colspan="6" style="color:${TEAM_COLOR[t]}">${TEAM_NAME[t]} 팀${t === G.myTeam ? ' (우리)' : ''} · ${G.score[t]}점</td></tr>`;
         const list = ACTORS.filter(a => a.team === t && !a.gone).sort((x, y) => (y.kills || 0) - (x.kills || 0));
