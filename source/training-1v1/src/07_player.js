@@ -285,6 +285,7 @@ function updateViewmodel(dt, hsp) {
   VM.swayY = damp(VM.swayY, clamp(INPUT.mdy * 0.0006, -0.04, 0.04), 8, dt);
   VM.kick = damp(VM.kick, 0, 16, dt); VM.kickRot = damp(VM.kickRot, 0, 12, dt);
   VM.switchY = damp(VM.switchY, p.switchT > 0.25 ? -0.25 : 0, 14, dt);
+  if (p.proneLock > 0) VM.switchY = Math.min(VM.switchY, -0.2 * Math.sin(Math.PI * clamp(1 - p.proneLock / p.proneDur, 0, 1))); // 엎드리기/일어나기 중엔 총을 내렸다 올려요
   const bob = Math.sin(VM.bobPhase) * Math.min(1, hsp / 4), bob2 = Math.cos(VM.bobPhase * 2) * Math.min(1, hsp / 4);
   const g = VM.gun;
   if (p.mode === 'fist' && VM.fists) {

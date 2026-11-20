@@ -121,23 +121,33 @@ function buildSoldier(opt) {
       else if (st.stance === 'crouch') { bodyY = 0.62; thighBase = 1.15; kneeBase = -1.75; amp = moving ? 0.35 : 0; kamp = moving ? 0.25 : 0; spineX = -0.12; }
       else { bodyY = 0.95; amp = moving ? clamp(sp / 6.3, 0.2, 1) * 0.75 : 0; kamp = amp * 1.1; spineX = st.sprint ? -0.22 : -0.04; }
       if (st.air) { thighBase += 0.5; kneeBase -= 0.8; amp *= 0.2; }
+      // 엎드리기/일어나기 모션: 무릎 꿇기 → 손 짚고 앞으로 눕기 (일어날 땐 반대로)
+      let instant = false;
+      if (st.proneTr) {
+        const q = st.proneTr.down ? st.proneTr.p : 1 - st.proneTr.p, sm = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+        const kneel = sm(q / 0.45), lay = sm((q - 0.38) / 0.62);
+        bodyY = lerp(lerp(0.95, 0.5, kneel), 0.17, lay); bodyRX = -Math.PI / 2 * lay;
+        thighBase = lerp(1.35 * kneel, 0, lay); kneeBase = lerp(-2.2 * kneel, 0, lay); spineX = lerp(-0.35 * kneel, 0, lay); amp = kamp = 0;
+        instant = true;
+      }
       // 부드럽게 자세 변경
-      const k = 1 - Math.exp(-dt * 10);
+      const k = instant ? 1 : 1 - Math.exp(-dt * 10);
       body.position.y = lerp(body.position.y, bodyY + (moving && st.stance !== 'prone' ? Math.abs(Math.sin(ph)) * 0.035 : 0), k);
       body.rotation.x = lerp(body.rotation.x, bodyRX, k);
       for (const side of [-1, 1]) {
         const L = legs[side], s = Math.sin(ph + (side > 0 ? Math.PI : 0));
-        L.hip.rotation.x = lerp(L.hip.rotation.x, thighBase + s * amp, k * 1.5);
-        L.knee.rotation.x = lerp(L.knee.rotation.x, kneeBase - Math.max(0, -Math.cos(ph + (side > 0 ? Math.PI : 0))) * kamp, k * 1.5);
+        L.hip.rotation.x = lerp(L.hip.rotation.x, thighBase + s * amp, Math.min(1, k * 1.5));
+        L.knee.rotation.x = lerp(L.knee.rotation.x, kneeBase - Math.max(0, -Math.cos(ph + (side > 0 ? Math.PI : 0))) * kamp, Math.min(1, k * 1.5));
         L.hip.rotation.z = st.stance === 'prone' ? side * 0.12 : 0;
       }
       spine.rotation.x = lerp(spine.rotation.x, spineX, k);
       spine.rotation.z = lerp(spine.rotation.z, -st.lean * 0.32, 1 - Math.exp(-dt * 12));
       const prone = st.stance === 'prone';
       const pitch = st.pitch;
-      aim.rotation.x = (prone ? Math.PI / 2 : 0) - spine.rotation.x + (st.sprint ? -0.5 : pitch);
+      const layK = clamp(-body.rotation.x / (Math.PI / 2), 0, 1); // 실제로 누운 정도 (모션 중간도 자연스럽게)
+      aim.rotation.x = Math.PI / 2 * layK - spine.rotation.x + (st.sprint ? -0.5 : pitch) + (st.proneTr ? -0.55 * Math.sin(Math.PI * st.proneTr.p) : 0);
       aim.rotation.y = st.sprint ? 0.6 : 0;
-      neck.rotation.x = (prone ? Math.PI / 2 * 0.85 : 0) - spine.rotation.x + pitch * 0.7;
+      neck.rotation.x = Math.PI / 2 * 0.85 * layK - spine.rotation.x + pitch * 0.7;
       aim.position.z = 0;
       // 던지기: 위로 젖혔다가 앞으로 휘두르기 (가까이 던지기는 아래에서 위로)
       aim.rotation.z = 0;

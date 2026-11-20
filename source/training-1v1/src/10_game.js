@@ -177,6 +177,9 @@ const GAME = {
     $('end-title').className = win ? 'win' : 'lose';
     $('end-score').textContent = `${G.score[me]} : ${G.score[1 - me]}`;
     $('btn-again').style.display = G.mode === 'mp' && !NET.host ? 'none' : '';
+    $('btn-again').textContent = G.mode === 'mp' ? '같은 맵으로 다시' : '다시 하기';
+    $('btn-lobby').style.display = G.mode === 'mp' ? '' : 'none';
+    $('btn-menu').textContent = G.mode === 'mp' ? '방 나가기' : '처음 화면 (맵 바꾸기)';
   },
 };
 
@@ -356,6 +359,7 @@ function setupMenus() {
   $('btn-pload').onclick = () => { $('pause').style.display = 'none'; $('start-settings').appendChild($('settings')); openLoadout(); };
   $('btn-resume').onclick = () => { $('pause').style.display = 'none'; $('start-settings').appendChild($('settings')); lockPointer(); };
   $('btn-quit').onclick = () => goMenu();
+  $('btn-lobby').onclick = () => netToLobby();
   $('btn-again').onclick = () => { $('end').style.display = 'none'; if (G.mode === 'mp') { netStartGame(); lockPointer(); } else GAME.startMatch(); };
   $('btn-menu').onclick = () => goMenu();
   $('start-settings').appendChild($('settings'));

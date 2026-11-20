@@ -35,7 +35,7 @@ function playerPing() {
   }
   if (!hit && !enemy) { pos.y = Math.max(0, pos.y); }
   placePing(pos, 'me', enemy);
-  if (NET.active) netSend({ t: 'ping', p: pos.toArray().map(x => +x.toFixed(2)), e: enemy ? 1 : 0 });
+  if (NET.active) netSend({ t: 'mark', p: pos.toArray().map(x => +x.toFixed(2)), e: enemy ? 1 : 0 });
 }
 const _pv = new V3();
 let _pingLast = performance.now();

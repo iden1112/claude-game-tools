@@ -102,15 +102,19 @@ class Actor {
     if (this.dead || this.vault || s === this.stance) return;
     if (!this.onGround && s !== 'stand') return;
     if (STANCE[s].h > STANCE[this.stance].h && !this.canStand(STANCE[s].h)) return;
-    if (s === 'prone' || this.stance === 'prone') this.stanceLock = s === 'prone' ? 0.7 : 0.6;
-    else this.stanceLock = 0.15;
+    if (this.proneLock > 0) return; // 엎드리는/일어나는 중엔 자세를 또 바꿀 수 없어요
+    if (s === 'prone' || this.stance === 'prone') { // 배그처럼: 엎드리기 1초, 일어나기 0.85초 동안 무릎 꿇고 → 눕기(또는 반대) 모션, 그동안 못 쏴요
+      this.proneDur = s === 'prone' ? 1.0 : 0.85; this.proneLock = this.proneDur; this.proneFromH = this.stanceH; this.stanceLock = this.proneDur;
+      this.ads = false;
+    } else this.stanceLock = 0.15;
     this.stance = s;
   }
   // ---------- 이동 ----------
   physics(dt) {
     const st = STANCE[this.stance];
     this.stanceLock = Math.max(0, this.stanceLock - dt);
-    this.stanceH = damp(this.stanceH, st.eye, this.stance === 'prone' || this.stanceH < 0.6 ? 6 : 12, dt);
+    if (this.proneLock > 0) { const q = clamp(1 - (this.proneLock - dt) / this.proneDur, 0, 1); this.stanceH = lerp(this.proneFromH, st.eye, q * q * (3 - 2 * q)); this.ads = false; }
+    else this.stanceH = damp(this.stanceH, st.eye, this.stance === 'prone' || this.stanceH < 0.6 ? 6 : 12, dt);
     this.lean = damp(this.lean, this.stance === 'prone' ? this.leanTarget * 0.5 : this.leanTarget, 12, dt);
     if (this.dead) { this.vel.x = damp(this.vel.x, 0, 5, dt); this.vel.z = damp(this.vel.z, 0, 5, dt); }
     if (this.vault) { this.updateVault(dt); this.afterMove(dt); return; }
@@ -120,7 +124,7 @@ class Actor {
     else if (this.mode === 'fist') sp *= this.sprint ? 1.13 : 1.06; // 맨손이 제일 빨라요
     if (this.ads && !this.sprint) sp *= this.stance === 'prone' ? 0.0 : 0.6;
     else if (this.shoulderT > 0.5) sp *= 0.8;
-    if (this.stanceLock > 0 && this.stance === 'prone') sp *= 0.2;
+    if (this.proneLock > 0) sp *= 0.12;
     if (this.reloadT > 0 && this.stance === 'prone') sp *= 0.0;
     const wl = Math.hypot(this.wish.x, this.wish.z);
     let tx = 0, tz = 0;
@@ -167,12 +171,13 @@ class Actor {
     this.afterMove(dt);
   }
   afterMove(dt) {
+    if (this.proneLock > 0) this.proneLock = Math.max(0, this.proneLock - dt);
     if (this.throwAnimT > 0) this.throwAnimT -= dt;
     if (this.pinAnimT > 0) this.pinAnimT -= dt;
     const s = this.soldier;
     s.root.position.copy(this.pos); s.root.rotation.y = this.yaw;
     const hsp = Math.hypot(this.vel.x, this.vel.z);
-    s.animate({ speed: hsp, stance: this.stance, sprint: this.sprint && hsp > 3, air: !this.onGround && !this.vault, lean: this.lean, pitch: this.pitch, dead: this.dead, stanceH: s.body.position.y, reloadT: this.reloadT > 0 ? 1 - this.reloadT / (this.reloadDur || 1) : 0, vault: this.vault ? Math.min(1, this.vault.t) : (this.netVault >= 0 ? this.netVault : -1), vaultOver: this.vault ? this.vault.over : !!this.netVaultOver, thr: this.throwAnimT > 0 ? 1 - this.throwAnimT / 0.5 : 0, thrUnder: this.throwUnder, pinUp: this.mode === 'throw' && this.pin }, dt);
+    s.animate({ speed: hsp, stance: this.stance, sprint: this.sprint && hsp > 3, air: !this.onGround && !this.vault, lean: this.lean, pitch: this.pitch, dead: this.dead, stanceH: s.body.position.y, reloadT: this.reloadT > 0 ? 1 - this.reloadT / (this.reloadDur || 1) : 0, vault: this.vault ? Math.min(1, this.vault.t) : (this.netVault >= 0 ? this.netVault : -1), vaultOver: this.vault ? this.vault.over : !!this.netVaultOver, proneTr: this.proneLock > 0 ? { p: 1 - this.proneLock / this.proneDur, down: this.stance === 'prone' } : null, thr: this.throwAnimT > 0 ? 1 - this.throwAnimT / 0.5 : 0, thrUnder: this.throwUnder, pinUp: this.mode === 'throw' && this.pin }, dt);
     soldierHitboxes(s, this.hitbox);
     // 눈 위치 (기울이기 포함)
     const right = _v1.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
@@ -246,7 +251,7 @@ class Actor {
     }
   }
   // ---------- 총 ----------
-  get canShoot() { return !this.dead && !this.vault && this.switchT <= 0 && this.reloadT <= 0 && this.boltT <= 0 && !(this.sprint && Math.hypot(this.vel.x, this.vel.z) > 3) && !(this.stanceLock > 0 && this.stance === 'prone'); }
+  get canShoot() { return !this.dead && !this.vault && this.switchT <= 0 && this.reloadT <= 0 && this.boltT <= 0 && !(this.sprint && Math.hypot(this.vel.x, this.vel.z) > 3) && !(this.proneLock > 0); }
   startReload() {
     const w = this.w; if (!w || this.mode !== 'gun' || this.reloadT > 0 || w.mag >= w.stats.mag || w.reserve <= 0 || this.dead || this.vault) return;
     this.reloadDur = w.mag === 0 ? w.stats.reload * 1.15 : w.stats.reload; this.reloadEmpty = w.mag === 0;

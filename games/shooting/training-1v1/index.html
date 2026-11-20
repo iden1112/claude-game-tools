@@ -325,7 +325,7 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
 </div></div>
 <div id="end" class="overlay" style="display:none"><div class="panel" style="text-align:center;max-width:460px">
   <h2 id="end-title">승리!</h2><div id="end-score">7 : 0</div>
-  <div class="row" style="justify-content:center"><button class="btn" id="btn-again">다시 하기</button><button class="btn sub" id="btn-menu">처음 화면</button></div>
+  <div class="row" style="justify-content:center"><button class="btn" id="btn-again">다시 하기</button><button class="btn sub" id="btn-lobby">대기실로 (맵 바꾸기 · 친구 받기)</button><button class="btn sub" id="btn-menu">처음 화면</button></div>
 </div></div>
 <script>/**
  * @license
@@ -1044,7 +1044,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 39; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 41; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -4167,23 +4167,33 @@ function buildSoldier(opt) {
       else if (st.stance === 'crouch') { bodyY = 0.62; thighBase = 1.15; kneeBase = -1.75; amp = moving ? 0.35 : 0; kamp = moving ? 0.25 : 0; spineX = -0.12; }
       else { bodyY = 0.95; amp = moving ? clamp(sp / 6.3, 0.2, 1) * 0.75 : 0; kamp = amp * 1.1; spineX = st.sprint ? -0.22 : -0.04; }
       if (st.air) { thighBase += 0.5; kneeBase -= 0.8; amp *= 0.2; }
+      // 엎드리기/일어나기 모션: 무릎 꿇기 → 손 짚고 앞으로 눕기 (일어날 땐 반대로)
+      let instant = false;
+      if (st.proneTr) {
+        const q = st.proneTr.down ? st.proneTr.p : 1 - st.proneTr.p, sm = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+        const kneel = sm(q / 0.45), lay = sm((q - 0.38) / 0.62);
+        bodyY = lerp(lerp(0.95, 0.5, kneel), 0.17, lay); bodyRX = -Math.PI / 2 * lay;
+        thighBase = lerp(1.35 * kneel, 0, lay); kneeBase = lerp(-2.2 * kneel, 0, lay); spineX = lerp(-0.35 * kneel, 0, lay); amp = kamp = 0;
+        instant = true;
+      }
       // 부드럽게 자세 변경
-      const k = 1 - Math.exp(-dt * 10);
+      const k = instant ? 1 : 1 - Math.exp(-dt * 10);
       body.position.y = lerp(body.position.y, bodyY + (moving && st.stance !== 'prone' ? Math.abs(Math.sin(ph)) * 0.035 : 0), k);
       body.rotation.x = lerp(body.rotation.x, bodyRX, k);
       for (const side of [-1, 1]) {
         const L = legs[side], s = Math.sin(ph + (side > 0 ? Math.PI : 0));
-        L.hip.rotation.x = lerp(L.hip.rotation.x, thighBase + s * amp, k * 1.5);
-        L.knee.rotation.x = lerp(L.knee.rotation.x, kneeBase - Math.max(0, -Math.cos(ph + (side > 0 ? Math.PI : 0))) * kamp, k * 1.5);
+        L.hip.rotation.x = lerp(L.hip.rotation.x, thighBase + s * amp, Math.min(1, k * 1.5));
+        L.knee.rotation.x = lerp(L.knee.rotation.x, kneeBase - Math.max(0, -Math.cos(ph + (side > 0 ? Math.PI : 0))) * kamp, Math.min(1, k * 1.5));
         L.hip.rotation.z = st.stance === 'prone' ? side * 0.12 : 0;
       }
       spine.rotation.x = lerp(spine.rotation.x, spineX, k);
       spine.rotation.z = lerp(spine.rotation.z, -st.lean * 0.32, 1 - Math.exp(-dt * 12));
       const prone = st.stance === 'prone';
       const pitch = st.pitch;
-      aim.rotation.x = (prone ? Math.PI / 2 : 0) - spine.rotation.x + (st.sprint ? -0.5 : pitch);
+      const layK = clamp(-body.rotation.x / (Math.PI / 2), 0, 1); // 실제로 누운 정도 (모션 중간도 자연스럽게)
+      aim.rotation.x = Math.PI / 2 * layK - spine.rotation.x + (st.sprint ? -0.5 : pitch) + (st.proneTr ? -0.55 * Math.sin(Math.PI * st.proneTr.p) : 0);
       aim.rotation.y = st.sprint ? 0.6 : 0;
-      neck.rotation.x = (prone ? Math.PI / 2 * 0.85 : 0) - spine.rotation.x + pitch * 0.7;
+      neck.rotation.x = Math.PI / 2 * 0.85 * layK - spine.rotation.x + pitch * 0.7;
       aim.position.z = 0;
       // 던지기: 위로 젖혔다가 앞으로 휘두르기 (가까이 던지기는 아래에서 위로)
       aim.rotation.z = 0;
@@ -4714,15 +4724,19 @@ class Actor {
     if (this.dead || this.vault || s === this.stance) return;
     if (!this.onGround && s !== 'stand') return;
     if (STANCE[s].h > STANCE[this.stance].h && !this.canStand(STANCE[s].h)) return;
-    if (s === 'prone' || this.stance === 'prone') this.stanceLock = s === 'prone' ? 0.7 : 0.6;
-    else this.stanceLock = 0.15;
+    if (this.proneLock > 0) return; // 엎드리는/일어나는 중엔 자세를 또 바꿀 수 없어요
+    if (s === 'prone' || this.stance === 'prone') { // 배그처럼: 엎드리기 1초, 일어나기 0.85초 동안 무릎 꿇고 → 눕기(또는 반대) 모션, 그동안 못 쏴요
+      this.proneDur = s === 'prone' ? 1.0 : 0.85; this.proneLock = this.proneDur; this.proneFromH = this.stanceH; this.stanceLock = this.proneDur;
+      this.ads = false;
+    } else this.stanceLock = 0.15;
     this.stance = s;
   }
   // ---------- 이동 ----------
   physics(dt) {
     const st = STANCE[this.stance];
     this.stanceLock = Math.max(0, this.stanceLock - dt);
-    this.stanceH = damp(this.stanceH, st.eye, this.stance === 'prone' || this.stanceH < 0.6 ? 6 : 12, dt);
+    if (this.proneLock > 0) { const q = clamp(1 - (this.proneLock - dt) / this.proneDur, 0, 1); this.stanceH = lerp(this.proneFromH, st.eye, q * q * (3 - 2 * q)); this.ads = false; }
+    else this.stanceH = damp(this.stanceH, st.eye, this.stance === 'prone' || this.stanceH < 0.6 ? 6 : 12, dt);
     this.lean = damp(this.lean, this.stance === 'prone' ? this.leanTarget * 0.5 : this.leanTarget, 12, dt);
     if (this.dead) { this.vel.x = damp(this.vel.x, 0, 5, dt); this.vel.z = damp(this.vel.z, 0, 5, dt); }
     if (this.vault) { this.updateVault(dt); this.afterMove(dt); return; }
@@ -4732,7 +4746,7 @@ class Actor {
     else if (this.mode === 'fist') sp *= this.sprint ? 1.13 : 1.06; // 맨손이 제일 빨라요
     if (this.ads && !this.sprint) sp *= this.stance === 'prone' ? 0.0 : 0.6;
     else if (this.shoulderT > 0.5) sp *= 0.8;
-    if (this.stanceLock > 0 && this.stance === 'prone') sp *= 0.2;
+    if (this.proneLock > 0) sp *= 0.12;
     if (this.reloadT > 0 && this.stance === 'prone') sp *= 0.0;
     const wl = Math.hypot(this.wish.x, this.wish.z);
     let tx = 0, tz = 0;
@@ -4779,12 +4793,13 @@ class Actor {
     this.afterMove(dt);
   }
   afterMove(dt) {
+    if (this.proneLock > 0) this.proneLock = Math.max(0, this.proneLock - dt);
     if (this.throwAnimT > 0) this.throwAnimT -= dt;
     if (this.pinAnimT > 0) this.pinAnimT -= dt;
     const s = this.soldier;
     s.root.position.copy(this.pos); s.root.rotation.y = this.yaw;
     const hsp = Math.hypot(this.vel.x, this.vel.z);
-    s.animate({ speed: hsp, stance: this.stance, sprint: this.sprint && hsp > 3, air: !this.onGround && !this.vault, lean: this.lean, pitch: this.pitch, dead: this.dead, stanceH: s.body.position.y, reloadT: this.reloadT > 0 ? 1 - this.reloadT / (this.reloadDur || 1) : 0, vault: this.vault ? Math.min(1, this.vault.t) : (this.netVault >= 0 ? this.netVault : -1), vaultOver: this.vault ? this.vault.over : !!this.netVaultOver, thr: this.throwAnimT > 0 ? 1 - this.throwAnimT / 0.5 : 0, thrUnder: this.throwUnder, pinUp: this.mode === 'throw' && this.pin }, dt);
+    s.animate({ speed: hsp, stance: this.stance, sprint: this.sprint && hsp > 3, air: !this.onGround && !this.vault, lean: this.lean, pitch: this.pitch, dead: this.dead, stanceH: s.body.position.y, reloadT: this.reloadT > 0 ? 1 - this.reloadT / (this.reloadDur || 1) : 0, vault: this.vault ? Math.min(1, this.vault.t) : (this.netVault >= 0 ? this.netVault : -1), vaultOver: this.vault ? this.vault.over : !!this.netVaultOver, proneTr: this.proneLock > 0 ? { p: 1 - this.proneLock / this.proneDur, down: this.stance === 'prone' } : null, thr: this.throwAnimT > 0 ? 1 - this.throwAnimT / 0.5 : 0, thrUnder: this.throwUnder, pinUp: this.mode === 'throw' && this.pin }, dt);
     soldierHitboxes(s, this.hitbox);
     // 눈 위치 (기울이기 포함)
     const right = _v1.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
@@ -4858,7 +4873,7 @@ class Actor {
     }
   }
   // ---------- 총 ----------
-  get canShoot() { return !this.dead && !this.vault && this.switchT <= 0 && this.reloadT <= 0 && this.boltT <= 0 && !(this.sprint && Math.hypot(this.vel.x, this.vel.z) > 3) && !(this.stanceLock > 0 && this.stance === 'prone'); }
+  get canShoot() { return !this.dead && !this.vault && this.switchT <= 0 && this.reloadT <= 0 && this.boltT <= 0 && !(this.sprint && Math.hypot(this.vel.x, this.vel.z) > 3) && !(this.proneLock > 0); }
   startReload() {
     const w = this.w; if (!w || this.mode !== 'gun' || this.reloadT > 0 || w.mag >= w.stats.mag || w.reserve <= 0 || this.dead || this.vault) return;
     this.reloadDur = w.mag === 0 ? w.stats.reload * 1.15 : w.stats.reload; this.reloadEmpty = w.mag === 0;
@@ -5325,6 +5340,7 @@ function updateViewmodel(dt, hsp) {
   VM.swayY = damp(VM.swayY, clamp(INPUT.mdy * 0.0006, -0.04, 0.04), 8, dt);
   VM.kick = damp(VM.kick, 0, 16, dt); VM.kickRot = damp(VM.kickRot, 0, 12, dt);
   VM.switchY = damp(VM.switchY, p.switchT > 0.25 ? -0.25 : 0, 14, dt);
+  if (p.proneLock > 0) VM.switchY = Math.min(VM.switchY, -0.2 * Math.sin(Math.PI * clamp(1 - p.proneLock / p.proneDur, 0, 1))); // 엎드리기/일어나기 중엔 총을 내렸다 올려요
   const bob = Math.sin(VM.bobPhase) * Math.min(1, hsp / 4), bob2 = Math.cos(VM.bobPhase * 2) * Math.min(1, hsp / 4);
   const g = VM.gun;
   if (p.mode === 'fist' && VM.fists) {
@@ -6231,6 +6247,9 @@ const GAME = {
     $('end-title').className = win ? 'win' : 'lose';
     $('end-score').textContent = `${G.score[me]} : ${G.score[1 - me]}`;
     $('btn-again').style.display = G.mode === 'mp' && !NET.host ? 'none' : '';
+    $('btn-again').textContent = G.mode === 'mp' ? '같은 맵으로 다시' : '다시 하기';
+    $('btn-lobby').style.display = G.mode === 'mp' ? '' : 'none';
+    $('btn-menu').textContent = G.mode === 'mp' ? '방 나가기' : '처음 화면 (맵 바꾸기)';
   },
 };
 
@@ -6410,6 +6429,7 @@ function setupMenus() {
   $('btn-pload').onclick = () => { $('pause').style.display = 'none'; $('start-settings').appendChild($('settings')); openLoadout(); };
   $('btn-resume').onclick = () => { $('pause').style.display = 'none'; $('start-settings').appendChild($('settings')); lockPointer(); };
   $('btn-quit').onclick = () => goMenu();
+  $('btn-lobby').onclick = () => netToLobby();
   $('btn-again').onclick = () => { $('end').style.display = 'none'; if (G.mode === 'mp') { netStartGame(); lockPointer(); } else GAME.startMatch(); };
   $('btn-menu').onclick = () => goMenu();
   $('start-settings').appendChild($('settings'));
@@ -6751,7 +6771,7 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 11; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 12; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 const STANCE_CODE = { stand: 0, crouch: 1, prone: 2 }, STANCE_NAME = ['stand', 'crouch', 'prone'];
@@ -7068,6 +7088,22 @@ function saveName() {
   try { localStorage.setItem('tg1v1_name', NET.name); } catch (e) {}
 }
 
+// ---------- 게임이 끝난 뒤 대기실로 (연결은 그대로, 맵·인원 바꾸기와 새 친구 받기 가능) ----------
+function netToLobby() {
+  NET.active = false;
+  G.state = 'menu'; G.mode = 'arena'; G.menuOpen = false; stopPlayerInput(); HUD.showDealt(false);
+  WORLD.bounds = WORLD.map.bounds; clearCombat();
+  for (const id of ['pause', 'end', 'loadout', 'rangemenu', 'start']) $(id).style.display = 'none';
+  for (const id in REMOTES) REMOTES[id].soldier.setVisible(false);
+  for (const id in NET.bots) NET.bots[id].soldier.setVisible(false);
+  BOT.soldier.setVisible(false); PLAYER.soldier.setVisible(false);
+  ACTORS.length = 0; ACTORS.push(PLAYER);
+  if (document.pointerLockElement) document.exitPointerLock();
+  $('mp').style.display = 'flex';
+  if (NET.host) { netSend({ t: 'tolobby' }); broadcastLobby(); netStatus(`대기실이에요. 맵·인원을 바꾸거나, 친구에게 코드 <b>${esc(NET.code)}</b> 를 알려 주면 더 들어올 수 있어요`, 'ok'); }
+  else { renderLobby(); netStatus('대기실이에요. 방장이 다시 시작하길 기다려요', 'ok'); }
+}
+
 // ---------- 대기실 화면 ----------
 function renderLobby() {
   const L = NET.lobby, me = NET.id, host = NET.host;
@@ -7185,6 +7221,7 @@ function netRecv(m) {
     case 'go': if (!NET.host && G.state === 'pre') GAME.goLive(); break;
     case 'rend': if (!NET.host) { G.score = m.score.slice(); GAME.showRoundEnd(m); } break;
     case 'over': if (!NET.host) { G.score = m.score.slice(); GAME.endMatch(); } break;
+    case 'tolobby': if (!NET.host) netToLobby(); break;
     case 'left': { const r = REMOTES[m.id]; if (r) HUD.addFeed(`<span class="en">${esc(r.name)}</span> <i>나갔어요</i>`); removeRemote(m.id); break; }
     case 'bye': if (from === 'h') netLost(); else if (NET.host) playerLeft(from); break;
     case 'lo': { const r = REMOTES[from]; if (r) { r.setLoadout(m.list); r.equip(0, true); } break; }
@@ -7192,7 +7229,7 @@ function netRecv(m) {
       const r = REMOTES[from]; if (!r || r.gone) break;
       r.net.pos.fromArray(m.p); r.net.vel.set(m.v[0], 0, m.v[1]); r.net.yaw = m.y; r.net.pitch = m.pi;
       if (r.pos.distanceTo(r.net.pos) > 4) r.pos.copy(r.net.pos);
-      r.stance = STANCE_NAME[m.s] || 'stand';
+      { const ns = STANCE_NAME[m.s] || 'stand'; if (ns !== r.stance && (ns === 'prone' || r.stance === 'prone')) { r.proneDur = ns === 'prone' ? 1.0 : 0.85; r.proneLock = r.proneDur; } r.stance = ns; }
       r.leanTarget = m.l; r.adsT = m.a; r.sprint = !!m.sp; r.health = m.h;
       if (!m.d && r.dead && G.state === 'pre') { r.dead = false; r.soldier.deadT = 0; r.soldier.body.rotation.set(0, 0, 0); }
       r.helmet.lv = m.hl; r.helmet.dur = m.hd; r.vest.lv = m.vl; r.vest.dur = m.vd;
@@ -7204,7 +7241,7 @@ function netRecv(m) {
       r.netVault = m.vt === undefined ? -1 : m.vt; r.netVaultOver = !!m.vo;
       break;
     }
-    case 'ping': { const r = REMOTES[from]; if (r && r.team === G.myTeam) placePing(new V3().fromArray(m.p), r.name, !!m.e); break; }
+    case 'mark': { const r = REMOTES[from]; if (r && r.team === G.myTeam && m.p) placePing(new V3().fromArray(m.p), r.name, !!m.e); break; }
     case 'punch': { const r = REMOTES[from]; if (r) { r.punchT = 0.28; AU.punch(false, r.pos); } break; }
     case 'shot': {
       const r = REMOTES[from]; if (!r || !r.weapons.length) break;
@@ -7998,7 +8035,7 @@ function playerPing() {
   }
   if (!hit && !enemy) { pos.y = Math.max(0, pos.y); }
   placePing(pos, 'me', enemy);
-  if (NET.active) netSend({ t: 'ping', p: pos.toArray().map(x => +x.toFixed(2)), e: enemy ? 1 : 0 });
+  if (NET.active) netSend({ t: 'mark', p: pos.toArray().map(x => +x.toFixed(2)), e: enemy ? 1 : 0 });
 }
 const _pv = new V3();
 let _pingLast = performance.now();

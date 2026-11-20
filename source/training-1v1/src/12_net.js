@@ -6,7 +6,7 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 11; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 12; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 const STANCE_CODE = { stand: 0, crouch: 1, prone: 2 }, STANCE_NAME = ['stand', 'crouch', 'prone'];
@@ -323,6 +323,22 @@ function saveName() {
   try { localStorage.setItem('tg1v1_name', NET.name); } catch (e) {}
 }
 
+// ---------- 게임이 끝난 뒤 대기실로 (연결은 그대로, 맵·인원 바꾸기와 새 친구 받기 가능) ----------
+function netToLobby() {
+  NET.active = false;
+  G.state = 'menu'; G.mode = 'arena'; G.menuOpen = false; stopPlayerInput(); HUD.showDealt(false);
+  WORLD.bounds = WORLD.map.bounds; clearCombat();
+  for (const id of ['pause', 'end', 'loadout', 'rangemenu', 'start']) $(id).style.display = 'none';
+  for (const id in REMOTES) REMOTES[id].soldier.setVisible(false);
+  for (const id in NET.bots) NET.bots[id].soldier.setVisible(false);
+  BOT.soldier.setVisible(false); PLAYER.soldier.setVisible(false);
+  ACTORS.length = 0; ACTORS.push(PLAYER);
+  if (document.pointerLockElement) document.exitPointerLock();
+  $('mp').style.display = 'flex';
+  if (NET.host) { netSend({ t: 'tolobby' }); broadcastLobby(); netStatus(`대기실이에요. 맵·인원을 바꾸거나, 친구에게 코드 <b>${esc(NET.code)}</b> 를 알려 주면 더 들어올 수 있어요`, 'ok'); }
+  else { renderLobby(); netStatus('대기실이에요. 방장이 다시 시작하길 기다려요', 'ok'); }
+}
+
 // ---------- 대기실 화면 ----------
 function renderLobby() {
   const L = NET.lobby, me = NET.id, host = NET.host;
@@ -440,6 +456,7 @@ function netRecv(m) {
     case 'go': if (!NET.host && G.state === 'pre') GAME.goLive(); break;
     case 'rend': if (!NET.host) { G.score = m.score.slice(); GAME.showRoundEnd(m); } break;
     case 'over': if (!NET.host) { G.score = m.score.slice(); GAME.endMatch(); } break;
+    case 'tolobby': if (!NET.host) netToLobby(); break;
     case 'left': { const r = REMOTES[m.id]; if (r) HUD.addFeed(`<span class="en">${esc(r.name)}</span> <i>나갔어요</i>`); removeRemote(m.id); break; }
     case 'bye': if (from === 'h') netLost(); else if (NET.host) playerLeft(from); break;
     case 'lo': { const r = REMOTES[from]; if (r) { r.setLoadout(m.list); r.equip(0, true); } break; }
@@ -447,7 +464,7 @@ function netRecv(m) {
       const r = REMOTES[from]; if (!r || r.gone) break;
       r.net.pos.fromArray(m.p); r.net.vel.set(m.v[0], 0, m.v[1]); r.net.yaw = m.y; r.net.pitch = m.pi;
       if (r.pos.distanceTo(r.net.pos) > 4) r.pos.copy(r.net.pos);
-      r.stance = STANCE_NAME[m.s] || 'stand';
+      { const ns = STANCE_NAME[m.s] || 'stand'; if (ns !== r.stance && (ns === 'prone' || r.stance === 'prone')) { r.proneDur = ns === 'prone' ? 1.0 : 0.85; r.proneLock = r.proneDur; } r.stance = ns; }
       r.leanTarget = m.l; r.adsT = m.a; r.sprint = !!m.sp; r.health = m.h;
       if (!m.d && r.dead && G.state === 'pre') { r.dead = false; r.soldier.deadT = 0; r.soldier.body.rotation.set(0, 0, 0); }
       r.helmet.lv = m.hl; r.helmet.dur = m.hd; r.vest.lv = m.vl; r.vest.dur = m.vd;
@@ -459,7 +476,7 @@ function netRecv(m) {
       r.netVault = m.vt === undefined ? -1 : m.vt; r.netVaultOver = !!m.vo;
       break;
     }
-    case 'ping': { const r = REMOTES[from]; if (r && r.team === G.myTeam) placePing(new V3().fromArray(m.p), r.name, !!m.e); break; }
+    case 'mark': { const r = REMOTES[from]; if (r && r.team === G.myTeam && m.p) placePing(new V3().fromArray(m.p), r.name, !!m.e); break; }
     case 'punch': { const r = REMOTES[from]; if (r) { r.punchT = 0.28; AU.punch(false, r.pos); } break; }
     case 'shot': {
       const r = REMOTES[from]; if (!r || !r.weapons.length) break;
