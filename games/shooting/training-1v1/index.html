@@ -1059,7 +1059,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 59; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 60; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -4589,7 +4589,10 @@ function applyBulletDamage(b, victim, part, hp, dir) {
   const head = part === 'head';
   if (head && victim.helmet.lv > 0) { dmg *= 1 - ARMOR.helmet.red[victim.helmet.lv]; victim.helmet.dur -= dmg; if (victim.helmet.dur <= 0) victim.breakArmor('helmet'); }
   if (part === 'torso' && victim.vest.lv > 0) { dmg *= 1 - ARMOR.vest.red[victim.vest.lv]; victim.vest.dur -= dmg * 0.8; if (victim.vest.dur <= 0) victim.breakArmor('vest'); }
-  if (part !== 'head' && b.st.def.cat === 'SR') dmg = MAX_HP / 2; // 저격총: 몸·팔·다리는 조끼 레벨(3레벨 포함) 상관없이 2방이면 쓰러짐
+  if (part !== 'head' && b.st.def.cat === 'SR') { // 저격총 몸샷: 조끼 없으면 2방, 조끼 있으면 레벨만큼 더 버텨요 (1·2레벨 3방, 3레벨 4방)
+    dmg = MAX_HP / 2;
+    if (part === 'torso' && victim.vest.lv > 0) dmg *= 1 - ARMOR.vest.red[victim.vest.lv] * 0.75;
+  }
   if (b.wallMul) dmg *= b.wallMul; // 월샷 데미지 감소
   bloodFX(hp, dir, head);
   if (victim.dummy && b.owner === PLAYER) rangeOnHit(victim, Math.min(dmg, victim.health), part, b.dist, hp, b.st);
