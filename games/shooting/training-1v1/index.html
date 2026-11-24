@@ -1059,7 +1059,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 57; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 58; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -7452,7 +7452,7 @@ function renderLobby() {
     col += '</div>';
     const ok2 = L.players.length >= 2;
     box.innerHTML = `<div class="attrow"><span>경기 방식</span>${sizeBtns}</div><div class="attrow"><span>맵</span>${mapBtns}</div><div class="teams">${col}</div>`
-      + (host ? `<div class="row" style="margin:12px 0 0"><button class="btn" id="mp-startgame" ${ok2 ? '' : 'disabled'}>게임 시작</button><button class="btn sub" id="mp-fillbots">빈자리 모두 AI로 채우기</button><span class="hint">${ok2 ? '사람이 부족해도 그대로 시작할 수 있어요 (빈자리는 비워 둬도 돼요)' : '2명 이상이어야 해요 (AI 넣기로 채워도 돼요)'}</span></div>`
+      + (host ? `<div class="row" style="margin:12px 0 0"><button class="btn" id="mp-startgame">게임 시작</button><button class="btn sub" id="mp-fillbots">빈자리 모두 AI로 채우기</button><span class="hint">${ok2 ? '사람이 부족해도 그대로 시작할 수 있어요 (빈자리는 비워 둬도 돼요)' : '혼자여도 시작할 수 있어요 · 상대가 없으면 AI 한 명이 들어와요'}</span></div>`
         : `<div class="hint" style="margin-top:10px">방장이 게임을 시작하면 바로 들어가요</div>`);
     return;
   }
@@ -7461,7 +7461,7 @@ function renderLobby() {
   const maps = MAP_LIST[L.size] || [], cur = L.map && maps.includes(L.map) ? L.map : 'random';
   const mapBtns = [`<button class="${cur === 'random' ? 'on' : ''}" data-map="random" ${host ? '' : 'disabled'}>랜덤</button>`].concat(maps.map(id => `<button class="${cur === id ? 'on' : ''}" data-map="${id}" ${host ? '' : 'disabled'}>${MAP_DEFS[id].name}</button>`)).join('');
   box.innerHTML = `<div class="attrow"><span>경기 방식</span>${sizeBtns}</div><div class="attrow"><span>맵</span>${mapBtns}</div><div class="teams">${col(0)}${col(1)}</div>`
-    + (host ? `<div class="row" style="margin:12px 0 0"><button class="btn" id="mp-startgame" ${ok ? '' : 'disabled'}>게임 시작</button><button class="btn sub" id="mp-fillbots">빈자리 모두 AI로 채우기</button><span class="hint">${ok ? '팀원이 적은 쪽도 그대로 시작할 수 있어요' : '양쪽 팀에 한 명 이상, 정한 인원 이하로 맞춰 주세요'}</span></div>`
+    + (host ? `<div class="row" style="margin:12px 0 0"><button class="btn" id="mp-startgame">게임 시작</button><button class="btn sub" id="mp-fillbots">빈자리 모두 AI로 채우기</button><span class="hint">${ok ? '팀원이 적은 쪽도 그대로 시작할 수 있어요' : '혼자여도 시작할 수 있어요 · 비어 있는 팀에는 AI 한 명이 들어와요'}</span></div>`
       : `<div class="hint" style="margin-top:10px">방장이 게임을 시작하면 바로 들어가요</div>`);
 }
 
@@ -7485,6 +7485,11 @@ function myLoadoutMsg() { return { t: 'lo', list: PLAYER.weapons.map(w => ({ id:
 // ---------- 라운드 (방장이 정함) ----------
 function netStartGame() {
   const L = NET.lobby;
+  // 사람이 없어도 시작: 상대가 없으면 AI를 넣어서 바로 시작해요
+  if (NET.host) {
+    if (L.ffa) { if (L.players.length < 2) addBot(0); }
+    else for (const t of [0, 1]) if (!L.players.some(p => p.team === t)) addBot(t);
+  }
   const maps = L.ffa ? ffaMaps() : MAP_LIST[L.size] || ['arena'], rnd = L.ffa ? MAP_LIST.ffa : maps; // 개인전 랜덤은 전용 맵에서
   NET.matchMap = L.map && maps.includes(L.map) ? L.map : rnd[(Math.random() * rnd.length) | 0];
   NET.active = true; G.mode = 'mp';
