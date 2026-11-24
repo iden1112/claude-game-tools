@@ -1059,7 +1059,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 61; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 62; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -7077,7 +7077,7 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 20; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 21; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 // 개인전 (1v1v1v1): 최대 4명, 한 사람이 한 팀(팀 번호 0~3). 2명 이상이면 시작할 수 있어요
@@ -7137,6 +7137,7 @@ function onlineBlocked() {
 //  2) 공용 통로 (bus): 모두가 같은 통로에 메시지를 올리고 각자 자기 것만 읽음
 //     - 같은 컴퓨터 탭끼리 (코드 L…)  - 학교 와이파이용 중계 서버 (코드 R…, MQTT 웹소켓)
 const RELAY_BROKERS = [
+  { url: 'wss://mqtt.eclipseprojects.io:443/mqtt' }, // 443 포트: 학교에서 막힐 가능성이 가장 낮아요
   { url: 'wss://broker.emqx.io:8084/mqtt' },
   { url: 'wss://broker.hivemq.com:8884/mqtt' },
   { url: 'wss://public.cloud.shiftr.io', username: 'public', password: 'public' },
@@ -7163,9 +7164,10 @@ function netPost(msg) {
   if (NET.host) { if (to !== 'h') rawSend(to, msg); }
   else rawSend('h', msg);
 }
-function netSend(msg, to = '*', from = NET.id) {
+function netSend(msg, to = '*', from = NET.id, batch = null) {
   if (!NET.connected && !NET.host) return;
   msg.from = from; msg.to = to;
+  if (batch) { delete msg.to; batch.push(msg); return; }
   if (NET_IMPORTANT.has(msg.t)) { msg.k = ++NET.seq; setTimeout(() => netPost(msg), 90); setTimeout(() => netPost(msg), 260); }
   netPost(msg);
 }
@@ -7176,8 +7178,10 @@ function hostRoute(m) {
   else rawSend(m.to, m);
 }
 // 공용 통로에서 받은 메시지
+const BUS_DUP = new Set(); let busN = 0;
 function busRecv(m) {
   if (!m || !m.t || m.from === NET.id) return;
+  if (m._n) { if (BUS_DUP.has(m._n)) return; BUS_DUP.add(m._n); if (BUS_DUP.size > 4000) BUS_DUP.clear(); } // 여러 중계 서버로 온 같은 메시지는 한 번만
   NET.lastRecv = performance.now();
   if (NET.host) {
     NET.seen[m.from] = performance.now();
@@ -7190,14 +7194,33 @@ function busLocal(code) {
   bc.onmessage = (e) => { if (e.data && e.data.code === code) busRecv(e.data.msg); };
   return { post: (msg) => bc.postMessage({ code, msg }), close: () => bc.close() };
 }
-// 중계 서버 접속 (성공하면 bus 를 돌려줌)
+// 여러 중계 서버에 한꺼번에 접속해요. 보낼 때는 접속된 서버 모두에, 받을 때는 겹친 것 버리기.
+// → 방장 집 와이파이와 친구 학교 와이파이에서 되는 서버가 달라도, 하나만 겹치면 같이 할 수 있어요
+function busMulti(code, onOpen, onFail) {
+  const list = relayList(), live = [], all = [];
+  let opened = false, failed = 0;
+  const multi = {
+    post: (msg) => { msg._n = NET.id + '.' + (++busN) + '.' + (Date.now() % 100000); const s = JSON.stringify(msg); for (const b of live) b.raw(s); },
+    close: () => { for (const b of all) b && b.close(); live.length = 0; },
+    servers: live,
+  };
+  list.forEach((B, i) => {
+    const b = busRelay(code, i, (bus) => {
+      live.push(bus); NET.relayN = live.length;
+      if (!opened) { opened = true; onOpen(multi); }
+    }, () => { if (++failed >= list.length && !opened) onFail(); });
+    all.push(b);
+  });
+  return multi;
+}
+// 중계 서버 하나에 접속 (성공하면 bus 를 돌려줌)
 function busRelay(code, idx, onOpen, onFail) {
   if (typeof mqtt === 'undefined') { onFail('도구 없음'); return null; }
   const B = relayList()[idx]; if (!B) { onFail('서버 없음'); return null; }
   const topic = 'tg1v1/v' + NET_VER + '/' + code;
   let opened = false;
   const cl = mqtt.connect(B.url, { username: B.username, password: B.password, clientId: 'tg' + Math.random().toString(16).slice(2, 10), connectTimeout: 7000, reconnectPeriod: 2000, keepalive: 20, clean: true });
-  const bus = { post: (msg) => { try { cl.publish(topic, JSON.stringify(msg), { qos: 0 }); } catch (e) {} }, close: () => { try { cl.end(true); } catch (e) {} }, client: cl };
+  const bus = { post: (msg) => { try { cl.publish(topic, JSON.stringify(msg), { qos: 0 }); } catch (e) {} }, raw: (s) => { try { if (cl.connected) cl.publish(topic, s, { qos: 0 }); } catch (e) {} }, close: () => { try { cl.end(true); } catch (e) {} }, client: cl, url: B.url };
   const timer = setTimeout(() => { if (!opened) { bus.close(); onFail('시간 초과'); } }, 8000);
   cl.on('connect', () => {
     cl.subscribe(topic, { qos: 0 }, (err) => {
@@ -7241,18 +7264,14 @@ function netHost(mode) {
   }
   if (onlineBlocked()) { $('mp-code').textContent = '-----'; return; }
   if (mode === 'relay') {
-    // 접속되는 중계 서버를 차례로 찾아요. 코드 두 번째 글자 = 서버 번호
-    const tryIdx = (i) => {
-      if (i >= relayList().length) { netStatus('중계 서버에 하나도 접속하지 못했어요. 학교에서 막혀 있을 수 있어요. 휴대폰 핫스팟으로 해 보세요', 'bad'); return; }
-      netStatus(`학교 와이파이용 중계 서버에 접속하는 중… (${i + 1}/${relayList().length})`);
-      const code = 'R' + i + makeCode().slice(0, 4);
-      NET.pendingBus = busRelay(code, i, (bus) => {
-        if (NET.id !== 'h' || NET.mode !== 'relay') { bus.close(); return; }
-        NET.pendingBus = null; NET.bus = bus; startLobby(code);
-        netStatus('학교 와이파이용 방이 만들어졌어요! 친구들에게 위 코드를 알려 주세요', 'ok');
-      }, () => { if (NET.id === 'h' && NET.mode === 'relay' && !NET.bus) tryIdx(i + 1); });
-    };
-    tryIdx(0);
+    // 중계 서버 여러 곳에 동시에 접속해요 (코드는 R로 시작)
+    netStatus(`학교 와이파이용 중계 서버에 접속하는 중… (${relayList().length}곳 동시에)`);
+    const code = 'R' + makeCode().slice(0, 5);
+    NET.pendingBus = busMulti(code, (bus) => {
+      if (NET.id !== 'h' || NET.mode !== 'relay') { bus.close(); return; }
+      NET.pendingBus = null; NET.bus = bus; startLobby(code);
+      netStatus('학교 와이파이용 방이 만들어졌어요! 친구들에게 위 코드를 알려 주세요', 'ok');
+    }, () => { if (NET.id === 'h' && NET.mode === 'relay' && !NET.bus) netStatus('중계 서버에 하나도 접속하지 못했어요. 이 와이파이에서 막혀 있어요. 아래 「연결 검사」를 눌러 결과를 알려 주거나, 휴대폰 핫스팟으로 해 보세요', 'bad'); });
     return;
   }
   // 직접 연결 (PeerJS)
@@ -7373,12 +7392,11 @@ function netJoin(code) {
   }
   if (onlineBlocked()) return;
   if (code.startsWith('R')) {
-    const idx = +code[1];
     netStatus('학교 와이파이용 중계 서버에 접속하는 중…');
-    NET.pendingBus = busRelay(code, idx, (bus) => {
+    NET.pendingBus = busMulti(code, (bus) => {
       if (NET.code !== code || NET.host) { bus.close(); return; }
       NET.pendingBus = null; NET.bus = bus; hello(); netStatus(`방 ${esc(code)} 찾는 중…`);
-    }, () => { if (NET.code === code && !NET.bus) netStatus('중계 서버에 접속하지 못했어요. 학교에서 막혀 있을 수 있어요. 휴대폰 핫스팟으로 해 보세요', 'bad'); });
+    }, () => { if (NET.code === code && !NET.bus) netStatus('중계 서버에 하나도 접속하지 못했어요. 이 와이파이에서 막혀 있어요. 아래 「연결 검사」를 눌러 결과를 알려 주거나, 휴대폰 핫스팟으로 해 보세요', 'bad'); });
     return;
   }
   netStatus('연결 서버에 접속하는 중…');
@@ -7594,10 +7612,14 @@ function netRecv(m) {
     case 'left': { const r = REMOTES[m.id]; if (r) HUD.addFeed(`<span class="en">${esc(r.name)}</span> <i>나갔어요</i>`); removeRemote(m.id); break; }
     case 'bye': if (from === 'h') netLost(); else if (NET.host) playerLeft(from); break;
     case 'lo': { const r = REMOTES[from]; if (r) { r.setLoadout(m.list); r.equip(0, true); } break; }
+    case 'sb': { for (const s of m.a) { s.t = 'st'; s.to = '*'; netRecv(s); } break; } // 중계 서버: 여러 캐릭터 상태를 한 번에
     case 'st': {
       const r = REMOTES[from]; if (!r || r.gone) break;
+      if (m.ts !== undefined && r.lastTs !== undefined && m.ts <= r.lastTs) break; // 늦게 도착한 옛날 상태는 버려요
+      r.lastTs = m.ts;
       r.net.pos.fromArray(m.p); r.net.vel.set(m.v[0], 0, m.v[1]); r.net.yaw = m.y; r.net.pitch = m.pi;
-      if (r.pos.distanceTo(r.net.pos) > 4) r.pos.copy(r.net.pos);
+      if (m.ts !== undefined) snapPush(r, m);
+      if (r.pos.distanceTo(r.net.pos) > 4) { r.pos.copy(r.net.pos); if (r.snaps) r.snaps.length = 0; }
       { const ns = STANCE_NAME[m.s] || 'stand'; if (ns !== r.stance && (ns === 'prone' || r.stance === 'prone')) { r.proneDur = ns === 'prone' ? 1.0 : 0.85; r.proneLock = r.proneDur; } r.stance = ns; }
       r.leanTarget = m.l; r.adsT = m.a; r.sprint = !!m.sp; r.health = m.h;
       if (!m.d && r.dead && G.state === 'pre') { r.dead = false; r.soldier.deadT = 0; r.soldier.body.rotation.set(0, 0, 0); }
@@ -7649,32 +7671,67 @@ function netRecv(m) {
   }
 }
 
+// ---------- 상대 움직임 부드럽게 (핑이 튀는 와이파이용) ----------
+// 받은 상태를 시간과 함께 쌓아 두고, 조금(핑 흔들림만큼) 늦게 그 사이를 이어서 보여줘요.
+// 핑이 들쭉날쭉하면 기다리는 시간을 자동으로 늘리고, 안정되면 다시 줄여요.
+function snapPush(r, m) {
+  const now = performance.now(), d = now - m.ts;
+  if (r.off === undefined || d < r.off) r.off = d; else r.off += (d - r.off) * 0.003; // 시계 차이 + 가장 빠른 도착 시간
+  const j = Math.max(0, d - r.off);
+  r.jit = r.jit === undefined ? j : r.jit * 0.95 + j * 0.05;
+  r.jpk = Math.max(j, (r.jpk || 0) * 0.997);
+  if (!r.snaps) r.snaps = [];
+  r.snaps.push({ t: m.ts, p: new V3().fromArray(m.p), v: new V3(m.v[0], 0, m.v[1]), y: m.y, pi: m.pi });
+  if (r.snaps.length > 40) r.snaps.shift();
+}
+const _sn1 = new V3();
+function snapSample(r, dt) {
+  const want = clamp(45 + Math.max(r.jit * 2.2, r.jpk * 0.8), 50, 320); // 기다리는 시간(ms)
+  r.delay = r.delay === undefined ? want : r.delay + (want - r.delay) * Math.min(1, dt * (want > r.delay ? 4 : 0.6));
+  NET.interp = r.delay;
+  const rt = performance.now() - r.off - r.delay, S = r.snaps;
+  while (S.length > 2 && S[1].t <= rt) S.shift();
+  let y, pi;
+  if (S.length >= 2 && S[0].t <= rt && rt <= S[1].t) {
+    const a = S[0], b = S[1], k = (rt - a.t) / Math.max(1, b.t - a.t);
+    _sn1.copy(a.p).lerp(b.p, k); y = a.y + angDiff(a.y, b.y) * k; pi = lerp(a.pi, b.pi, k);
+  } else if (rt < S[0].t) { _sn1.copy(S[0].p); y = S[0].y; pi = S[0].pi; }
+  else { const L = S[S.length - 1], ex = Math.min(0.2, (rt - L.t) / 1000); _sn1.copy(L.p).addScaledVector(L.v, ex); y = L.y; pi = L.pi; } // 늦으면 잠깐 예측
+  const k = 1 - Math.exp(-dt * 30);
+  if (r.pos.distanceTo(_sn1) > 4) r.pos.copy(_sn1); else r.pos.lerp(_sn1, k);
+  r.yaw += angDiff(r.yaw, y) * k; r.pitch = lerp(r.pitch, pi, k);
+}
+
 // ---------- 매 프레임 ----------
 function netUpdate(dt) {
   if (!NET.active) return;
   NET.sendT -= dt;
   if (NET.sendT <= 0) {
-    NET.sendT = 1 / 24;
-    const senders = [[PLAYER, NET.id]];
+    NET.sendT = NET.bus ? 1 / 20 : 1 / 24;
+    const senders = [[PLAYER, NET.id]], batch = NET.bus && NET.mode === 'relay' ? [] : null;
     if (NET.host) for (const id in NET.bots) senders.push([NET.bots[id], id]);
     for (const [p, sid] of senders) {
     netSend({
-      t: 'st', p: [+p.pos.x.toFixed(3), +p.pos.y.toFixed(3), +p.pos.z.toFixed(3)], v: [+p.vel.x.toFixed(2), +p.vel.z.toFixed(2)], y: +p.yaw.toFixed(4), pi: +p.pitch.toFixed(4),
+      t: 'st', ts: Math.round(performance.now()), p: [+p.pos.x.toFixed(3), +p.pos.y.toFixed(3), +p.pos.z.toFixed(3)], v: [+p.vel.x.toFixed(2), +p.vel.z.toFixed(2)], y: +p.yaw.toFixed(4), pi: +p.pitch.toFixed(4),
       s: STANCE_CODE[p.stance], l: +p.lean.toFixed(2), a: +p.adsT.toFixed(2), sp: p.sprint ? 1 : 0, h: Math.round(p.health * 10) / 10, d: p.dead ? 1 : 0,
       hl: p.helmet.lv, hd: Math.round(p.helmet.dur), vl: p.vest.lv, vd: Math.round(p.vest.dur), w: p.cur, m: p.mode === 'throw' ? 't' : p.mode === 'fist' ? 'f' : 'g', tt: p.throwType, rl: p.reloadT > 0 ? Math.max(0.01, +(1 - p.reloadT / (p.reloadDur || 1)).toFixed(2)) : 0, vt: p.vault ? +Math.min(1, p.vault.t).toFixed(2) : -1, vo: p.vault && p.vault.over ? 1 : 0, he: p.healT > 0 ? 1 : 0,
-    }, '*', sid);
+    }, '*', sid, batch);
     const lo = { t: 'lo', list: p.weapons.map(w => ({ id: w.id, att: w.att })) };
     const key = JSON.stringify(lo.list);
     if (key !== p.netLoKey || ++NET.loKeep % 72 === 0) { p.netLoKey = key; netSend(lo, '*', sid); }
     }
+    if (batch && batch.length) { netPost({ t: 'sb', a: batch, from: NET.id, to: '*' }); }
   }
   for (const id in REMOTES) {
     const r = REMOTES[id];
     if (!r.dead) {
-      const k = 1 - Math.exp(-dt * 14);
-      _v1.copy(r.net.pos).addScaledVector(r.net.vel, 0.04);
-      r.pos.lerp(_v1, k);
-      r.yaw += angDiff(r.yaw, r.net.yaw) * k; r.pitch = lerp(r.pitch, r.net.pitch, k);
+      if (r.snaps && r.snaps.length) snapSample(r, dt);
+      else {
+        const k = 1 - Math.exp(-dt * 14);
+        _v1.copy(r.net.pos).addScaledVector(r.net.vel, 0.04);
+        r.pos.lerp(_v1, k);
+        r.yaw += angDiff(r.yaw, r.net.yaw) * k; r.pitch = lerp(r.pitch, r.net.pitch, k);
+      }
       r.vel.copy(r.net.vel);
       r.lean = damp(r.lean, r.leanTarget, 12, dt);
       r.stanceH = damp(r.stanceH, STANCE[r.stance].eye, 10, dt);
@@ -9098,6 +9155,50 @@ const _mv1 = new V3(), _mv2 = new V3(), _mv3 = new V3();
     if (p && p.healT > 0) { VM.switchY = Math.min(VM.switchY, -0.42); if (VM.gun) VM.gun.position.y = Math.min(VM.gun.position.y, -0.6); }
     if (p) updateMedkitVM(p, dt);
   };
+}
+
+// ================= 연결 검사 (학교 와이파이에서 무엇이 막혔는지) =================
+function netCheck() {
+  const box = $('mp-status'), rows = [];
+  const draw = () => { box.innerHTML = '<b>연결 검사</b> <small>(이 화면을 찍어서 보내 주면 원인을 찾을 수 있어요)</small><br>' + rows.map(r => `${r.ok === null ? '⏳' : r.ok ? '✅' : '❌'} ${r.name}${r.ms ? ` <small>${r.ms}ms</small>` : ''}`).join('<br>'); };
+  const row = (name) => { const r = { name, ok: null }; rows.push(r); draw(); return r; };
+  const done = (r, ok, t0) => { if (r.ok !== null) return; r.ok = ok; if (ok && t0) r.ms = Math.round(performance.now() - t0); draw(); };
+  // 1) 중계 서버들 (학교 와이파이용 방)
+  if (typeof mqtt !== 'undefined') relayList().forEach((B) => {
+    const r = row('중계 ' + B.url.replace(/^wss:\/\//, '').replace(/\/mqtt$/, '')), t0 = performance.now();
+    let cl; try { cl = mqtt.connect(B.url, { username: B.username, password: B.password, clientId: 'tgc' + Math.random().toString(16).slice(2, 9), connectTimeout: 8000, reconnectPeriod: 0, clean: true }); } catch (e) { done(r, false); return; }
+    const end = () => { try { cl.end(true); } catch (e) {} };
+    cl.on('connect', () => { done(r, true, t0); end(); });
+    cl.on('error', () => { done(r, false); end(); });
+    setTimeout(() => { done(r, false); end(); }, 9000);
+  });
+  // 2) 일반 방 연결 서버 (PeerJS)
+  if (typeof Peer !== 'undefined') {
+    const r = row('일반 방 연결 서버 (0.peerjs.com)'), t0 = performance.now();
+    try { const pr = new Peer(peerOpts()); pr.on('open', () => { done(r, true, t0); pr.destroy(); }); pr.on('error', () => { done(r, false); pr.destroy(); }); setTimeout(() => { done(r, false); try { pr.destroy(); } catch (e) {} }, 9000); } catch (e) { done(r, false); }
+  }
+  // 3) 직접 연결용 STUN / 중계(TURN)
+  const ice = (name, servers, want, policy) => {
+    const r = row(name), t0 = performance.now();
+    try {
+      const pc = new RTCPeerConnection({ iceServers: servers, iceTransportPolicy: policy || 'all' });
+      pc.createDataChannel('x');
+      pc.onicecandidate = (e) => { if (e.candidate && e.candidate.candidate.includes(' typ ' + want)) { done(r, true, t0); pc.close(); } };
+      pc.createOffer().then(o => pc.setLocalDescription(o)).catch(() => done(r, false));
+      setTimeout(() => { done(r, false); try { pc.close(); } catch (e) {} }, 8000);
+    } catch (e) { done(r, false); }
+  };
+  ice('직접 연결 (STUN)', [{ urls: 'stun:stun.l.google.com:19302' }], 'srflx');
+  const turns = peerOpts().config.iceServers.filter(s => s.username);
+  turns.forEach((s, i) => ice('중계 TURN ' + [].concat(s.urls)[0].replace(/^turns?:/, '').split('?')[0] + ([].concat(s.urls).length > 1 ? ' 외' : ''), [s], 'relay', 'relay'));
+}
+{
+  const hint = document.querySelector('#mp-host-relay');
+  if (hint) {
+    const b = document.createElement('button'); b.className = 'btn sub'; b.id = 'mp-check'; b.style.marginLeft = '6px'; b.textContent = '연결 검사';
+    b.onclick = () => netCheck();
+    hint.after(b);
+  }
 }
 
 // ================= 시작 =================
