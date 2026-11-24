@@ -1059,7 +1059,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 58; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 59; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -5466,9 +5466,9 @@ function playerInput(dt) {
 
 function updatePlayerCamera(dt) {
   const p = PLAYER;
-  const fpView = !CAM.tpp || p.adsT > 0.35 || (p.ads && p.mode === 'gun');
-  CAM.blend = damp(CAM.blend, fpView ? 0 : 1, fpView ? 22 : 10, dt);
-  if (p.dead) CAM.blend = damp(CAM.blend, 1, 4, dt);
+  // 관전 중이면 V로 고른 시점(1인칭/3인칭)을 따르고, 관전 대상이 없을 때만 내 시체를 3인칭으로 봐요
+  const fpView = CAM.spec ? !CAM.tpp : !p.dead && (!CAM.tpp || p.adsT > 0.35 || (p.ads && p.mode === 'gun'));
+  CAM.blend = damp(CAM.blend, fpView ? 0 : 1, fpView ? 22 : (p.dead ? 4 : 10), dt);
   if (!CAM.free) { CAM.fy = damp(CAM.fy, 0, 12, dt); CAM.fp = damp(CAM.fp, 0, 12, dt); }
   // 숨 참기 / 조준경 흔들림
   if (CAM.breathing) CAM.breath = Math.max(0, CAM.breath - dt); else CAM.breath = Math.min(5, CAM.breath + dt * 0.8);
@@ -5480,32 +5480,33 @@ function updatePlayerCamera(dt) {
   CAM.kickP = damp(CAM.kickP, 0, 14, dt);
   G.shake = Math.max(0, G.shake - dt * 1.5);
   const sh = G.shake * G.shake * 0.04;
-  // 눈 위치 (계단 오를 때 부드럽게)
-  const eye = p.eyePos;
-  if (CAM.eyeSmooth.distanceToSquared(eye) > 4) CAM.eyeSmooth.copy(eye);
-  CAM.eyeSmooth.x = eye.x; CAM.eyeSmooth.z = eye.z; CAM.eyeSmooth.y = damp(CAM.eyeSmooth.y, eye.y, 22, dt);
-  // 죽으면 살아있는 팀원 관전
+  // 죽으면 살아있는 팀원 관전 (눈 위치보다 먼저 정해야 관전 대상의 눈으로 가요)
   if (p.dead && G.mode === 'mp') {
     CAM.deadT = (CAM.deadT || 0) + dt;
     if (CAM.deadT > 2 && (!CAM.spec || CAM.spec.dead || CAM.spec.gone)) CAM.spec = ACTORS.find(r => r !== p && (isFFA() || r.team === G.myTeam) && !r.dead && !r.gone) || null;
   } else { CAM.deadT = 0; CAM.spec = null; }
   const S = CAM.spec || p;
+  // 눈 위치 (계단 오를 때 부드럽게) — 관전 중이면 관전 대상의 눈
+  const eye = S.eyePos;
+  if (CAM.eyeFor !== S) { CAM.eyeFor = S; CAM.eyeSmooth.copy(eye); }
+  if (CAM.eyeSmooth.distanceToSquared(eye) > 4) CAM.eyeSmooth.copy(eye);
+  CAM.eyeSmooth.x = eye.x; CAM.eyeSmooth.z = eye.z; CAM.eyeSmooth.y = damp(CAM.eyeSmooth.y, eye.y, 22, dt);
   // 파쿠르: 시선이 아래로 숙였다가 올라오고 살짝 기울어짐
   const vu = p.vault ? Math.min(1, p.vault.t) : -1;
   CAM.vaultK = damp(CAM.vaultK || 0, vu >= 0 ? Math.sin(Math.PI * vu) : 0, 18, dt);
   const yaw = (CAM.spec ? S.yaw : p.yaw) + CAM.fy, pitch = (CAM.spec ? S.pitch : p.pitch) + CAM.fp + CAM.kickP + CAM.sway.y + rand(-sh, sh) - CAM.vaultK * 0.22;
-  CAM.roll = damp(CAM.roll, -p.lean * 0.16 * (1 - CAM.blend * 0.6) + (p.vault && p.vault.over ? 0.09 : -0.03) * CAM.vaultK, 12, dt);
+  CAM.roll = damp(CAM.roll, -S.lean * 0.16 * (1 - CAM.blend * 0.6) + (p.vault && p.vault.over ? 0.09 : -0.03) * CAM.vaultK, 12, dt);
   camera.rotation.set(pitch, yaw + CAM.sway.x + rand(-sh, sh), CAM.roll, 'YXZ');
   // 1인칭 위치
   const fpPos = _v1.copy(CAM.eyeSmooth);
   // 걸을 때 흔들림
-  const hsp = Math.hypot(p.vel.x, p.vel.z);
+  const hsp = Math.hypot(S.vel.x, S.vel.z);
   VM.bobPhase = (VM.bobPhase || 0) + dt * hsp * 1.9;
-  if (p.onGround) fpPos.y += Math.sin(VM.bobPhase * 2) * 0.012 * Math.min(1, hsp / 4) * (1 - p.adsT * 0.8);
+  if (S.onGround) fpPos.y += Math.sin(VM.bobPhase * 2) * 0.012 * Math.min(1, hsp / 4) * (1 - p.adsT * 0.8);
   // 3인칭 위치: 어깨 너머
   const piv = _v2.set(S.pos.x, S.pos.y + Math.max(S.stanceH + 0.28, S.dead ? 1.0 : 1.05), S.pos.z);
   const right = _v3.set(Math.cos(yaw), 0, -Math.sin(yaw));
-  piv.addScaledVector(right, p.lean * 0.3);
+  piv.addScaledVector(right, S.lean * 0.3);
   const back = _v4.set(0, 0, 1).applyEuler(camera.rotation);
   const sh_ = smooth01(p.shoulderT || 0);
   const dist = (p.dead ? 3.6 : p.stance === 'prone' ? 2.7 : 2.5) - sh_ * 1.0;
@@ -5527,6 +5528,10 @@ function updatePlayerCamera(dt) {
   camera.fov = damp(camera.fov, fov, 25, dt); camera.updateProjectionMatrix();
   // 3인칭에선 내 캐릭터 보이기
   p.soldier.setVisible(CAM.blend > 0.15);
+  // 관전 1인칭: 관전 대상의 몸이 화면을 가리지 않게 숨기고, 관전이 끝나면 다시 보이게
+  const hideSpec = CAM.spec && CAM.blend < 0.15 ? CAM.spec : null;
+  if (CAM.specHidden && CAM.specHidden !== hideSpec) { if (!CAM.specHidden.gone) CAM.specHidden.soldier.setVisible(true); CAM.specHidden = null; }
+  if (hideSpec) { hideSpec.soldier.setVisible(false); CAM.specHidden = hideSpec; }
   updateViewmodel(dt, hsp);
 }
 const smooth01 = (t) => t * t * (3 - 2 * t);
@@ -6167,7 +6172,7 @@ const HUD = {
     } else UI('sc-alive', 'textContent', '');
     this.nameTags(mp);
     UI('spec', 'style.display', CAM.spec ? 'block' : 'none');
-    if (CAM.spec) UI('spec', 'textContent', `관전 중: ${CAM.spec.name}`);
+    if (CAM.spec) UI('spec', 'textContent', `관전 중: ${CAM.spec.name} · ${CAM.tpp ? '3인칭' : '1인칭'} (V로 바꾸기)`);
     UI('sc-round', 'textContent', `라운드 ${G.round}`);
     const tl = G.state === 'pre' ? Math.ceil(G.preT) : Math.max(0, Math.ceil(G.roundT));
     UI('sc-time', 'textContent', G.state === 'pre' ? `시작까지 ${tl}` : `${Math.floor(tl / 60)}:${String(tl % 60).padStart(2, '0')}`);
