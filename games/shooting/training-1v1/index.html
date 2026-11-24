@@ -1045,7 +1045,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 45; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 46; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -2847,7 +2847,7 @@ function addScope(g, scope, yOff, zc, info, small) {
   } else if (scope === 'holo') { // 배그 홀로그램: 네모난 창 + 위 덮개 + 뒤쪽 배터리 칸
     const y = base + 0.032;
     s.add(M(BX(0.034, 0.016, 0.075), GUNMAT.black, 0, base + 0.008, zc + 0.008));          // 아래 몸통
-    s.add(M(BX(0.03, 0.022, 0.026), GUNMAT.black, 0, base + 0.026, zc + 0.034));           // 뒤 배터리·버튼 칸
+    s.add(M(BX(0.03, 0.01, 0.026), GUNMAT.black, 0, base + 0.02, zc + 0.034));            // 뒤 배터리·버튼 칸 (낮게: 조준점을 가리지 않게)
     for (const sx of [-1, 1]) s.add(M(BX(0.004, 0.04, 0.04), GUNMAT.black, sx * 0.019, y + 0.003, zc - 0.012)); // 옆 창틀
     s.add(M(BX(0.042, 0.005, 0.044), GUNMAT.black, 0, y + 0.024, zc - 0.012));             // 위 덮개
     s.add(M(BX(0.034, 0.004, 0.004), GUNMAT.dark, 0, y - 0.016, zc - 0.033));              // 창 아래 테
