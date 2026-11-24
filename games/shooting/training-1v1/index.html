@@ -1059,7 +1059,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 60; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 61; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -8812,10 +8812,11 @@ const CHAT = window.CHAT = { open: false, scope: 'all', log: [] };
   box.innerHTML = '<div id="chatlog"></div><div id="chatin"><b id="chat-scope" class="all">전체</b><input id="chat-input" maxlength="120" autocomplete="off"><small>Enter 보내기 · Shift+Enter 전체/팀 · Esc 닫기</small></div>';
   document.body.appendChild(box);
   const inp = $('chat-input');
+  inp.addEventListener('compositionend', () => { if (inp._pend) { inp._pend = false; setTimeout(() => { const v = inp.value.trim(); inp.value = ''; if (v) chatSend(v); chatClose(); }, 0); } });
   inp.addEventListener('keydown', (e) => {
     e.stopPropagation();
     if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); chatScope(CHAT.scope === 'all' ? 'team' : 'all'); return; }
-    if (e.key === 'Enter') { e.preventDefault(); const v = inp.value.trim(); if (v) chatSend(v); chatClose(); return; }
+    if (e.key === 'Enter') { e.preventDefault(); if (e.isComposing || e.keyCode === 229) { inp._pend = true; return; } const v = inp.value.trim(); inp.value = ''; if (v) chatSend(v); chatClose(); return; }
     if (e.key === 'Escape') { e.preventDefault(); chatClose(); }
   });
   inp.addEventListener('keyup', (e) => e.stopPropagation());
@@ -8903,7 +8904,13 @@ socUI = function () {
     <div class="dmlog" id="dm-log">${msgs.length ? msgs.map(x => `<div class="${x.me ? 'me' : 'them'}">${x.me ? '나' : esc(fn)}: ${esc(x.x)}</div>`).join('') : '<div style="color:#889">아직 나눈 말이 없어요</div>'}</div>
     <div class="addrow"><input id="dm-input" maxlength="200" placeholder="메시지 (Enter로 보내기)" autocomplete="off"><button class="btn" data-act="dmsend">보내기</button></div>`;
   const i = $('dm-input'); i.value = keepVal;
-  i.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { dmSend(f, i.value); i.value = ''; setTimeout(() => $('dm-input') && $('dm-input').focus(), 0); } });
+  // 보내기: 입력칸을 먼저 비우고 보내요 (보내는 중에 친구창이 다시 그려지면서 글자가 되살아나지 않게)
+  // 한글 입력 중(조합 중)에 Enter 를 누르면 조합이 끝난 뒤 보내서 마지막 글자가 남지 않게
+  const send = () => { const v = i.value; i.value = ''; i.blur(); dmSend(f, v); setTimeout(() => { const j = $('dm-input'); if (j) { j.value = ''; j.focus(); } }, 0); };
+  let pend = false;
+  i.addEventListener('compositionend', () => { if (pend) { pend = false; setTimeout(send, 0); } });
+  i.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); if (e.isComposing || e.keyCode === 229) { pend = true; return; } send(); } });
+  i._send = send;
   const lg = $('dm-log'); lg.scrollTop = lg.scrollHeight;
   const b = $('fr-badge'); if (b) { const n = SOC.reqIn.size + SOC.unread.size; b.textContent = n; b.style.display = n ? '' : 'none'; }
 };
@@ -8912,7 +8919,7 @@ $('friends').addEventListener('click', (e) => {
   if (t.dataset.dm && !t.dataset.act) { dmOpen(t.dataset.dm); return; }
   if (t.dataset.act === 'dm') dmOpen(t.dataset.n);
   else if (t.dataset.act === 'dmx') { SOC.dmWith = null; socUI(); }
-  else if (t.dataset.act === 'dmsend') { const i = $('dm-input'); dmSend(SOC.dmWith, i.value); i.value = ''; }
+  else if (t.dataset.act === 'dmsend') { const i = $('dm-input'); if (i && i._send) i._send(); else if (i) { const v = i.value; i.value = ''; dmSend(SOC.dmWith, v); } }
 });
 
 // ---- Esc (일시정지) 하면 발로란트처럼 오른쪽에 친구창 ----
