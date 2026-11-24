@@ -401,7 +401,7 @@ function pointInBoxes(p, pad = 0) {
 // 광선 vs 상자들 → { t, box, normal }
 const _rayRes = { t: 0, box: null, normal: new V3() };
 function raycastWorld(o, d, maxT, skipPen) {
-  let bestT = maxT, bestB = null, bestAxis = 0, bestSign = 0;
+  let bestT = maxT, bestB = null, bestAxis = 0, bestSign = 0, bestExit = 0;
   const ix = 1 / (d.x || 1e-12), iy = 1 / (d.y || 1e-12), iz = 1 / (d.z || 1e-12);
   for (const b of WORLD.boxes) {
     let t1 = (b.min.x - o.x) * ix, t2 = (b.max.x - o.x) * ix;
@@ -412,13 +412,13 @@ function raycastWorld(o, d, maxT, skipPen) {
     a = Math.min(t1, t2); if (a > tmin) { tmin = a; ax = 2; sg = t1 < t2 ? -1 : 1; } tmax = Math.min(tmax, Math.max(t1, t2));
     if (tmax >= tmin && tmax > 0 && tmin < bestT) {
       if (tmin < 0) continue; // 시작점이 안에 있으면 무시
-      bestT = tmin; bestB = b; bestAxis = ax; bestSign = sg;
+      bestT = tmin; bestB = b; bestAxis = ax; bestSign = sg; bestExit = tmax;
     }
   }
   // 바닥 (y=0)
   if (d.y < 0) { const t = -o.y / d.y; if (t > 0 && t < bestT) { bestT = t; bestB = { kind: 'ground' }; bestAxis = 1; bestSign = 1; } }
   if (!bestB) return null;
-  _rayRes.t = bestT; _rayRes.box = bestB; _rayRes.normal.set(0, 0, 0); _rayRes.normal.setComponent(bestAxis, bestSign);
+  _rayRes.t = bestT; _rayRes.exit = bestB.kind === 'ground' ? bestT : bestExit; _rayRes.box = bestB; _rayRes.normal.set(0, 0, 0); _rayRes.normal.setComponent(bestAxis, bestSign);
   return _rayRes;
 }
 // 두 점 사이에 막는 것이 있는지 (연막 포함)

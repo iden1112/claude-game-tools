@@ -79,6 +79,7 @@ function getArrow() {
   if (!a) { a = boltMesh(); a.scale.setScalar(1.6); scene.add(a); arrowPool.push(a); }
   a.visible = true; a.userData.stuckT = 0; return a;
 }
+const WALLBANG = { AR: 0.55, DMR: 0.6, SR: 0.65, LMG: 0.55 }; // 벽 뚫은 뒤 남는 데미지 비율
 function updateBullets(dt) {
   for (let i = BULLETS.length - 1; i >= 0; i--) {
     const b = BULLETS[i];
@@ -131,6 +132,14 @@ function updateBullets(dt) {
       if (worldKind !== 'ground' || Math.random() < 0.5) addDecal(hp, _bn);
       if (Math.random() < 0.25 && camera.position.distanceTo(hp) < 30) AU.click(0.05, 3000);
       done = true;
+      // 월샷: 얇은 벽(두께 30cm 이하)은 소총·지정사수·저격·기관총 총알이 뚫고 나가요 (기관단총·권총·산탄총·석궁은 못 뚫음). 뚫으면 데미지가 줄어요
+      const thick = wr.exit - wr.t, wm = WALLBANG[b.st.def.cat];
+      if (wm && !b.arrow && worldKind !== 'ground' && worldKind !== 'sand' && worldKind !== 'barrier' && worldKind !== 'stair' && thick > 0 && thick <= 0.3 && (b.walls || 0) < 1) {
+        b.walls = (b.walls || 0) + 1; b.wallMul = (b.wallMul || 1) * wm;
+        b.pos.copy(_bp).addScaledVector(_bd, wr.exit + 0.02); b.vel.multiplyScalar(0.85);
+        _v4.copy(_bn).negate(); impactFX(b.pos, _v4, worldKind); addDecal(_v3.copy(b.pos).addScaledVector(_bd, -0.021), _v4);
+        done = false;
+      }
     }
     if (done) {
       if (b.tracer) b.tracer.visible = false;
@@ -150,7 +159,7 @@ function falloffMul(st, d) {
 function bulletHit(b, victim, part, hp, dir) {
   if (victim.remote) { // 친구 캐릭터: 피해 계산은 친구 쪽에서
     bloodFX(hp, dir);
-    netSend({ t: 'hit', id: b.st.def.id, att: b.owner.w ? b.owner.w.att : null, dmg: b.dmg, part, dist: b.dist, hp: hp.toArray(), dir: dir.toArray() }, victim.netId, b.owner === PLAYER ? NET.id : b.owner.netId);
+    netSend({ t: 'hit', id: b.st.def.id, att: b.owner.w ? b.owner.w.att : null, dmg: b.dmg, wm: b.wallMul || undefined, part, dist: b.dist, hp: hp.toArray(), dir: dir.toArray() }, victim.netId, b.owner === PLAYER ? NET.id : b.owner.netId);
     if (b.owner === PLAYER) { HUD.hitMarker(false, part === 'head'); AU.hit(part === 'head'); }
     return;
   }
@@ -166,6 +175,7 @@ function applyBulletDamage(b, victim, part, hp, dir) {
   if (head && victim.helmet.lv > 0) { dmg *= 1 - ARMOR.helmet.red[victim.helmet.lv]; victim.helmet.dur -= base * mult * 0.6; if (victim.helmet.dur <= 0) victim.breakArmor('helmet'); }
   if (part === 'torso' && victim.vest.lv > 0) { dmg *= 1 - ARMOR.vest.red[victim.vest.lv]; victim.vest.dur -= base; if (victim.vest.dur <= 0) victim.breakArmor('vest'); }
   if (part !== 'head' && b.st.def.cat === 'SR') dmg = 70; // 저격총: 몸·팔·다리는 조끼 레벨(3레벨 포함) 상관없이 3방이면 쓰러짐, 2방은 안 죽음
+  if (b.wallMul) dmg *= b.wallMul; // 월샷 데미지 감소
   bloodFX(hp, dir);
   if (victim.dummy && b.owner === PLAYER) rangeOnHit(victim, Math.min(dmg, victim.health), part, b.dist, hp, b.st);
   victim.damage(dmg, b.owner, { head, weapon: b.st.def.name, dir: dir.clone(), dist: b.dist });

@@ -6,7 +6,7 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 17; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 18; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 // 개인전 (1v1v1v1): 최대 4명, 한 사람이 한 팀(팀 번호 0~3). 2명 이상이면 시작할 수 있어요
@@ -553,7 +553,7 @@ function netRecv(m) {
       const victim = NET.host && NET.bots[m.to] ? NET.bots[m.to] : PLAYER;
       if (!r || victim.dead || G.state !== 'live' || r.team === victim.team) break;
       const st = m.id === 'fist' ? FIST_ST : weaponStats(m.id, m.att || fullAttachments(m.id));
-      applyBulletDamage({ owner: r, st, dmg: m.dmg, dist: m.dist, start: new V3() }, victim, m.part, new V3().fromArray(m.hp), new V3().fromArray(m.dir));
+      applyBulletDamage({ owner: r, st, dmg: m.dmg, wallMul: m.wm, dist: m.dist, start: new V3() }, victim, m.part, new V3().fromArray(m.hp), new V3().fromArray(m.dir));
       break;
     }
     case 'nade': { const r = REMOTES[from]; if (r) { throwGrenade(r, m.type, new V3().fromArray(m.o), new V3().fromArray(m.v), m.fuse); r.throwAnimT = 0.5; r.throwUnder = m.v[1] < 1.6 && Math.hypot(m.v[0], m.v[2]) < 12; AU.spoon(r.pos); } break; }

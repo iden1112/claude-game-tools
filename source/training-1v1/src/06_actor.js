@@ -152,8 +152,9 @@ class Actor {
     }
     this.vel.y -= G_ACC * dt;
     // 옆 이동 + 충돌
-    this.pos.x += this.vel.x * dt; this.pos.z += this.vel.z * dt;
-    collideXZ(this.pos, RADIUS, this.pos.y, this.pos.y + this.height, this.onGround ? STEP : 0.12);
+    // 얇은 벽을 뚫고 지나가지 않게 한 번에 0.12m씩 나눠서 움직여요 (화면이 끊길 때도)
+    { const mv = Math.hypot(this.vel.x, this.vel.z) * dt, n = Math.min(12, Math.max(1, Math.ceil(mv / 0.12)));
+      for (let i = 0; i < n; i++) { this.pos.x += this.vel.x * dt / n; this.pos.z += this.vel.z * dt / n; collideXZ(this.pos, RADIUS, this.pos.y, this.pos.y + this.height, this.onGround ? STEP : 0.12); } }
     // 위아래
     let ny = this.pos.y + this.vel.y * dt;
     if (this.vel.y > 0) {
