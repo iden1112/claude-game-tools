@@ -1059,7 +1059,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 59; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 60; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -5484,6 +5484,15 @@ function updatePlayerCamera(dt) {
   if (p.dead && G.mode === 'mp') {
     CAM.deadT = (CAM.deadT || 0) + dt;
     if (CAM.deadT > 2 && (!CAM.spec || CAM.spec.dead || CAM.spec.gone)) CAM.spec = ACTORS.find(r => r !== p && (isFFA() || r.team === G.myTeam) && !r.dead && !r.gone) || null;
+    // 관전 중 마우스 클릭으로 다른 사람 보기 (왼쪽: 다음 사람, 오른쪽: 이전 사람)
+    if (CAM.spec && (INPUT.lmbPressed || INPUT.rmbPressed)) {
+      const list = ACTORS.filter(r => r !== p && (isFFA() || r.team === G.myTeam) && !r.dead && !r.gone);
+      if (list.length > 1) {
+        const i = Math.max(0, list.indexOf(CAM.spec));
+        CAM.spec = list[(i + (INPUT.lmbPressed ? 1 : -1) + list.length) % list.length];
+        HUD.toast(`관전: ${CAM.spec.name}`);
+      } else HUD.toast('관전할 수 있는 사람이 한 명뿐이에요');
+    }
   } else { CAM.deadT = 0; CAM.spec = null; }
   const S = CAM.spec || p;
   // 눈 위치 (계단 오를 때 부드럽게) — 관전 중이면 관전 대상의 눈
@@ -6172,7 +6181,7 @@ const HUD = {
     } else UI('sc-alive', 'textContent', '');
     this.nameTags(mp);
     UI('spec', 'style.display', CAM.spec ? 'block' : 'none');
-    if (CAM.spec) UI('spec', 'textContent', `관전 중: ${CAM.spec.name} · ${CAM.tpp ? '3인칭' : '1인칭'} (V로 바꾸기)`);
+    if (CAM.spec) UI('spec', 'textContent', `관전 중: ${CAM.spec.name} · ${CAM.tpp ? '3인칭' : '1인칭'} · 클릭: 다른 사람 · V: 시점`);
     UI('sc-round', 'textContent', `라운드 ${G.round}`);
     const tl = G.state === 'pre' ? Math.ceil(G.preT) : Math.max(0, Math.ceil(G.roundT));
     UI('sc-time', 'textContent', G.state === 'pre' ? `시작까지 ${tl}` : `${Math.floor(tl / 60)}:${String(tl % 60).padStart(2, '0')}`);
