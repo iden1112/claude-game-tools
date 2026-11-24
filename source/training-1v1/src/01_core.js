@@ -1,5 +1,5 @@
 'use strict';
-const GAME_BUILD = 44; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 45; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
