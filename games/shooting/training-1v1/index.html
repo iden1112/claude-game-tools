@@ -1059,7 +1059,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 62; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 63; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -7143,7 +7143,15 @@ const RELAY_BROKERS = [
   { url: 'wss://public.cloud.shiftr.io', username: 'public', password: 'public' },
   { url: 'wss://test.mosquitto.org:8081/mqtt' },
 ];
-const relayList = () => window.__relayBrokers || RELAY_BROKERS;
+// 내 전용 서버 (Cloudflare Workers): 「내 서버 주소」 칸에 넣거나 게임 파일에 들어 있어요
+function myServerUrl() {
+  let u = ''; try { u = (localStorage.getItem('tg1v1_server') || '').trim(); } catch (e) {}
+  if (!u) u = window.__myServer || '';
+  if (!u) return '';
+  u = u.replace(/^http(s?):\/\//, 'ws$1://'); if (!/^wss?:\/\//.test(u)) u = 'wss://' + u;
+  return u.replace(/\/+$/, '');
+}
+const relayList = () => window.__relayBrokers || (myServerUrl() ? [{ ws: myServerUrl(), mine: true }] : []).concat(RELAY_BROKERS);
 function rawSend(to, msg) {
   try {
     if (NET.bus) { NET.bus.post(msg); return; }
@@ -7194,6 +7202,22 @@ function busLocal(code) {
   bc.onmessage = (e) => { if (e.data && e.data.code === code) busRecv(e.data.msg); };
   return { post: (msg) => bc.postMessage({ code, msg }), close: () => bc.close() };
 }
+// 내 전용 서버에 웹소켓으로 접속 (끊기면 다시 붙어요)
+function busWS(B, topic, onOpen, onFail) {
+  let ws = null, opened = false, closed = false, tries = 0;
+  const bus = { raw: (s) => { try { if (ws && ws.readyState === 1) ws.send(s); } catch (e) {} }, post: (msg) => bus.raw(JSON.stringify(msg)), close: () => { closed = true; try { ws && ws.close(); } catch (e) {} }, url: B.ws, mine: true };
+  const open = () => {
+    if (closed) return;
+    try { ws = new WebSocket(B.ws + '/room/' + topic); } catch (e) { if (!opened) onFail('주소 오류'); return; }
+    const t = setTimeout(() => { if (ws.readyState !== 1) { try { ws.close(); } catch (e) {} } }, 8000);
+    ws.onopen = () => { clearTimeout(t); tries = 0; if (!opened) { opened = true; onOpen(bus); } };
+    ws.onmessage = (e) => { try { busRecv(JSON.parse(e.data)); } catch (er) {} };
+    ws.onclose = () => { clearTimeout(t); if (closed) return; if (!opened && ++tries >= 2) { onFail('접속 실패'); return; } setTimeout(open, 1500); };
+    ws.onerror = () => {};
+  };
+  open();
+  return bus;
+}
 // 여러 중계 서버에 한꺼번에 접속해요. 보낼 때는 접속된 서버 모두에, 받을 때는 겹친 것 버리기.
 // → 방장 집 와이파이와 친구 학교 와이파이에서 되는 서버가 달라도, 하나만 겹치면 같이 할 수 있어요
 function busMulti(code, onOpen, onFail) {
@@ -7215,9 +7239,10 @@ function busMulti(code, onOpen, onFail) {
 }
 // 중계 서버 하나에 접속 (성공하면 bus 를 돌려줌)
 function busRelay(code, idx, onOpen, onFail) {
-  if (typeof mqtt === 'undefined') { onFail('도구 없음'); return null; }
   const B = relayList()[idx]; if (!B) { onFail('서버 없음'); return null; }
   const topic = 'tg1v1/v' + NET_VER + '/' + code;
+  if (B.ws) return busWS(B, topic, onOpen, onFail);
+  if (typeof mqtt === 'undefined') { onFail('도구 없음'); return null; }
   let opened = false;
   const cl = mqtt.connect(B.url, { username: B.username, password: B.password, clientId: 'tg' + Math.random().toString(16).slice(2, 10), connectTimeout: 7000, reconnectPeriod: 2000, keepalive: 20, clean: true });
   const bus = { post: (msg) => { try { cl.publish(topic, JSON.stringify(msg), { qos: 0 }); } catch (e) {} }, raw: (s) => { try { if (cl.connected) cl.publish(topic, s, { qos: 0 }); } catch (e) {} }, close: () => { try { cl.end(true); } catch (e) {} }, client: cl, url: B.url };
@@ -9164,7 +9189,11 @@ function netCheck() {
   const row = (name) => { const r = { name, ok: null }; rows.push(r); draw(); return r; };
   const done = (r, ok, t0) => { if (r.ok !== null) return; r.ok = ok; if (ok && t0) r.ms = Math.round(performance.now() - t0); draw(); };
   // 1) 중계 서버들 (학교 와이파이용 방)
-  if (typeof mqtt !== 'undefined') relayList().forEach((B) => {
+  relayList().filter(B => B.ws).forEach((B) => {
+    const r = row('내 서버 ' + B.ws.replace(/^wss?:\/\//, '')), t0 = performance.now();
+    try { const w = new WebSocket(B.ws + '/room/check'); w.onopen = () => { done(r, true, t0); w.close(); }; w.onerror = () => done(r, false); setTimeout(() => { done(r, false); try { w.close(); } catch (e) {} }, 8000); } catch (e) { done(r, false); }
+  });
+  if (typeof mqtt !== 'undefined') relayList().filter(B => !B.ws).forEach((B) => {
     const r = row('중계 ' + B.url.replace(/^wss:\/\//, '').replace(/\/mqtt$/, '')), t0 = performance.now();
     let cl; try { cl = mqtt.connect(B.url, { username: B.username, password: B.password, clientId: 'tgc' + Math.random().toString(16).slice(2, 9), connectTimeout: 8000, reconnectPeriod: 0, clean: true }); } catch (e) { done(r, false); return; }
     const end = () => { try { cl.end(true); } catch (e) {} };
@@ -9198,6 +9227,22 @@ function netCheck() {
     const b = document.createElement('button'); b.className = 'btn sub'; b.id = 'mp-check'; b.style.marginLeft = '6px'; b.textContent = '연결 검사';
     b.onclick = () => netCheck();
     hint.after(b);
+  }
+}
+
+// 「내 서버 주소」 칸 (방 만들기 화면)
+{
+  const anchor = document.getElementById('mp-status');
+  if (anchor) {
+    const d = document.createElement('div'); d.className = 'hint'; d.style.cssText = 'margin:8px 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap';
+    d.innerHTML = '<span>내 서버 주소</span><input id="mp-server" placeholder="tg1v1-relay.이름.workers.dev" style="flex:1;min-width:180px;padding:6px;background:#1d2126;border:1px solid #3a4148;color:#fff;border-radius:4px" autocomplete="off"><span id="mp-server-ok"></span>';
+    anchor.before(d);
+    const i = d.querySelector('input'), ok = d.querySelector('#mp-server-ok');
+    try { i.value = localStorage.getItem('tg1v1_server') || ''; } catch (e) {}
+    const info = () => { const u = myServerUrl(); ok.textContent = u ? (window.__myServer && !i.value.trim() ? '✓ 게임 파일에 들어 있어요' : '✓ 학교 와이파이용 방에서 먼저 써요') : ''; ok.style.color = '#7cd7ff'; };
+    i.addEventListener('keydown', (e) => e.stopPropagation());
+    i.addEventListener('input', () => { try { localStorage.setItem('tg1v1_server', i.value.trim()); } catch (e) {} info(); });
+    info();
   }
 }
 
