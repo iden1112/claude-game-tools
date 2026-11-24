@@ -1059,7 +1059,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 54; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 55; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -8887,19 +8887,36 @@ drawKeybinds();
 // ---- 구급상자 HUD: 남은 개수 + 치료 진행 막대 ----
 (() => {
   const st = document.createElement('style');
-  st.textContent = `#healbar{position:fixed;left:50%;bottom:30%;transform:translateX(-50%);z-index:7;display:none;text-align:center;font:700 13px system-ui,sans-serif;color:#fff;text-shadow:0 1px 3px #000;pointer-events:none}
-#healbar .bg{width:220px;height:8px;border-radius:4px;background:rgba(0,0,0,.5);margin-top:6px;overflow:hidden}#healbar .fg{height:100%;background:#4ade80;width:0}
+  st.textContent = `#healbar{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:7;display:none;text-align:center;pointer-events:none;width:96px;height:96px}
+#healbar svg{position:absolute;left:0;top:0;width:96px;height:96px;transform:rotate(-90deg)}
+#healbar .tn{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);font:800 22px system-ui,sans-serif;color:#fff;text-shadow:0 1px 4px #000}
+#healbar .lb{position:absolute;left:50%;top:104px;transform:translateX(-50%);white-space:nowrap;font:700 13px system-ui,sans-serif;color:#fff;text-shadow:0 1px 3px #000}
+#healbar .lb small{display:block;font-weight:500;font-size:11px;color:#cdd;margin-top:2px}
 #medcount{position:fixed;right:18px;bottom:150px;z-index:7;font:700 12px system-ui,sans-serif;color:#fff;background:rgba(10,12,16,.6);border-radius:5px;padding:4px 8px;pointer-events:none;display:none}
 #medcount b{color:#ff6a5a}`;
   document.head.appendChild(st);
-  const hb = document.createElement('div'); hb.id = 'healbar'; hb.innerHTML = '<span id="heal-t"></span><div class="bg"><div class="fg" id="heal-fg"></div></div>'; document.body.appendChild(hb);
+  const hb = document.createElement('div'); hb.id = 'healbar'; hb.innerHTML = '<svg viewBox="0 0 96 96"><circle cx="48" cy="48" r="40" fill="rgba(0,0,0,.35)" stroke="rgba(255,255,255,.18)" stroke-width="6"/><circle id="heal-arc" cx="48" cy="48" r="40" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="251.3"/></svg><div class="tn" id="heal-n"></div><div class="lb" id="heal-t"></div>'; document.body.appendChild(hb);
   const mc = document.createElement('div'); mc.id = 'medcount'; document.body.appendChild(mc);
   let last = '';
   (function loop() {
     const p = PLAYER, play = isPlaying() && p && !p.dead && G.mode !== 'range';
-    const heal = play && p.healT > 0;
-    hb.style.display = heal ? 'block' : 'none';
-    if (heal) { $('heal-t').textContent = `구급상자 사용 중… ${p.healT.toFixed(1)}초 (뛰거나 점프·엎드리면 끊겨요)`; $('heal-fg').style.width = ((1 - p.healT / 6) * 100).toFixed(1) + '%'; }
+    // 배그처럼 화면 가운데 동그란 타이머 + 남은 초 (치료·장전)
+    let tm = null;
+    if (play && p.healT > 0) tm = { left: p.healT, total: 6, label: '구급상자 사용 중', sub: '뛰거나 점프·엎드리면 끊겨요', col: '#4ade80' };
+    else if (play && p.mode === 'gun' && p.reloadT > 0 && p.w) {
+      if (p.shellPhase) { // 한 발씩: 남은 발 수로 전체 남은 시간을 셈
+        const per = perShell(p.w), need = Math.max(0, Math.min(p.w.stats.mag - p.w.mag, p.w.reserve)), ph = p.shellPhase;
+        const left = ph === 'end' ? p.reloadT : ph === 'start' ? p.reloadT + need * per + 0.45 : p.reloadT + Math.max(0, need - 1) * per + 0.45;
+        if (!p._shTot || ph === 'start' && p.reloadT > 0.38) p._shTot = left;
+        tm = { left, total: Math.max(left, p._shTot || left), label: '장전 중', sub: ph === 'end' ? '' : '한 발씩 · 쏘면 멈춰요', col: '#fff' };
+      } else { p._shTot = 0; tm = { left: p.reloadT, total: p.reloadDur || 1, label: '장전 중', sub: '', col: '#fff' }; }
+    }
+    hb.style.display = tm ? 'block' : 'none';
+    if (tm) {
+      $('heal-n').textContent = tm.left.toFixed(1);
+      $('heal-t').innerHTML = tm.label + (tm.sub ? `<small>${tm.sub}</small>` : '');
+      const arc = $('heal-arc'); arc.style.stroke = tm.col; arc.style.strokeDashoffset = (251.3 * clamp(tm.left / tm.total, 0, 1)).toFixed(1);
+    }
     const t = play ? `<b>✚</b> 구급상자 ${p.meds || 0} <span style="color:#99a">[${keyLabel((SETTINGS.keys || {}).Digit4 || 'Digit4')}]</span>` : '';
     if (t !== last) { mc.innerHTML = t; mc.style.display = t ? 'block' : 'none'; last = t; }
     requestAnimationFrame(loop);
