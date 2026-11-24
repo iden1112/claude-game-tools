@@ -1059,7 +1059,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 52; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 53; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -1683,7 +1683,7 @@ const BLOCK_KEYS = ['F3', 'Tab', 'AltLeft', 'AltRight', 'Space', 'Backquote', 'K
 // 게임 안에서는 늘 '기본 키 이름'으로 확인해요. 바꾼 키를 누르면 기본 키를 누른 것으로 바꿔 줘요.
 const KEY_ACTIONS = [
   ['이동', [['앞으로', 'KeyW'], ['뒤로', 'KeyS'], ['왼쪽', 'KeyA'], ['오른쪽', 'KeyD'], ['달리기 · 숨 참기', 'ShiftLeft'], ['점프 · 넘기', 'Space'], ['앉기', 'KeyC'], ['엎드리기', 'KeyZ'], ['왼쪽 기울이기', 'KeyQ'], ['오른쪽 기울이기', 'KeyE'], ['둘러보기', 'AltLeft']]],
-  ['무기', [['재장전 · 쿠킹', 'KeyR'], ['단발/점사/연사', 'KeyB'], ['1번 무기', 'Digit1'], ['2번 무기', 'Digit2'], ['3번 무기 (권총)', 'Digit3'], ['투척물', 'KeyG'], ['투척물 바꾸기', 'Digit5'], ['맨손', 'KeyX']]],
+  ['무기', [['재장전 · 쿠킹', 'KeyR'], ['단발/점사/연사', 'KeyB'], ['1번 무기', 'Digit1'], ['2번 무기', 'Digit2'], ['3번 무기 (권총)', 'Digit3'], ['투척물', 'KeyG'], ['투척물 바꾸기', 'Digit5'], ['구급상자', 'Digit4'], ['맨손', 'KeyX']]],
   ['기타', [['1인칭/3인칭', 'KeyV'], ['핑 찍기', 'F3'], ['점수판', 'Tab'], ['총 고르기', 'Backquote'], ['채팅', 'Enter']]],
 ];
 const KEY_DEFAULTS = new Set(KEY_ACTIONS.flatMap(g => g[1].map(a => a[1])));
@@ -3863,6 +3863,18 @@ function buildGunNew(id, att) {
   info.loadType = d.load || (d.mag ? 'mag' : 'shell');
   if (d.brk) { info.brk = d.brk.g; g.userData.brk = d.brk.g; info.breech = new V3(0, d.breech[1], -d.breech[0]); }
   const b = d.bolt || [0, 0.075, -0.1]; info.boltPos = new V3(b[0], b[1], -b[2]);
+  if (cat !== 'XB' && info.loadType !== 'break' && !(cat === 'HG' && info.loadType === 'shell')) { // 당길 수 있는 노리쇠·장전 손잡이 (따로 움직여요)
+    const h = new THREE.Group(), side = Math.abs(b[0]) > 0.01;
+    if (side) { // 옆 손잡이 (AK·SCAR 등): 옆으로 튀어나온 막대 + 끝 손잡이
+      const sx = Math.sign(b[0]); const rod = new THREE.Mesh(CY(0.0035, 0.0035, 0.03, 8), GUNMAT.steel); rod.rotation.z = Math.PI / 2; rod.position.x = sx * 0.012; h.add(rod);
+      const knob = new THREE.Mesh(new THREE.SphereGeometry(0.0065, 10, 8), GUNMAT.steel); knob.position.x = sx * 0.028; h.add(knob);
+    } else if (cat === 'HG') { const s = new THREE.Mesh(BX(0.024, 0.01, 0.02), Md()); for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(BX(0.025, 0.008, 0.002), GUNMAT.steel); r.position.z = -0.006 + i * 0.006; h.add(r); } h.add(s); }
+    else { // 뒤쪽 T자 장전 손잡이 (AR 등)
+      const bar = new THREE.Mesh(BX(0.008, 0.007, 0.03), GUNMAT.black); bar.position.z = 0.012; h.add(bar);
+      const t = new THREE.Mesh(BX(0.034, 0.008, 0.008), GUNMAT.black); t.position.z = 0.026; h.add(t);
+    }
+    h.position.copy(info.boltPos); g.add(h); info.handle = h; info.handleHome = h.position.clone();
+  }
   const e = d.ej || [0.02, bore + 0.01]; info.eject.position.set(0.03, e[1], -e[0]);
   g.add(info.muzzle, info.eject);
   mergeGun(g);
@@ -4690,6 +4702,18 @@ const STANCE = {
   prone: { h: 0.6, eye: 0.38, speed: 1.15, sprint: 1.15, recoil: 0.55, spread: 0.6 },
 };
 const MAX_HP = 150;
+// 꺼낸 뒤 노리쇠·장전 손잡이·슬라이드·펌프를 당기는 시간 (총 종류마다 달라요)
+function rackKind(w) {
+  const c = w.stats.cat, info = w.info || w.model;
+  if (c === 'XB') return 'none';
+  if (c === 'HG') return info && info.loadType === 'shell' ? 'none' : 'slide';
+  if (info && info.loadType === 'break') return 'break';
+  if (c === 'SG') return info && info.loadType === 'mag' ? 'handle' : 'pump';
+  if (c === 'SR' && info && info.loadType === 'shell' && w.id !== 'win94') return 'bolt';
+  if (w.id === 'win94') return 'lever';
+  return 'handle';
+}
+function rackTime(w) { return { none: 0.1, slide: 0.3, break: 0.4, pump: 0.45, handle: 0.45, bolt: 0.6, lever: 0.45 }[rackKind(w)] || 0.4; }
 const RADIUS = 0.33, STEP = 0.46, JUMP_V = 6.1, G_ACC = 15;
 
 class Actor {
@@ -4706,7 +4730,7 @@ class Actor {
     this.reset();
   }
   reset() {
-    this.health = MAX_HP; this.dead = false; this.blind = 0; this.vault = null;
+    this.health = MAX_HP; this.dead = false; this.blind = 0; this.vault = null; this.meds = 1; this.healT = 0; // 구급상자: 라운드마다 1개
     this.helmet = { lv: SETTINGS.armor, dur: ARMOR.helmet.dur[SETTINGS.armor] };
     this.vest = { lv: SETTINGS.armor, dur: ARMOR.vest.dur[SETTINGS.armor] };
     this.soldier.setArmor(this.helmet.lv, this.vest.lv);
@@ -4739,13 +4763,15 @@ class Actor {
     i = clamp(i, 0, this.weapons.length - 1);
     if (this.pin) return;
     if (i === this.cur && this.mode === 'gun' && !instant) return;
-    this.cur = i; this.mode = 'gun'; this.reloadT = 0; this.ads = false; this.burst = 0; this.boltT = 0;
-    this.switchT = instant ? 0 : 0.55;
+    this.cur = i; this.mode = 'gun'; this.reloadT = 0; this.ads = false; this.burst = 0; this.boltT = 0; this.cancelHeal();
+    // 배그처럼: 총을 꺼내고 → 노리쇠(장전 손잡이)를 당겨야 쏠 수 있어요. 총 종류마다 시간이 달라요
+    this.drawDur = instant ? 0 : 0.35 + rackTime(this.w); this.switchT = this.drawDur;
     this.soldier.setGun(this.w.model); this.soldier.setArms(this.w.stats.cat);
     if (this.onEquip) this.onEquip();
   }
   equipThrow(type) {
     if (this.pin) return;
+    this.cancelHeal();
     const order = ['frag', 'smoke', 'flash'];
     if (!type) {
       if (this.mode === 'throw') { // 다음 종류
@@ -4810,6 +4836,7 @@ class Actor {
     if (this.ads && !this.sprint) sp *= this.stance === 'prone' ? 0.0 : 0.6;
     else if (this.shoulderT > 0.5) sp *= 0.8;
     if (this.proneLock > 0) sp *= 0.12;
+    if (this.healT > 0) sp *= 0.42; // 치료하는 동안 천천히 걸어요
     if (this.reloadT > 0 && this.stance === 'prone') sp *= 0.0;
     const wl = Math.hypot(this.wish.x, this.wish.z);
     let tx = 0, tz = 0;
@@ -4856,7 +4883,23 @@ class Actor {
     } else { this.pos.y = ny; this.onGround = false; }
     this.afterMove(dt);
   }
+  // ---- 구급상자 ----
+  startHeal() {
+    if (this.dead || this.vault || this.meds <= 0 || this.healT > 0 || this.health >= MAX_HP - 0.5 || this.pin || this.proneLock > 0) return false;
+    this.healT = 6; this.healStance = this.stance; this.ads = false; this.reloadT = 0; this.sprint = false;
+    if (this.isPlayer) AU.click(0.2, 600);
+    return true;
+  }
+  cancelHeal() { if (this.healT > 0) { this.healT = 0; if (this.isPlayer) HUD.toast('치료가 끊겼어요'); } }
+  updateHeal(dt) {
+    if (!(this.healT > 0)) return;
+    // 달리기·점프·엎드리기/일어나기·자세 바꾸기·쏘기·떨어지기 하면 끊겨요
+    if (this.dead || this.sprint || !this.onGround || this.vault || this.proneLock > 0 || this.stance !== this.healStance || this.trigger) { this.cancelHeal(); return; }
+    this.healT -= dt;
+    if (this.healT <= 0) { this.healT = 0; this.meds--; this.health = Math.min(MAX_HP, this.health + 75); if (this.isPlayer) { AU.beep && AU.beep(660, 0.12, 0.2); HUD.toast('체력 +75'); } }
+  }
   afterMove(dt) {
+    this.updateHeal(dt);
     if (this.proneLock > 0) this.proneLock = Math.max(0, this.proneLock - dt);
     if (this.throwAnimT > 0) this.throwAnimT -= dt;
     if (this.pinAnimT > 0) this.pinAnimT -= dt;
@@ -4942,7 +4985,7 @@ class Actor {
     }
   }
   // ---------- 총 ----------
-  get canShoot() { return !this.dead && !this.vault && this.switchT <= 0 && this.reloadT <= 0 && this.boltT <= 0 && !(this.sprint && Math.hypot(this.vel.x, this.vel.z) > 3) && !(this.proneLock > 0); }
+  get canShoot() { return !this.dead && !this.vault && !(this.healT > 0) && this.switchT <= 0 && this.reloadT <= 0 && this.boltT <= 0 && !(this.sprint && Math.hypot(this.vel.x, this.vel.z) > 3) && !(this.proneLock > 0); }
   startReload() {
     const w = this.w; if (!w || this.mode !== 'gun' || this.reloadT > 0 || w.mag >= w.stats.mag || w.reserve <= 0 || this.dead || this.vault) return;
     this.reloadDur = w.mag === 0 ? w.stats.reload * 1.15 : w.stats.reload; this.reloadEmpty = w.mag === 0;
@@ -5276,6 +5319,7 @@ function playerInput(dt) {
   if (P.Digit5 || P.KeyG) p.equipThrow();
   if (P.KeyX) p.holster(); // 총 넣기 → 맨손
   if (P.F3 && !p.dead) playerPing(); // 핑 찍기
+  if (P.Digit4) { if (p.healT > 0) p.cancelHeal(); else if (!p.startHeal()) HUD.toast(p.meds <= 0 ? '구급상자가 없어요 (라운드마다 1개)' : p.health >= MAX_HP - 0.5 ? '체력이 가득 찼어요' : '지금은 쓸 수 없어요'); }
   if ((P.PageUp || P.PageDown) && p.mode === 'gun' && p.w && p.adsT > 0.5) { // 배그처럼 조준점 모양 바꾸기
     const sid = effScopeId(p.w);
     if (sid && sid !== 'iron') {
@@ -5408,7 +5452,12 @@ function updateViewmodel(dt, hsp) {
   VM.swayX = damp(VM.swayX, clamp(-INPUT.mdx * 0.0006, -0.04, 0.04), 8, dt);
   VM.swayY = damp(VM.swayY, clamp(INPUT.mdy * 0.0006, -0.04, 0.04), 8, dt);
   VM.kick = damp(VM.kick, 0, 16, dt); VM.kickRot = damp(VM.kickRot, 0, 12, dt);
-  VM.switchY = damp(VM.switchY, p.switchT > 0.25 ? -0.25 : 0, 14, dt);
+  { // 꺼내기: 처음 0.35초 동안 아래에서 올라오고, 그다음 노리쇠 당기기 (아래 rackPose)
+    const drawing = p.mode === 'gun' && p.drawDur > 0 && p.switchT > 0, dk = drawing ? 1 - p.switchT / p.drawDur : 1, rise = drawing ? Math.min(1, (p.drawDur - p.switchT) / 0.35) : 1;
+    VM.switchY = p.mode === 'gun' && p.drawDur > 0 ? (drawing ? -0.25 * (1 - rise * rise * (3 - 2 * rise)) : damp(VM.switchY, 0, 14, dt)) : damp(VM.switchY, p.switchT > 0.25 ? -0.25 : 0, 14, dt);
+    if (p.healT > 0) VM.switchY = Math.min(VM.switchY, -0.2); // 치료하는 동안 총을 내려요
+    VM.rackK = drawing && rise >= 1 ? clamp((p.drawDur - p.switchT - 0.35) / Math.max(0.05, p.drawDur - 0.35), 0, 1) : -1;
+  }
   if (p.proneLock > 0) VM.switchY = Math.min(VM.switchY, -0.2 * Math.sin(Math.PI * clamp(1 - p.proneLock / p.proneDur, 0, 1))); // 엎드리기/일어나기 중엔 총을 내렸다 올려요
   const bob = Math.sin(VM.bobPhase) * Math.min(1, hsp / 4), bob2 = Math.cos(VM.bobPhase * 2) * Math.min(1, hsp / 4);
   const g = VM.gun;
@@ -5459,8 +5508,11 @@ function updateViewmodel(dt, hsp) {
   if (p.reloadT > 0) {
     const k = clamp(1 - p.reloadT / p.reloadDur, 0, 1), r = reloadPose(k, p, info);
     rz += r.rz; rx += r.rx; ry += r.ry; pos.x += r.x; pos.y += r.y; pos.z += r.z;
+  } else if (VM.rackK >= 0 && p.mode === 'gun') { // 꺼낸 뒤 노리쇠 당기기
+    const r = rackPose(VM.rackK, p, info);
+    rz += r.rz; rx += r.rx; ry += r.ry; pos.x += r.x; pos.y += r.y; pos.z += r.z;
   } else {
-    VM.rlBlend = 0;
+    VM.rlBlend = 0; if (info.handle) info.handle.position.copy(info.handleHome);
     if (info.magMesh) { info.magMesh.position.copy(info.magHome); info.magMesh.rotation.x = info.magRot0 !== undefined ? info.magRot0 : info.magMesh.rotation.x; info.magMesh.visible = !info.xbBolt || p.w.mag > 0; }
     if (VM.lhand) { VM.lhand.position.copy(VM.lhome); if (VM.lhand.userData.shells) VM.lhand.userData.shells.visible = false; }
     if (info.brk) info.brk.rotation.x = 0; if (info.ejShells) for (const s of info.ejShells) s.visible = false;
@@ -5488,6 +5540,34 @@ function fitForearm() { // 왼팔: 어깨 → 팔꿈치 → 손 (두 마디 IK).
   fitSeg(f, E, H); if (VM.lup) fitSeg(VM.lup, S, E);
   const off = H.y - VM.lhome.y;
   f.visible = off > -0.2; L.visible = off > -0.3; if (VM.lup) VM.lup.visible = f.visible; // 화면 아래로 내려간 팔은 숨겨요
+}
+// ================= 꺼낸 뒤 노리쇠 당기기 (총 종류마다 다르게) =================
+function rackPose(k, p, info) {
+  const out = { rx: 0, ry: 0, rz: 0, x: 0, y: 0, z: 0 }, L = VM.lhand, kind = rackKind(p.w);
+  const H0 = VM.lhome, setHand = (v) => { if (L) L.position.copy(v); };
+  const B0 = info.boltPos || new V3(0, 0.06, 0.08), pullV = new V3(0, 0, kind === 'slide' ? 0.035 : kind === 'pump' ? 0.08 : 0.06);
+  const go = sstep(0, 0.3, k), pull = sstep(0.35, 0.55, k) * (1 - sstep(0.6, 0.72, k)), back = sstep(0.72, 1, k);
+  const kick = Math.max(0, 1 - Math.abs(k - 0.66) / 0.05);
+  if (info.handle) info.handle.position.copy(info.handleHome).addScaledVector(pullV, kind === 'pump' ? 0 : pull);
+  if (kind === 'none') return out;
+  if (kind === 'bolt' || kind === 'lever') { // 볼트액션: 손잡이 위로 → 뒤로 → 앞으로 → 아래로 (총을 옆으로 기울여서 보이게)
+    const e = Math.sin(k * Math.PI); out.rz = -0.42 * e; out.ry = -0.12 * e; out.y = -0.035 * e; out.z = 0.05 * e; out.x = -0.02 * e;
+    if (kind === 'lever') { out.rx = 0.15 * Math.sin(Math.min(1, k * 2) * Math.PI); }
+    return out;
+  }
+  if (kind === 'break') { if (info.brk) info.brk.rotation.x = -0.45 * Math.sin(Math.min(1, k * 1.4) * Math.PI); out.rx = 0.12 * Math.sin(k * Math.PI); out.y += kick * 0.01; return out; }
+  if (kind === 'pump') { // 펌프: 앞손잡이를 뒤로 당겼다 밀기
+    const pp = Math.sin(clamp((k - 0.15) / 0.7, 0, 1) * Math.PI);
+    setHand(_rv.copy(H0).addScaledVector(pullV, pp)); out.rz = -0.08 * pp; out.z = 0.012 * kick; return out;
+  }
+  // 장전 손잡이(소총·기관단총·기관총)·슬라이드(권총): 왼손이 가서 당기고 놓기, 총을 살짝 돌려 손잡이가 보이게
+  const grab = _rv2.copy(B0);
+  if (k < 0.35) setHand(_rv.copy(H0).lerp(grab, go));
+  else if (k < 0.72) setHand(_rv.copy(grab).addScaledVector(pullV, pull));
+  else setHand(_rv.copy(grab).lerp(H0, back));
+  const show = sstep(0, 0.25, k) * (1 - sstep(0.75, 1, k));
+  out.rz = (B0.x < -0.01 ? 0.3 : -0.28) * show; out.ry = 0.08 * show; out.y = 0.015 * show; out.z = kick * 0.015; out.rx = kick * 0.03;
+  return out;
 }
 // ================= 배그 같은 장전 동작 =================
 // k: 0→1 진행. 총을 기울이고 → 왼손으로 탄창 빼서 버리고 → 새 탄창 꺼내 끼우고 → (다 쏜 뒤면) 장전 손잡이 당기기
@@ -5555,7 +5635,8 @@ function reloadPose(k, p, info) {
       if (p.reloadEmpty) { // 다 쏘고 장전: 장전 손잡이 당겼다 놓기
         const B0 = info.boltPos, pull = _rv2.copy(B0); pull.z += 0.06;
         if (k < 0.74) setHand(_rv.copy(grip(M0)).lerp(B0, sstep(0.66, 0.74, k)));
-        else if (k < 0.8) { setHand(_rv.copy(B0).lerp(pull, sstep(0.74, 0.79, k))); }
+        else if (k < 0.8) { setHand(_rv.copy(B0).lerp(pull, sstep(0.74, 0.79, k))); if (info.handle) info.handle.position.copy(info.handleHome).add(new V3(0, 0, 0.06 * sstep(0.74, 0.79, k))); }
+        else if (info.handle) info.handle.position.copy(info.handleHome);
         else { setHand(_rv.copy(pull).lerp(H0, sstep(0.8, 0.92, k))); const kick = Math.max(0, 1 - Math.abs(k - 0.8) / 0.025); out.z += kick * 0.015; out.rz += kick * 0.06; }
         out.rz += sstep(0.66, 0.72, k) * (1 - sstep(0.82, 0.9, k)) * -0.25; // 손잡이 쪽이 보이게
       } else setHand(_rv.copy(grip(M0)).lerp(H0, sstep(0.66, 0.86, k)));
@@ -5914,7 +5995,7 @@ const HUD = {
     this.arcRing = new THREE.Mesh(new THREE.RingGeometry(0.25, 0.32, 24), new THREE.MeshBasicMaterial({ color: 0xff2a1f, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false, depthTest: false }));
     this.arcRing.rotation.x = -Math.PI / 2; scene.add(this.arcRing); this.arcRing.visible = false;
   },
-  hitMarker(kill, head) { this.hitT = kill ? 0.5 : 0.18; this.hitKill = kill; this.hitHead = head; },
+  hitMarker(kill, head) { /* 히트마커 표시 제거 (v53) */ },
   damaged(dmg, from, info) {
     this.hurtV = Math.min(1, this.hurtV + dmg / 120);
     if (from && from !== PLAYER) this.dmgDirs.push({ x: from.pos.x, z: from.pos.z, t: 2.2 });
@@ -6864,7 +6945,7 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 19; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 20; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 // 개인전 (1v1v1v1): 최대 4명, 한 사람이 한 팀(팀 번호 0~3). 2명 이상이면 시작할 수 있어요
@@ -8121,6 +8202,7 @@ html.touch body{overscroll-behavior:none}
     ['점수', 'left:118px;top:8px', 'board', 'sm'],
     ['총<br>고르기', 'left:172px;top:4px', 'loadout', ''],
     ['핑', 'right:128px;bottom:256px', 'F3', 'sm'],
+    ['치료', 'right:456px;bottom:236px', 'Digit4', 'sm'],
     ['채팅', 'left:226px;top:8px', 'chat', 'sm'],
     ['1', 'right:300px;bottom:236px', 'Digit1', 'sm'],
     ['2', 'right:352px;bottom:236px', 'Digit2', 'sm'],
@@ -8744,6 +8826,28 @@ $('keybinds').addEventListener('click', (e) => {
   setTimeout(() => { addEventListener('keydown', onKey, true); addEventListener('mousedown', onMouse, true); }, 0);
 });
 drawKeybinds();
+
+// ---- 구급상자 HUD: 남은 개수 + 치료 진행 막대 ----
+(() => {
+  const st = document.createElement('style');
+  st.textContent = `#healbar{position:fixed;left:50%;bottom:30%;transform:translateX(-50%);z-index:7;display:none;text-align:center;font:700 13px system-ui,sans-serif;color:#fff;text-shadow:0 1px 3px #000;pointer-events:none}
+#healbar .bg{width:220px;height:8px;border-radius:4px;background:rgba(0,0,0,.5);margin-top:6px;overflow:hidden}#healbar .fg{height:100%;background:#4ade80;width:0}
+#medcount{position:fixed;right:18px;bottom:150px;z-index:7;font:700 12px system-ui,sans-serif;color:#fff;background:rgba(10,12,16,.6);border-radius:5px;padding:4px 8px;pointer-events:none;display:none}
+#medcount b{color:#ff6a5a}`;
+  document.head.appendChild(st);
+  const hb = document.createElement('div'); hb.id = 'healbar'; hb.innerHTML = '<span id="heal-t"></span><div class="bg"><div class="fg" id="heal-fg"></div></div>'; document.body.appendChild(hb);
+  const mc = document.createElement('div'); mc.id = 'medcount'; document.body.appendChild(mc);
+  let last = '';
+  (function loop() {
+    const p = PLAYER, play = isPlaying() && p && !p.dead && G.mode !== 'range';
+    const heal = play && p.healT > 0;
+    hb.style.display = heal ? 'block' : 'none';
+    if (heal) { $('heal-t').textContent = `구급상자 사용 중… ${p.healT.toFixed(1)}초 (뛰거나 점프·엎드리면 끊겨요)`; $('heal-fg').style.width = ((1 - p.healT / 6) * 100).toFixed(1) + '%'; }
+    const t = play ? `<b>✚</b> 구급상자 ${p.meds || 0} <span style="color:#99a">[${keyLabel((SETTINGS.keys || {}).Digit4 || 'Digit4')}]</span>` : '';
+    if (t !== last) { mc.innerHTML = t; mc.style.display = t ? 'block' : 'none'; last = t; }
+    requestAnimationFrame(loop);
+  })();
+})();
 
 // ================= 시작 =================
 applyQuality();
