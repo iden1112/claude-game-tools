@@ -2,18 +2,21 @@
 // 서버 없이 공개 MQTT 서버의 '남겨두기(retained)' 메시지로 닉네임·친구 요청을 저장해요.
 // 닉네임 주인 = 이 기기에 저장된 비밀 번호(id). 같은 닉네임은 다른 기기가 못 써요.
 const SOC = {
-  P: 'tg1v1s/v1/', cl: null, ok: false, tried: 0,
-  data: { id: '', nick: '', reg: false, friends: [] },
-  reqIn: new Map(),     // 받은 친구 요청: nick → ts
-  sent: new Set(),      // 보낸 요청
-  online: new Map(),    // 친구 접속 상태: nick → { on, ts }
-  waits: new Map(),     // 닉네임 확인 대기: topic → resolve
+  P: 'tg1v1s/v1/', ok: false, tried: 0,
+  data: { id: '', nick: '', reg: false, friends: [] }, // friends: [{ id, nick }] — 친구는 '기기 번호(id)'로 기억해요 (이름을 바꿔도 같은 친구)
+  reqIn: new Map(),     // 받은 친구 요청: id → { nick, ts }
+  sent: new Set(),
+  online: new Map(),    // 친구 접속 상태: id → { on, ts }
+  waits: new Map(),
 };
 try { Object.assign(SOC.data, JSON.parse(localStorage.getItem('tg1v1_social') || '{}')); } catch (e) {}
 if (!SOC.data.id) SOC.data.id = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join('');
+SOC.data.friends = (SOC.data.friends || []).map(f => typeof f === 'string' ? { id: '', nick: f } : f); // 예전 저장(이름만) 바꾸기
 const socSave = () => { try { localStorage.setItem('tg1v1_social', JSON.stringify(SOC.data)); } catch (e) {} };
 socSave();
 const nkey = (n) => encodeURIComponent(String(n).trim().toLowerCase());
+const friendById = (id) => SOC.data.friends.find(f => f.id === id);
+const friendName = (id) => { const f = friendById(id); return f ? f.nick : id; };
 // 서버 두 곳에 동시에 붙어서 같은 내용을 양쪽에 올려요 (한쪽이 막혀도 다른 쪽으로 만나요)
 SOC.cls = [];
 const socLive = () => SOC.cls.filter(c => c.ok);
@@ -28,9 +31,8 @@ function socConnect() {
   SOC.tried = 1;
   for (const B of brokers) {
     const c = { name: B.name || B.url, ok: false, cl: null }; SOC.cls.push(c);
-    const me = SOC.data.nick && SOC.data.reg ? nkey(SOC.data.nick) : null;
     const opts = { clientId: 'tgs' + SOC.data.id.slice(0, 10) + Math.random().toString(16).slice(2, 6), connectTimeout: 8000, reconnectPeriod: 5000, keepalive: 30, clean: true, username: B.username, password: B.password };
-    if (me) opts.will = { topic: SOC.P + 'on/' + me, payload: JSON.stringify({ on: 0, ts: Date.now() }), retain: true, qos: 1 };
+    opts.will = { topic: SOC.P + 'on/' + SOC.data.id, payload: JSON.stringify({ on: 0, ts: Date.now() }), retain: true, qos: 1 };
     c.cl = (window.__socialMqtt || mqtt).connect(B.url, opts);
     c.cl.on('connect', () => { c.ok = true; SOC.ok = true; socSubscribe(c); socUI(); });
     c.cl.on('close', () => { c.ok = false; SOC.ok = socLive().length > 0; socUI(); });
@@ -40,43 +42,57 @@ function socConnect() {
   setTimeout(() => { SOC.tried = 4; socUI(); }, 9000);
 }
 function socReconnect() { for (const c of SOC.cls) try { c.cl.end(true); } catch (e) {} SOC.cls = []; SOC.ok = false; socConnect(); }
+function friendTopics(f) { return f.id ? ['on/' + f.id, 'u/' + f.id] : ['nick/' + nkey(f.nick)]; } // id 모르는 예전 친구는 이름으로 id 찾기
 function socSubscribe(c) {
   if (!SOC.data.nick || !SOC.data.reg) return;
-  const me = nkey(SOC.data.nick), list = [c] ;
-  for (const x of list) {
-    try {
-      x.cl.subscribe([SOC.P + 'req/' + me + '/+', SOC.P + 'acc/' + me + '/+', SOC.P + 'inv/' + me].concat(SOC.data.friends.map(f => SOC.P + 'on/' + nkey(f))), { qos: 1 });
-      x.cl.publish(SOC.P + 'on/' + me, JSON.stringify({ on: 1, ts: Date.now(), nick: SOC.data.nick }), { retain: true, qos: 1 });
-      x.cl.publish(SOC.P + 'nick/' + me, JSON.stringify({ id: SOC.data.id, nick: SOC.data.nick, ts: Date.now() }), { retain: true, qos: 1 }); // 닉네임 기록도 양쪽 서버에 늘 다시 올려요
-    } catch (e) {}
-  }
+  const me = SOC.data.id;
+  try {
+    const t = ['req/' + nkey(SOC.data.nick) + '/+', 'acc/' + me + '/+', 'inv/' + me, 'dm/' + me].concat(...SOC.data.friends.map(friendTopics));
+    c.cl.subscribe(t.map(x => SOC.P + x), { qos: 1 });
+    c.cl.publish(SOC.P + 'on/' + me, JSON.stringify({ on: 1, ts: Date.now() }), { retain: true, qos: 1 });
+    c.cl.publish(SOC.P + 'u/' + me, JSON.stringify({ nick: SOC.data.nick, ts: Date.now() }), { retain: true, qos: 1 }); // 내 지금 이름 (친구들이 이걸 보고 이름을 바꿔요)
+    c.cl.publish(SOC.P + 'nick/' + nkey(SOC.data.nick), JSON.stringify({ id: me, nick: SOC.data.nick, ts: Date.now() }), { retain: true, qos: 1 });
+  } catch (e) {}
 }
-setInterval(() => { if (SOC.ok && SOC.data.reg) socPub('on/' + nkey(SOC.data.nick), { on: 1, ts: Date.now(), nick: SOC.data.nick }, true); }, 60000);
-window.addEventListener('beforeunload', () => { if (SOC.ok && SOC.data.reg) socPub('on/' + nkey(SOC.data.nick), { on: 0, ts: Date.now() }, true); });
+setInterval(() => { if (SOC.ok && SOC.data.reg) socPub('on/' + SOC.data.id, { on: 1, ts: Date.now() }, true); }, 60000);
+window.addEventListener('beforeunload', () => { if (SOC.ok && SOC.data.reg) socPub('on/' + SOC.data.id, { on: 0, ts: Date.now() }, true); });
 
 // ---- 받은 메시지 ----
+function addFriend(id, nick) {
+  if (!id || id === SOC.data.id) return false;
+  const old = friendById(id) || SOC.data.friends.find(f => !f.id && nkey(f.nick) === nkey(nick));
+  if (old) { old.id = id; old.nick = nick; socSave(); return false; }
+  SOC.data.friends.push({ id, nick }); socSave(); for (const t of friendTopics({ id })) socSub(t);
+  return true;
+}
 function socMsg(t, m) {
   const parts = t.split('/'), kind = parts[0];
   if (SOC.waits.has(t) && m) { SOC.waits.get(t)(m); SOC.waits.delete(t); }
   if (!SOC.data.nick) return;
-  const me = nkey(SOC.data.nick);
-  if (kind === 'req' && parts[1] === me) { // 친구 요청이 왔어요
-    if (!m || !m.from) { SOC.reqIn.delete(decodeURIComponent(parts[2])); socUI(); return; }
-    if (SOC.data.friends.some(f => nkey(f) === nkey(m.from))) { socPub(t, null, true); return; } // 이미 친구
-    if (!SOC.reqIn.has(m.from)) socNote(`<b>${esc(m.from)}</b> 님이 친구 요청을 보냈어요`, [['보기', () => openFriends()]]);
-    SOC.reqIn.set(m.from, m.ts || Date.now()); socUI();
-  } else if (kind === 'acc' && parts[1] === me && m && m.from) { // 내 요청을 받아줬어요
-    socPub(t, null, true); SOC.sent.delete(nkey(m.from));
-    if (SOC.data.friends.some(f => nkey(f) === nkey(m.from))) { socUI(); return; }
-    if (!SOC.data.friends.some(f => nkey(f) === nkey(m.from))) { SOC.data.friends.push(m.from); socSave(); socSub('on/' + nkey(m.from)); socNote(`<b>${esc(m.from)}</b> 님과 친구가 됐어요!`, [['방으로 초대', () => socInvite(m.from)]]); }
+  const me = SOC.data.id;
+  if (kind === 'req' && parts[1] === nkey(SOC.data.nick)) { // 친구 요청이 왔어요 (내 이름 앞으로)
+    const fid = parts[2];
+    if (!m || !m.from) { SOC.reqIn.delete(fid); socUI(); return; }
+    if (!m.id || m.id !== fid) return; // 예전 버전 요청은 무시
+    if (friendById(fid)) { socPub(t, null, true); return; } // 이미 친구
+    if (!SOC.reqIn.has(fid)) socNote(`<b>${esc(m.from)}</b> 님이 친구 요청을 보냈어요`, [['보기', () => openFriends()]]);
+    SOC.reqIn.set(fid, { nick: m.from, ts: m.ts || Date.now() }); socUI();
+  } else if (kind === 'acc' && parts[1] === me && m && m.from && m.id) { // 내 요청을 받아줬어요
+    socPub(t, null, true); SOC.sent.delete(m.id);
+    if (addFriend(m.id, m.from)) socNote(`<b>${esc(m.from)}</b> 님과 친구가 됐어요!`, [['방으로 초대', () => socInvite(m.id)]]);
     socUI();
+  } else if (kind === 'u' && m && m.nick) { // 친구가 이름을 바꿨어요
+    const f = friendById(parts[1]);
+    if (f && f.nick !== m.nick) { f.nick = m.nick; socSave(); socUI(); }
+  } else if (kind === 'nick' && m && m.id) { // 예전 친구(이름만 저장)의 id 알아내기
+    const f = SOC.data.friends.find(x => !x.id && nkey(x.nick) === parts[1]);
+    if (f) { f.id = m.id; socSave(); socUnsub(t); for (const x of friendTopics(f)) socSub(x); socUI(); }
   } else if (kind === 'on') {
-    const f = SOC.data.friends.find(x => nkey(x) === parts[1]);
-    if (f) { SOC.online.set(f, { on: !!(m && m.on && Date.now() - (m.ts || 0) < 150000), ts: m ? m.ts : 0 }); socUI(); }
-  } else if (kind === 'inv' && m && m.from && m.code) { // 방 초대
-    if (Date.now() - (m.ts || 0) > 120000) return;
-    const ik = m.from + m.code; if (SOC.lastInv === ik && Date.now() - (SOC.lastInvT || 0) < 15000) return; SOC.lastInv = ik; SOC.lastInvT = Date.now();
-    socNote(`<b>${esc(m.from)}</b> 님이 방으로 초대했어요`, [['들어가기', () => socJoinInvite(m.code)], ['나중에', null]], 30);
+    if (friendById(parts[1])) { SOC.online.set(parts[1], { on: !!(m && m.on && Date.now() - (m.ts || 0) < 150000), ts: m ? m.ts : 0 }); socUI(); }
+  } else if (kind === 'inv' && parts[1] === me && m && m.id && m.code) { // 방 초대
+    if (Date.now() - (m.ts || 0) > 120000 || !friendById(m.id)) return;
+    const ik = m.id + m.code; if (SOC.lastInv === ik && Date.now() - (SOC.lastInvT || 0) < 15000) return; SOC.lastInv = ik; SOC.lastInvT = Date.now();
+    socNote(`<b>${esc(friendName(m.id))}</b> 님이 방으로 초대했어요`, [['들어가기', () => socJoinInvite(m.code)], ['나중에', null]], 30);
     AU.beep && AU.beep(880, 0.12, 0.25);
   }
 }
@@ -91,28 +107,26 @@ function socPeek(topic, ms = 3500) {
   });
 }
 
-// ---- 닉네임 정하기 ----
+// ---- 닉네임 정하기 / 바꾸기 ----
 async function socClaimNick(nick) {
   nick = String(nick || '').trim().slice(0, 12);
   if (nick.length < 2) return '두 글자 이상으로 정해 주세요';
   if (/[\/#+]/.test(nick)) return '/ # + 는 쓸 수 없어요';
-  if (!SOC.ok) { // 서버에 못 붙으면 일단 이 기기에서만 써요 (나중에 다시 등록)
-    SOC.data.nick = nick; SOC.data.reg = false; socSave(); applyNick(nick); return '';
-  }
+  if (!SOC.ok) { SOC.data.nick = nick; SOC.data.reg = false; socSave(); applyNick(nick); return ''; }
   const cur = await socPeek('nick/' + nkey(nick));
   if (cur && cur.id && cur.id !== SOC.data.id) return '이미 누가 쓰는 닉네임이에요';
   const old = SOC.data.nick && SOC.data.reg && nkey(SOC.data.nick) !== nkey(nick) ? SOC.data.nick : null;
   socPub('nick/' + nkey(nick), { id: SOC.data.id, nick, ts: Date.now() }, true);
-  if (old) { socPub('nick/' + nkey(old), null, true); socPub('on/' + nkey(old), null, true); }
+  socPub('u/' + SOC.data.id, { nick, ts: Date.now() }, true); // 친구들 화면의 내 이름도 바뀌어요
+  if (old) socPub('nick/' + nkey(old), null, true);
   SOC.data.nick = nick; SOC.data.reg = true; socSave(); applyNick(nick);
-  socReconnect(); // 새 이름으로 다시 접속 (접속 끊김 알림 설정)
+  socReconnect();
   return '';
 }
 function applyNick(n) {
   SETTINGS.nick = n; saveSettings(); NET.name = n; PLAYER.name = n;
   for (const id of ['start-nick', 'mp-name']) if ($(id)) $(id).value = n;
 }
-// 서버에 못 붙었을 때 정한 닉네임은 다음 접속 때 등록
 setInterval(() => { if (SOC.ok && SOC.data.nick && !SOC.data.reg && !SOC.claiming) { SOC.claiming = true; socClaimNick(SOC.data.nick).then((e) => { SOC.claiming = false; if (e) { SOC.data.nick = ''; socSave(); openNick(e); } }); } }, 4000);
 
 // ---- 친구 요청 / 수락 / 초대 ----
@@ -121,27 +135,27 @@ async function socAddFriend(name) {
   if (!name) return '친구 닉네임을 입력하세요';
   if (!SOC.data.reg) return '먼저 내 닉네임을 등록해야 해요 (서버 연결 중)';
   if (nkey(name) === nkey(SOC.data.nick)) return '나 자신은 친구로 추가할 수 없어요';
-  if (SOC.data.friends.some(f => nkey(f) === nkey(name))) return '이미 친구예요';
-  if (SOC.reqIn.has(name)) { socAccept(name); return ''; }
+  if (SOC.data.friends.some(f => nkey(f.nick) === nkey(name))) return '이미 친구예요';
+  for (const [fid, r] of SOC.reqIn) if (nkey(r.nick) === nkey(name)) { socAccept(fid); return ''; }
   const who = await socPeek('nick/' + nkey(name));
   if (who === undefined) return '서버에 연결되지 않았어요';
-  socPub('req/' + nkey(name) + '/' + nkey(SOC.data.nick), { from: SOC.data.nick, ts: Date.now() }, true); // 못 찾아도 요청은 남겨 둬요
+  socPub('req/' + nkey(name) + '/' + SOC.data.id, { from: SOC.data.nick, id: SOC.data.id, ts: Date.now() }, true); // 못 찾아도 요청은 남겨 둬요
   SOC.sent.add(nkey(name)); socUI();
   return who ? 'ok:' + who.nick + ' 님에게 친구 요청을 보냈어요. 친구가 받으면 목록에 나와요'
     : 'ok:아직 "' + name + '" 닉네임을 서버에서 못 찾았어요. 그래도 요청은 남겨 뒀어요 — 친구가 새 버전을 열고 이 닉네임을 정하면 요청을 받아요 (글자가 똑같은지도 확인해 주세요)';
 }
-function socAccept(name) {
-  socPub('acc/' + nkey(name) + '/' + nkey(SOC.data.nick), { from: SOC.data.nick, ts: Date.now() }, true);
-  socPub('req/' + nkey(SOC.data.nick) + '/' + nkey(name), null, true);
-  SOC.reqIn.delete(name);
-  if (!SOC.data.friends.some(f => nkey(f) === nkey(name))) { SOC.data.friends.push(name); socSave(); socSub('on/' + nkey(name)); }
-  socUI();
+function socAccept(fid) {
+  const r = SOC.reqIn.get(fid); if (!r) return;
+  socPub('acc/' + fid + '/' + SOC.data.id, { from: SOC.data.nick, id: SOC.data.id, ts: Date.now() }, true);
+  socPub('req/' + nkey(SOC.data.nick) + '/' + fid, null, true);
+  SOC.reqIn.delete(fid); addFriend(fid, r.nick); socUI();
 }
-function socDecline(name) { socPub('req/' + nkey(SOC.data.nick) + '/' + nkey(name), null, true); SOC.reqIn.delete(name); socUI(); }
-function socRemove(name) { SOC.data.friends = SOC.data.friends.filter(f => f !== name); socSave(); socUnsub('on/' + nkey(name)); socUI(); }
+function socDecline(fid) { socPub('req/' + nkey(SOC.data.nick) + '/' + fid, null, true); SOC.reqIn.delete(fid); socUI(); }
+function socRemove(fid) { const f = friendById(fid); SOC.data.friends = SOC.data.friends.filter(x => x !== f); socSave(); if (f) for (const t of friendTopics(f)) socUnsub(t); socUI(); }
 // 초대: 내가 만든 방이 없으면 먼저 방을 만들어요
-function socInvite(name) {
-  const send = () => { socPub('inv/' + nkey(name), { from: SOC.data.nick, code: NET.code, ts: Date.now() }); socNote(`<b>${esc(name)}</b> 님에게 초대를 보냈어요. 대기실에서 기다려요`, [], 4); };
+function socInvite(fid) {
+  const name = friendName(fid);
+  const send = () => { socPub('inv/' + fid, { from: SOC.data.nick, id: SOC.data.id, code: NET.code, ts: Date.now() }); socNote(`<b>${esc(name)}</b> 님에게 초대를 보냈어요. 대기실에서 기다려요`, [], 4); };
   if (NET.host && NET.code && NET.mode !== 'local' && NET.connected) { send(); return; }
   closeFriends(); $('start').style.display = 'none'; $('end').style.display = 'none'; $('mp').style.display = 'flex';
   netHost('p2p');
@@ -212,7 +226,7 @@ function socJoinInvite(code) {
     const n = b.dataset.n;
     if (b.dataset.act === 'acc') socAccept(n); else if (b.dataset.act === 'dec') socDecline(n);
     else if (b.dataset.act === 'inv') socInvite(n);
-    else if (b.dataset.act === 'del') { if (confirm(`${n} 님을 친구에서 뺄까요?`)) socRemove(n); }
+    else if (b.dataset.act === 'del') { if (confirm(`${friendName(n)} 님을 친구에서 뺄까요?`)) socRemove(n); }
   });
   // 처음 화면·대기실에 '친구' 버튼
   const sb = document.createElement('button'); sb.className = 'btn'; sb.id = 'btn-friends'; sb.innerHTML = '친구<span class="fbadge" id="fr-badge" style="display:none"></span>'; sb.onclick = () => openFriends();
@@ -236,10 +250,11 @@ function socUI() {
   const sv = SOC.cls.map(c => `${c.name} ${c.ok ? '✓' : '✗'}`).join(' · ');
   $('fr-srv').textContent = SOC.ok ? `친구 서버 연결됨 (${sv}) · ${SOC.data.reg ? '내 닉네임 등록됨' : '내 닉네임 등록 중…'}` : SOC.tried >= 4 ? `친구 서버에 연결하지 못했어요 (${sv}). 학교·회사 와이파이나 VPN에서 막혔을 수 있어요` : '친구 서버에 연결하는 중…';
   let h = '';
-  if (SOC.reqIn.size) { h += '<h4>받은 친구 요청</h4>'; for (const [n] of SOC.reqIn) h += `<div class="fr"><span class="nm">${esc(n)}</span><button class="btn" data-act="acc" data-n="${esc(n)}">받기</button><button class="btn sub" data-act="dec" data-n="${esc(n)}">거절</button></div>`; }
+  if (SOC.reqIn.size) { h += '<h4>받은 친구 요청</h4>'; for (const [id, r] of SOC.reqIn) h += `<div class="fr"><span class="nm">${esc(r.nick)}</span><button class="btn" data-act="acc" data-n="${id}">받기</button><button class="btn sub" data-act="dec" data-n="${id}">거절</button></div>`; }
   $('fr-req').innerHTML = h;
-  const list = SOC.data.friends.slice().sort((a, b) => ((SOC.online.get(b) || {}).on ? 1 : 0) - ((SOC.online.get(a) || {}).on ? 1 : 0));
-  $('fr-list').innerHTML = list.length ? list.map(n => { const on = (SOC.online.get(n) || {}).on; return `<div class="fr"><span class="dot ${on ? 'on' : ''}"></span><span class="nm">${esc(n)} <small>${on ? '접속 중' : '오프라인'}</small></span><button class="btn" data-act="inv" data-n="${esc(n)}">방으로 초대</button><button class="btn sub" data-act="del" data-n="${esc(n)}">삭제</button></div>`; }).join('')
+  const on = (f) => (SOC.online.get(f.id) || {}).on;
+  const list = SOC.data.friends.slice().sort((a, b) => (on(b) ? 1 : 0) - (on(a) ? 1 : 0));
+  $('fr-list').innerHTML = list.length ? list.map(f => `<div class="fr"><span class="dot ${on(f) ? 'on' : ''}"></span><span class="nm">${esc(f.nick)} <small>${!f.id ? '찾는 중…' : on(f) ? '접속 중' : '오프라인'}</small></span><button class="btn" data-act="inv" data-n="${f.id}" ${f.id ? '' : 'disabled'}>방으로 초대</button><button class="btn sub" data-act="del" data-n="${f.id || ''}">삭제</button></div>`).join('')
     : '<div class="hint">아직 친구가 없어요. 위에 친구 닉네임을 넣고 친구 요청을 보내 보세요.</div>';
   const b = $('fr-badge'); if (b) { b.textContent = SOC.reqIn.size; b.style.display = SOC.reqIn.size ? '' : 'none'; }
 }

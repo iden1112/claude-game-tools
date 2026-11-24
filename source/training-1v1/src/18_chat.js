@@ -74,29 +74,30 @@ addEventListener('keydown', (e) => {
 // ---- 친구 귓속말 (친구 서버로, 게임 밖에서도) ----
 SOC.dms = {}; SOC.unread = new Set(); SOC.dmWith = null;
 try { SOC.dms = JSON.parse(localStorage.getItem('tg1v1_dms') || '{}'); } catch (e) {}
+setTimeout(() => { for (const f of SOC.data.friends) if (f.id && SOC.dms[f.nick] && !SOC.dms[f.id]) { SOC.dms[f.id] = SOC.dms[f.nick]; delete SOC.dms[f.nick]; } }, 3000);
 const dmSave = () => { try { localStorage.setItem('tg1v1_dms', JSON.stringify(SOC.dms)); } catch (e) {} };
 function dmPush(friend, me, text) { const a = SOC.dms[friend] || (SOC.dms[friend] = []); a.push({ me, x: text, ts: Date.now() }); if (a.length > 60) a.splice(0, a.length - 60); dmSave(); }
-function dmSend(friend, text) {
+function dmSend(friend, text) { // friend = 친구 id
   text = String(text || '').trim().slice(0, 200); if (!text) return;
-  socPub('dm/' + nkey(friend), { from: SOC.data.nick, x: text, ts: Date.now() });
+  socPub('dm/' + friend, { from: SOC.data.nick, id: SOC.data.id, x: text, ts: Date.now() });
   dmPush(friend, true, text); socUI();
 }
 // 친구 서버에서 받는 귓속말
 const _socMsg0 = socMsg;
 socMsg = function (t, m) {
-  if (t.startsWith('dm/') && m && m.from && m.x && SOC.data.nick && t === 'dm/' + nkey(SOC.data.nick)) {
-    const f = SOC.data.friends.find(x => nkey(x) === nkey(m.from)); if (!f) return; // 친구만 받아요
+  if (t.startsWith('dm/') && m && m.id && m.x && t === 'dm/' + SOC.data.id) {
+    const f = m.id; if (!friendById(f)) return; // 친구만 받아요
     const k = f + m.ts; if (SOC.lastDm === k) return; SOC.lastDm = k;
     dmPush(f, false, m.x);
     if (SOC.dmWith !== f || $('friends').style.display === 'none') SOC.unread.add(f);
-    if (isPlaying() && INPUT.locked) chatShow('dm', f, m.x, 'tm');
-    else if (SOC.dmWith !== f || $('friends').style.display === 'none') socNote(`<b>${esc(f)}</b>: ${esc(m.x.slice(0, 60))}`, [['답장', () => { openFriends(); dmOpen(f); }]], 6);
+    if (isPlaying() && INPUT.locked) chatShow('dm', friendName(f), m.x, 'tm');
+    else if (SOC.dmWith !== f || $('friends').style.display === 'none') socNote(`<b>${esc(friendName(f))}</b>: ${esc(m.x.slice(0, 60))}`, [['답장', () => { openFriends(); dmOpen(f); }]], 6);
     socUI(); return;
   }
   _socMsg0(t, m);
 };
 const _socSub0 = socSubscribe;
-socSubscribe = function (c) { _socSub0(c); if (SOC.data.nick && SOC.data.reg) try { c.cl.subscribe(SOC.P + 'dm/' + nkey(SOC.data.nick), { qos: 1 }); } catch (e) {} };
+socSubscribe = function (c) { _socSub0(c); };
 function dmOpen(f) { SOC.dmWith = f; SOC.unread.delete(f); socUI(); setTimeout(() => { const i = $('dm-input'); if (i) i.focus(); }, 30); }
 const _socUI0 = socUI;
 socUI = function () {
@@ -111,11 +112,12 @@ socUI = function () {
   });
   let dm = $('fr-dm'); if (!dm) { dm = document.createElement('div'); dm.id = 'fr-dm'; dm.className = 'dm'; list.after(dm); }
   const f = SOC.dmWith;
-  if (!f || !SOC.data.friends.includes(f)) { dm.innerHTML = ''; return; }
+  if (!f || !friendById(f)) { dm.innerHTML = ''; return; }
+  const fn = friendName(f);
   const msgs = SOC.dms[f] || [];
   const keepVal = $('dm-input') ? $('dm-input').value : '';
-  dm.innerHTML = `<b>${esc(f)} 님과 채팅</b> <button class="btn sub" data-act="dmx" style="padding:2px 8px;font-size:11px">닫기</button>
-    <div class="dmlog" id="dm-log">${msgs.length ? msgs.map(x => `<div class="${x.me ? 'me' : 'them'}">${x.me ? '나' : esc(f)}: ${esc(x.x)}</div>`).join('') : '<div style="color:#889">아직 나눈 말이 없어요</div>'}</div>
+  dm.innerHTML = `<b>${esc(fn)} 님과 채팅</b> <button class="btn sub" data-act="dmx" style="padding:2px 8px;font-size:11px">닫기</button>
+    <div class="dmlog" id="dm-log">${msgs.length ? msgs.map(x => `<div class="${x.me ? 'me' : 'them'}">${x.me ? '나' : esc(fn)}: ${esc(x.x)}</div>`).join('') : '<div style="color:#889">아직 나눈 말이 없어요</div>'}</div>
     <div class="addrow"><input id="dm-input" maxlength="200" placeholder="메시지 (Enter로 보내기)" autocomplete="off"><button class="btn" data-act="dmsend">보내기</button></div>`;
   const i = $('dm-input'); i.value = keepVal;
   i.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { dmSend(f, i.value); i.value = ''; setTimeout(() => $('dm-input') && $('dm-input').focus(), 0); } });
