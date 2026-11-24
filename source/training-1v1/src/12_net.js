@@ -6,7 +6,7 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 14; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 15; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 // 개인전 (1v1v1v1): 최대 4명, 한 사람이 한 팀(팀 번호 0~3). 2명 이상이면 시작할 수 있어요
@@ -82,12 +82,21 @@ function rawSend(to, msg) {
   } catch (e) {}
 }
 // 논리적으로 보내기: to = '*' (모두) 또는 사람 id
-function netSend(msg, to = '*', from = NET.id) {
-  if (!NET.connected && !NET.host) return;
-  msg.from = from; msg.to = to;
+// 꼭 전달돼야 하는 메시지(맞힘·죽음·라운드 등)는 번호를 붙여 3번 보내고, 받는 쪽은 같은 번호를 한 번만 처리해요
+// (학교 와이파이용 중계 서버는 메시지가 가끔 사라질 수 있어서 '죽였는데 상대 화면에선 안 죽는' 일이 생겼어요)
+const NET_IMPORTANT = new Set(['hit', 'died', 'round', 'go', 'over', 'dealt', 'nade', 'boom', 'tolobby', 'mark']);
+NET.seq = 0; NET.dupe = new Set();
+function netPost(msg) {
+  const to = msg.to;
   if (NET.bus) { NET.bus.post(msg); return; }
   if (NET.host) { if (to !== 'h') rawSend(to, msg); }
   else rawSend('h', msg);
+}
+function netSend(msg, to = '*', from = NET.id) {
+  if (!NET.connected && !NET.host) return;
+  msg.from = from; msg.to = to;
+  if (NET_IMPORTANT.has(msg.t)) { msg.k = ++NET.seq; setTimeout(() => netPost(msg), 90); setTimeout(() => netPost(msg), 260); }
+  netPost(msg);
 }
 // 직접 연결에서 방장이 받은 메시지: 필요하면 다른 사람에게 전달
 function hostRoute(m) {
@@ -493,8 +502,11 @@ function netTimeUp() {
 function netRecv(m) {
   if (!m || !m.t) return;
   const from = m.from;
+  if (m.k !== undefined) { const key = from + ':' + m.k; if (NET.dupe.has(key)) return; NET.dupe.add(key); if (NET.dupe.size > 3000) NET.dupe.clear(); }
   switch (m.t) {
     case 'welcome': NET.welcomed = true; clearInterval(NET.helloTimer); NET.connected = true; netStatus('들어왔어요! 방장이 시작하길 기다려요', 'ok'); break;
+    case 'ping': if (m.ts !== undefined && !(NET.host && m.to === '*' && false)) netSend({ t: 'pong', ts: m.ts }, from); break;
+    case 'pong': { const rtt = performance.now() - m.ts; if (rtt >= 0 && rtt < 10000) { NET.rtt = NET.rtt ? NET.rtt * 0.7 + rtt * 0.3 : rtt; NET.rttAt = performance.now(); } break; }
     case 'reject': clearInterval(NET.helloTimer); netStatus(m.why || '들어갈 수 없어요', 'bad'); NET.connected = false; break;
     case 'lobby': if (!NET.host) { NET.welcomed = true; clearInterval(NET.helloTimer); NET.lobby = m.lobby; renderLobby(); } break;
     case 'round': if (!NET.host) applyRound(m); break;
@@ -595,7 +607,7 @@ function netUpdate(dt) {
   if (!NET.host && NET.connected && NET.lastRecv > 0 && performance.now() - NET.lastRecv > 25000) netLost();
   netCheckSeen();
 }
-setInterval(() => { if (NET.connected && (NET.active || !NET.host)) netSend({ t: 'ping' }); netCheckSeen(); }, 1000);
+setInterval(() => { if (NET.connected && (NET.active || !NET.host)) netSend({ t: 'ping', ts: Math.round(performance.now()) }); netCheckSeen(); }, 1000);
 // 공용 통로 방식: 한동안 소식이 없으면 나간 것으로 봐요 (방장)
 function netCheckSeen() {
   if (!NET.host || !NET.bus) return;

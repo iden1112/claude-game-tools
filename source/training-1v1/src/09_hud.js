@@ -49,6 +49,11 @@ const HUD = {
     UI('sc-b', 'style.background', mp ? (me === 0 ? 'rgba(210,70,60,.75)' : 'rgba(60,140,220,.75)') : '');
     // 점수
     UI('sc-p', 'textContent', G.score[me] || 0); UI('sc-b', 'textContent', ffa ? (top >= 0 ? G.score[top] || 0 : 0) : G.score[1 - me]);
+    { // 핑 (멀티): 내 컴퓨터 ↔ 방장(방장은 가장 느린 친구) 왕복 시간
+      const show = mp && NET.rtt && performance.now() - (NET.rttAt || 0) < 5000, ms = show ? Math.round(NET.rtt) : 0;
+      UI('ping', 'textContent', show ? `핑 ${ms}ms${NET.bus && NET.mode === 'relay' ? ' · 중계' : ''}` : '');
+      UI('ping', 'className', ms > 180 ? 'bad' : ms > 90 ? 'mid' : '');
+    }
     if (ffa) { let n = 0; for (const a of ACTORS) if (!a.dead && !a.gone && a.team !== undefined) n++; UI('sc-alive', 'textContent', `남은 사람 ${n}`); }
     else if (mp) {
       const pips = (t) => { let s = ''; for (const a of ACTORS) if (a.team === t && !a.gone) s += a.dead ? '○' : '●'; return s; };

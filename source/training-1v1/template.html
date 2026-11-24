@@ -10,6 +10,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:"Pr
 #game canvas{display:block}
 #hud{position:fixed;inset:0;pointer-events:none;display:none}
 /* 점수 */
+#ping{position:absolute;top:52px;left:50%;transform:translateX(-50%);font:600 11px system-ui,sans-serif;color:#9fe6a0;text-shadow:0 1px 2px #000;pointer-events:none}#ping.mid{color:#ffd24a}#ping.bad{color:#ff6a5a}
 #score{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:0;background:rgba(10,12,14,.55);border-radius:4px;overflow:hidden;font-weight:700}
 #score .t{padding:6px 16px;font-size:24px;min-width:64px;text-align:center}
 #sc-p{background:rgba(60,140,220,.75)}#sc-b{background:rgba(210,70,60,.75)}
@@ -214,7 +215,7 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
 <div id="game"></div>
 <div id="hud">
   <div id="smokefog"></div>
-  <div id="score"><span class="nm" id="sc-pn">나</span><div class="t" id="sc-p">0</div><div class="mid"><b id="sc-round">라운드 1</b><span id="sc-time">0:00</span><br>7점 선승<div id="sc-alive"></div></div><div class="t" id="sc-b">0</div><span class="nm" id="sc-bn">봇</span></div>
+  <div id="ping"></div><div id="score"><span class="nm" id="sc-pn">나</span><div class="t" id="sc-p">0</div><div class="mid"><b id="sc-round">라운드 1</b><span id="sc-time">0:00</span><br>7점 선승<div id="sc-alive"></div></div><div class="t" id="sc-b">0</div><span class="nm" id="sc-bn">봇</span></div>
   <div id="compassWrap"><canvas id="compass" width="460" height="30"></canvas><div id="heading">0</div></div>
   <div id="premenu"><kbd>~</kbd> 총 바꾸기 (풀파츠) · 시작하면 바꿀 수 없어요</div>
   <canvas id="dmgdir" width="300" height="300"></canvas>
