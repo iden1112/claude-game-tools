@@ -1059,7 +1059,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 64; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 65; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -9186,16 +9186,20 @@ const _mv1 = new V3(), _mv2 = new V3(), _mv3 = new V3();
 // ================= 연결 검사 (학교 와이파이에서 무엇이 막혔는지) =================
 function netCheck() {
   const box = $('mp-status'), rows = [];
-  const draw = () => { box.innerHTML = '<b>연결 검사</b> <small>(이 화면을 찍어서 보내 주면 원인을 찾을 수 있어요)</small><br>' + rows.map(r => `${r.ok === null ? '⏳' : r.ok ? '✅' : '❌'} ${r.name}${r.ms ? ` <small>${r.ms}ms</small>` : ''}`).join('<br>'); };
+  const draw = () => {
+    const relay = rows.filter(r => r.relay), mine = rows.find(r => r.mine), anyOk = relay.some(r => r.ok), wait = relay.some(r => r.ok === null);
+    const sum = mine && mine.ok ? '✅ <b>학교 와이파이용 방 됨</b> (우리 전용 서버로 연결돼요)' : anyOk ? '✅ <b>학교 와이파이용 방 됨</b> (공용 중계 서버로 연결돼요, 핑이 조금 높을 수 있어요)' : wait ? '⏳ 검사 중…' : '❌ <b>이 와이파이에선 학교 와이파이용 방이 막혀 있어요</b> (휴대폰 핫스팟을 써 보세요)';
+    box.innerHTML = '<b>연결 검사</b><br>' + sum + '<details style="margin-top:6px"><summary style="cursor:pointer;color:#9aa4ad">자세히 보기 <small>(❌가 있어도 위가 ✅면 괜찮아요 · 서버 하나만 되면 돼요)</small></summary>' + rows.map(r => `${r.ok === null ? '⏳' : r.ok ? '✅' : '❌'} ${r.name}${r.ms ? ` <small>${r.ms}ms</small>` : ''}`).join('<br>') + '</details>';
+  };
   const row = (name) => { const r = { name, ok: null }; rows.push(r); draw(); return r; };
   const done = (r, ok, t0) => { if (r.ok !== null) return; r.ok = ok; if (ok && t0) r.ms = Math.round(performance.now() - t0); draw(); };
   // 1) 중계 서버들 (학교 와이파이용 방)
   relayList().filter(B => B.ws).forEach((B) => {
-    const r = row('내 서버 ' + B.ws.replace(/^wss?:\/\//, '')), t0 = performance.now();
+    const r = row('내 서버 ' + B.ws.replace(/^wss?:\/\//, '')), t0 = performance.now(); r.relay = r.mine = true;
     try { const w = new WebSocket(B.ws + '/room/check'); w.onopen = () => { done(r, true, t0); w.close(); }; w.onerror = () => done(r, false); setTimeout(() => { done(r, false); try { w.close(); } catch (e) {} }, 8000); } catch (e) { done(r, false); }
   });
   if (typeof mqtt !== 'undefined') relayList().filter(B => !B.ws).forEach((B) => {
-    const r = row('중계 ' + B.url.replace(/^wss:\/\//, '').replace(/\/mqtt$/, '')), t0 = performance.now();
+    const r = row('공용 중계 ' + B.url.replace(/^wss:\/\//, '').replace(/\/mqtt$/, '')), t0 = performance.now(); r.relay = true;
     let cl; try { cl = mqtt.connect(B.url, { username: B.username, password: B.password, clientId: 'tgc' + Math.random().toString(16).slice(2, 9), connectTimeout: 8000, reconnectPeriod: 0, clean: true }); } catch (e) { done(r, false); return; }
     const end = () => { try { cl.end(true); } catch (e) {} };
     cl.on('connect', () => { done(r, true, t0); end(); });
@@ -9219,7 +9223,7 @@ function netCheck() {
     } catch (e) { done(r, false); }
   };
   ice('직접 연결 (STUN)', [{ urls: 'stun:stun.l.google.com:19302' }], 'srflx');
-  const turns = peerOpts().config.iceServers.filter(s => s.username);
+  const turns = peerOpts().config.iceServers.filter(s => s.username && !/metered|peerjs/.test([].concat(s.urls).join(' '))); // 끝난 키·막힌 공용 TURN 은 빼요
   turns.forEach((s, i) => ice('중계 TURN ' + [].concat(s.urls)[0].replace(/^turns?:/, '').split('?')[0] + ([].concat(s.urls).length > 1 ? ' 외' : ''), [s], 'relay', 'relay'));
 }
 {
