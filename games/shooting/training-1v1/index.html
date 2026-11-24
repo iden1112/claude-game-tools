@@ -1059,7 +1059,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 51; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 52; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -4529,7 +4529,7 @@ function applyBulletDamage(b, victim, part, hp, dir) {
   const head = part === 'head';
   if (head && victim.helmet.lv > 0) { dmg *= 1 - ARMOR.helmet.red[victim.helmet.lv]; victim.helmet.dur -= base * mult * 0.6; if (victim.helmet.dur <= 0) victim.breakArmor('helmet'); }
   if (part === 'torso' && victim.vest.lv > 0) { dmg *= 1 - ARMOR.vest.red[victim.vest.lv]; victim.vest.dur -= base; if (victim.vest.dur <= 0) victim.breakArmor('vest'); }
-  if (part !== 'head' && b.st.def.cat === 'SR') dmg = 70; // 저격총: 몸·팔·다리는 조끼 레벨(3레벨 포함) 상관없이 3방이면 쓰러짐, 2방은 안 죽음
+  if (part !== 'head' && b.st.def.cat === 'SR') dmg = MAX_HP / 2; // 저격총: 몸·팔·다리는 조끼 레벨(3레벨 포함) 상관없이 2방이면 쓰러짐
   if (b.wallMul) dmg *= b.wallMul; // 월샷 데미지 감소
   bloodFX(hp, dir);
   if (victim.dummy && b.owner === PLAYER) rangeOnHit(victim, Math.min(dmg, victim.health), part, b.dist, hp, b.st);
@@ -6864,7 +6864,7 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 18; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 19; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 // 개인전 (1v1v1v1): 최대 4명, 한 사람이 한 팀(팀 번호 0~3). 2명 이상이면 시작할 수 있어요

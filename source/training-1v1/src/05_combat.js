@@ -174,7 +174,7 @@ function applyBulletDamage(b, victim, part, hp, dir) {
   const head = part === 'head';
   if (head && victim.helmet.lv > 0) { dmg *= 1 - ARMOR.helmet.red[victim.helmet.lv]; victim.helmet.dur -= base * mult * 0.6; if (victim.helmet.dur <= 0) victim.breakArmor('helmet'); }
   if (part === 'torso' && victim.vest.lv > 0) { dmg *= 1 - ARMOR.vest.red[victim.vest.lv]; victim.vest.dur -= base; if (victim.vest.dur <= 0) victim.breakArmor('vest'); }
-  if (part !== 'head' && b.st.def.cat === 'SR') dmg = 70; // 저격총: 몸·팔·다리는 조끼 레벨(3레벨 포함) 상관없이 3방이면 쓰러짐, 2방은 안 죽음
+  if (part !== 'head' && b.st.def.cat === 'SR') dmg = MAX_HP / 2; // 저격총: 몸·팔·다리는 조끼 레벨(3레벨 포함) 상관없이 2방이면 쓰러짐
   if (b.wallMul) dmg *= b.wallMul; // 월샷 데미지 감소
   bloodFX(hp, dir);
   if (victim.dummy && b.owner === PLAYER) rangeOnHit(victim, Math.min(dmg, victim.health), part, b.dist, hp, b.st);
