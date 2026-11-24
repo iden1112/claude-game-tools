@@ -4,7 +4,7 @@ const STANCE = {
   crouch: { h: 1.25, eye: 1.12, speed: 2.6, sprint: 4.0, recoil: 0.8, spread: 0.8 },
   prone: { h: 0.6, eye: 0.38, speed: 1.15, sprint: 1.15, recoil: 0.55, spread: 0.6 },
 };
-const MAX_HP = 200;
+const MAX_HP = 150;
 const RADIUS = 0.33, STEP = 0.46, JUMP_V = 6.1, G_ACC = 15;
 
 class Actor {
@@ -195,6 +195,11 @@ class Actor {
   tryVault() {
     if (this.stance === 'prone') return false;
     const fx_ = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
+    // 계단 위나 계단 앞에서는 넘기(파쿠르) 대신 그냥 점프해요
+    for (const d of [0, 0.35, 0.65, 0.95]) {
+      const x = this.pos.x + fx_ * d, z = this.pos.z + fz * d, r = 0.25;
+      for (const b of WORLD.boxes) if (b.kind === 'stair' && x + r > b.min.x && x - r < b.max.x && z + r > b.min.z && z - r < b.max.z && b.max.y > this.pos.y - 0.05 && b.min.y < this.pos.y + 2.8) return false;
+    }
     // 앞쪽에서 가장 높은 면
     let top = -1, hitD = 0;
     for (const d of [0.45, 0.65, 0.85]) {
