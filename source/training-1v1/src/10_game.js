@@ -383,12 +383,14 @@ function setupMenus() {
   };
   addEventListener('keydown', (e) => {
     if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'text') return;
-    if (e.code === 'Backquote') { e.preventDefault(); if ($('loadout').style.display !== 'none') closeLoadout(); else openLoadout(); }
-    if (e.code === 'Tab') { e.preventDefault(); if (G.mode === 'range') { if ($('rangemenu').style.display !== 'none') closeRangeMenu(); else if (!G.menuOpen) openRangeMenu(); } else if (isPlaying()) HUD.showBoard(true); }
-    if (e.code === 'Escape') { if ($('loadout').style.display !== 'none') closeLoadout(true); else if ($('rangemenu').style.display !== 'none') { closeRangeMenu(true); window.onPointerUnlock(); } }
+    if ((window.CHAT && CHAT.open) || window.KEYWAIT) return;
+    const kc = mapKey(e.code) || (e.code === 'Escape' ? 'Escape' : '');
+    if (kc === 'Backquote') { e.preventDefault(); if ($('loadout').style.display !== 'none') closeLoadout(); else openLoadout(); }
+    if (kc === 'Tab') { e.preventDefault(); if (G.mode === 'range') { if ($('rangemenu').style.display !== 'none') closeRangeMenu(); else if (!G.menuOpen) openRangeMenu(); } else if (isPlaying()) HUD.showBoard(true); }
+    if (kc === 'Escape') { if ($('loadout').style.display !== 'none') closeLoadout(true); else if ($('rangemenu').style.display !== 'none') { closeRangeMenu(true); window.onPointerUnlock(); } }
   });
 }
-addEventListener('keyup', (e) => { if (e.code === 'Tab') HUD.showBoard(false); });
+addEventListener('keyup', (e) => { if (mapKey(e.code) === 'Tab') HUD.showBoard(false); });
 addEventListener('blur', () => HUD.showBoard(false));
 function resetKD() { for (const a of [PLAYER, BOT, ...Object.values(REMOTES), ...Object.values(NET.bots)]) { a.kills = a.deaths = a.heads = a.assists = 0; } }
 function giveAssist(a, victim) { // 어시스트 +1 (내가 받으면 화면에 표시)

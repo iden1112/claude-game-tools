@@ -1,5 +1,5 @@
 'use strict';
-const GAME_BUILD = 47; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 48; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -619,12 +619,50 @@ const INPUT = {
   consume() { this.pressed = {}; this.mdx = 0; this.mdy = 0; this.lmbPressed = this.rmbPressed = this.rmbReleased = this.lmbReleased = false; this.wheel = 0; },
 };
 const BLOCK_KEYS = ['F3', 'Tab', 'AltLeft', 'AltRight', 'Space', 'Backquote', 'KeyQ', 'KeyE', 'F1'];
+// ---- 키 설정 (다른 키로 바꾸기) ----
+// 게임 안에서는 늘 '기본 키 이름'으로 확인해요. 바꾼 키를 누르면 기본 키를 누른 것으로 바꿔 줘요.
+const KEY_ACTIONS = [
+  ['이동', [['앞으로', 'KeyW'], ['뒤로', 'KeyS'], ['왼쪽', 'KeyA'], ['오른쪽', 'KeyD'], ['달리기 · 숨 참기', 'ShiftLeft'], ['점프 · 넘기', 'Space'], ['앉기', 'KeyC'], ['엎드리기', 'KeyZ'], ['왼쪽 기울이기', 'KeyQ'], ['오른쪽 기울이기', 'KeyE'], ['둘러보기', 'AltLeft']]],
+  ['무기', [['재장전 · 쿠킹', 'KeyR'], ['단발/점사/연사', 'KeyB'], ['1번 무기', 'Digit1'], ['2번 무기', 'Digit2'], ['3번 무기 (권총)', 'Digit3'], ['투척물', 'KeyG'], ['투척물 바꾸기', 'Digit5'], ['맨손', 'KeyX']]],
+  ['기타', [['1인칭/3인칭', 'KeyV'], ['핑 찍기', 'F3'], ['점수판', 'Tab'], ['총 고르기', 'Backquote'], ['채팅', 'Enter']]],
+];
+const KEY_DEFAULTS = new Set(KEY_ACTIONS.flatMap(g => g[1].map(a => a[1])));
+let KEY_REV = {};
+function rebuildKeys() {
+  KEY_REV = {}; const k = SETTINGS.keys || {};
+  for (const d of KEY_DEFAULTS) KEY_REV[k[d] || d] = d;
+}
+rebuildKeys && 0;
+// 실제로 누른 키 → 게임이 쓰는 키 (null = 다른 키로 옮겨서 지금은 아무 일도 안 함)
+function mapKey(code) {
+  if (KEY_REV[code]) return KEY_REV[code];
+  if (KEY_DEFAULTS.has(code)) return null;
+  return code;
+}
+function keyLabel(code) {
+  if (!code) return '없음';
+  const m = { Space: 'Space', ShiftLeft: '왼쪽 Shift', ShiftRight: '오른쪽 Shift', ControlLeft: '왼쪽 Ctrl', ControlRight: '오른쪽 Ctrl', AltLeft: '왼쪽 Alt', AltRight: '오른쪽 Alt', Backquote: '~', Tab: 'Tab', Enter: 'Enter', CapsLock: 'CapsLock', Backspace: 'Backspace', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/', Backslash: '\\', MouseMid: '마우스 휠 클릭', Mouse4: '마우스 뒤 버튼', Mouse5: '마우스 앞 버튼' };
+  if (m[code]) return m[code];
+  if (code.startsWith('Key')) return code.slice(3);
+  if (code.startsWith('Digit')) return code.slice(5);
+  if (code.startsWith('Numpad')) return '숫자패드 ' + code.slice(6);
+  if (code.startsWith('Arrow')) return { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' }[code];
+  return code;
+}
+rebuildKeys();
 addEventListener('keydown', (e) => {
-  if (BLOCK_KEYS.includes(e.code) || (INPUT.locked && e.code !== 'Escape')) e.preventDefault();
-  if (!INPUT.keys[e.code]) INPUT.pressed[e.code] = true;
-  INPUT.keys[e.code] = true;
+  if (window.CHAT && CHAT.open) return; // 채팅 치는 중엔 게임 키를 받지 않아요
+  if (window.KEYWAIT) return;         // 키 설정에서 새 키를 기다리는 중
+  const c = mapKey(e.code);
+  if (BLOCK_KEYS.includes(e.code) || (c && BLOCK_KEYS.includes(c)) || (INPUT.locked && e.code !== 'Escape')) e.preventDefault();
+  if (!c) return;
+  if (!INPUT.keys[c]) INPUT.pressed[c] = true;
+  INPUT.keys[c] = true;
 });
-addEventListener('keyup', (e) => { INPUT.keys[e.code] = false; if (BLOCK_KEYS.includes(e.code)) e.preventDefault(); });
+addEventListener('keyup', (e) => { const c = mapKey(e.code); if (c) INPUT.keys[c] = false; if (BLOCK_KEYS.includes(e.code)) e.preventDefault(); });
+// 마우스 휠 클릭·옆 버튼도 키로 쓸 수 있어요
+addEventListener('mousedown', (e) => { if (!INPUT.locked || e.button < 1 || e.button === 2) return; const code = { 1: 'MouseMid', 3: 'Mouse4', 4: 'Mouse5' }[e.button]; const c = code && mapKey(code); if (c && c !== code) { if (!INPUT.keys[c]) INPUT.pressed[c] = true; INPUT.keys[c] = true; } });
+addEventListener('mouseup', (e) => { const code = { 1: 'MouseMid', 3: 'Mouse4', 4: 'Mouse5' }[e.button]; const c = code && mapKey(code); if (c && c !== code) INPUT.keys[c] = false; });
 addEventListener('blur', () => { INPUT.keys = {}; INPUT.lmb = INPUT.rmb = false; });
 const canvasEl = renderer.domElement;
 addEventListener('mousemove', (e) => { if (INPUT.locked) { INPUT.mdx += e.movementX; INPUT.mdy += e.movementY; } });

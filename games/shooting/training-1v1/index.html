@@ -118,7 +118,10 @@ h1 small{display:block;font-size:14px;color:#9aa4ad;letter-spacing:0;font-weight
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:18px}
 .keys{font-size:13px;line-height:1.85;color:#cfd6dc}
 .keys kbd{display:inline-block;min-width:22px;text-align:center;background:#2c3238;border:1px solid #444b52;border-bottom-width:2px;border-radius:3px;padding:0 5px;font-size:12px;color:#fff;font-family:inherit;margin-right:3px}
-#settings{font-size:13px;display:grid;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:center}
+#settings{font-size:13px}
+#settings .spane{display:none;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:center;min-height:120px}#settings .spane.on{display:grid}
+.stabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,.12);padding-bottom:8px}.stabs button{background:none;border:0;color:#9aa4ad;font:700 13px inherit;padding:6px 10px;border-radius:5px;cursor:pointer}.stabs button.on{background:#ffd24a;color:#111}
+#keybinds{grid-column:1/-1;display:grid;grid-template-columns:1fr auto;gap:5px 14px;align-items:center}#keybinds button.kb{min-width:92px;background:#2c3238;color:#fff;border:1px solid #444b52;border-bottom-width:2px;border-radius:4px;padding:4px 8px;font:700 12px inherit;cursor:pointer}#keybinds button.kb.wait{background:#ffd24a;color:#111}#keybinds .kh{grid-column:1/-1;color:#ffd24a;font-size:12px;margin-top:6px}#keybinds .kreset{grid-column:1/-1;justify-self:start;margin-top:8px}
 #settings select,#settings input[type=range]{width:100%;accent-color:#ffd24a}
 .xh-h{grid-column:1/-1;margin:8px 0 0;font-size:13px;color:#ffd24a}
 #xh-prev{grid-row:span 2;width:84px;height:62px;background:#55606a url() center/cover;border-radius:4px;position:relative;background:linear-gradient(135deg,#6b7b86,#3c464f)}
@@ -271,19 +274,29 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
   </div>
 </div>
 <div id="settings">
+  <div class="stabs"><button data-tab="game" class="on">게임</button><button data-tab="ctrl">마우스·조작</button><button data-tab="keys">키 설정</button><button data-tab="video">화면</button><button data-tab="sound">소리</button><button data-tab="xh">조준선</button></div>
+  <div class="spane on" data-pane="game">
   <label>봇 난이도</label><select id="set-diff"></select><span></span>
   <label>헬멧·조끼</label><select id="set-armor"><option value="0">없음</option><option value="1">1레벨</option><option value="2">2레벨</option><option value="3">3레벨</option></select><span></span>
+  </div>
+  <div class="spane" data-pane="ctrl">
   <label>마우스 감도</label><input type="range" id="set-sens" min="0.2" max="3" step="0.05"><span id="v-sens"></span>
   <label>조준 감도</label><input type="range" id="set-ads" min="0.2" max="2" step="0.05"><span id="v-ads"></span>
-  <label>시야각</label><input type="range" id="set-fov" min="60" max="95" step="1"><span id="v-fov"></span>
-  <label>음량</label><input type="range" id="set-vol" min="0" max="1" step="0.05"><span></span>
   <label>우클릭</label><select id="set-aim"><option value="pubg">배그식 (짧게: 조준 · 길게: 견착)</option><option value="toggle">누를 때마다 조준 켜기/끄기</option><option value="hold">누르는 동안 조준</option></select><span></span>
-  <label>앉기 (C)</label><select id="set-crouch"><option value="toggle">토글</option><option value="hold">누르는 동안</option></select><span></span>
-  <label>기울이기 (Q/E)</label><select id="set-lean"><option value="hold">누르는 동안</option><option value="toggle">토글</option></select><span></span>
+  <label>달리기 방식</label><select id="set-sprint"><option value="hold">누르는 동안</option><option value="toggle">토글</option></select><span></span>
+  <label>앉기 방식</label><select id="set-crouch"><option value="toggle">토글</option><option value="hold">누르는 동안</option></select><span></span>
+  <label>기울이기 방식</label><select id="set-lean"><option value="hold">누르는 동안</option><option value="toggle">토글</option></select><span></span>
+  </div>
+  <div class="spane" data-pane="keys"><div id="keybinds"></div></div>
+  <div class="spane" data-pane="video">
+  <label>시야각</label><input type="range" id="set-fov" min="60" max="95" step="1"><span id="v-fov"></span>
   <label>그래픽 품질</label><select id="set-quality"><option value="high">높음 (예쁘게)</option><option value="mid">보통</option><option value="low">낮음 (빠르게)</option></select><span></span>
-  <label>달리기 (Shift)</label><select id="set-sprint"><option value="hold">누르는 동안</option><option value="toggle">토글</option></select><span></span>
   <label>화면</label><button class="btn sub small" id="set-full" type="button">전체화면 켜기</button><span></span>
-  <h4 class="xh-h">조준선 (발로란트처럼 바꾸기)</h4>
+  </div>
+  <div class="spane" data-pane="sound">
+  <label>음량</label><input type="range" id="set-vol" min="0" max="1" step="0.05"><span></span>
+  </div>
+  <div class="spane" data-pane="xh">
   <label>모양</label><select id="xh-preset"><option value="pubg">배그 기본</option><option value="valo">발로란트 기본</option><option value="dot">점만</option><option value="tiny">작은 십자</option><option value="big">큰 십자</option><option value="custom">직접 만들기</option></select><div id="xh-prev"><div class="xh" id="xh-pv"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div></div>
   <label>색</label><div id="xh-colors"></div><span></span>
   <label>선 길이</label><input type="range" id="xh-len" min="0" max="20" step="1"><span id="v-xh-len"></span>
@@ -292,6 +305,7 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
   <label>가운데 점</label><select id="xh-dot"><option value="0">없음</option><option value="2">작게</option><option value="4">크게</option></select><span></span>
   <label>테두리</label><select id="xh-out"><option value="1">켜기</option><option value="0">끄기</option></select><span></span>
   <label>쏘면 벌어짐</label><select id="xh-dyn"><option value="1">켜기 (배그처럼)</option><option value="0">끄기 (발로란트처럼 고정)</option></select><span></span>
+  </div>
 </div>
 <div id="pause" class="overlay" style="display:none"><div class="panel" style="max-width:520px">
   <h2 id="pause-title">일시정지</h2><p style="color:#9aa4ad;font-size:13px;margin-bottom:14px">화면을 누르거나 아래 버튼을 누르면 계속해요.</p>
@@ -1045,7 +1059,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 47; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 48; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -1665,12 +1679,50 @@ const INPUT = {
   consume() { this.pressed = {}; this.mdx = 0; this.mdy = 0; this.lmbPressed = this.rmbPressed = this.rmbReleased = this.lmbReleased = false; this.wheel = 0; },
 };
 const BLOCK_KEYS = ['F3', 'Tab', 'AltLeft', 'AltRight', 'Space', 'Backquote', 'KeyQ', 'KeyE', 'F1'];
+// ---- 키 설정 (다른 키로 바꾸기) ----
+// 게임 안에서는 늘 '기본 키 이름'으로 확인해요. 바꾼 키를 누르면 기본 키를 누른 것으로 바꿔 줘요.
+const KEY_ACTIONS = [
+  ['이동', [['앞으로', 'KeyW'], ['뒤로', 'KeyS'], ['왼쪽', 'KeyA'], ['오른쪽', 'KeyD'], ['달리기 · 숨 참기', 'ShiftLeft'], ['점프 · 넘기', 'Space'], ['앉기', 'KeyC'], ['엎드리기', 'KeyZ'], ['왼쪽 기울이기', 'KeyQ'], ['오른쪽 기울이기', 'KeyE'], ['둘러보기', 'AltLeft']]],
+  ['무기', [['재장전 · 쿠킹', 'KeyR'], ['단발/점사/연사', 'KeyB'], ['1번 무기', 'Digit1'], ['2번 무기', 'Digit2'], ['3번 무기 (권총)', 'Digit3'], ['투척물', 'KeyG'], ['투척물 바꾸기', 'Digit5'], ['맨손', 'KeyX']]],
+  ['기타', [['1인칭/3인칭', 'KeyV'], ['핑 찍기', 'F3'], ['점수판', 'Tab'], ['총 고르기', 'Backquote'], ['채팅', 'Enter']]],
+];
+const KEY_DEFAULTS = new Set(KEY_ACTIONS.flatMap(g => g[1].map(a => a[1])));
+let KEY_REV = {};
+function rebuildKeys() {
+  KEY_REV = {}; const k = SETTINGS.keys || {};
+  for (const d of KEY_DEFAULTS) KEY_REV[k[d] || d] = d;
+}
+rebuildKeys && 0;
+// 실제로 누른 키 → 게임이 쓰는 키 (null = 다른 키로 옮겨서 지금은 아무 일도 안 함)
+function mapKey(code) {
+  if (KEY_REV[code]) return KEY_REV[code];
+  if (KEY_DEFAULTS.has(code)) return null;
+  return code;
+}
+function keyLabel(code) {
+  if (!code) return '없음';
+  const m = { Space: 'Space', ShiftLeft: '왼쪽 Shift', ShiftRight: '오른쪽 Shift', ControlLeft: '왼쪽 Ctrl', ControlRight: '오른쪽 Ctrl', AltLeft: '왼쪽 Alt', AltRight: '오른쪽 Alt', Backquote: '~', Tab: 'Tab', Enter: 'Enter', CapsLock: 'CapsLock', Backspace: 'Backspace', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/', Backslash: '\\', MouseMid: '마우스 휠 클릭', Mouse4: '마우스 뒤 버튼', Mouse5: '마우스 앞 버튼' };
+  if (m[code]) return m[code];
+  if (code.startsWith('Key')) return code.slice(3);
+  if (code.startsWith('Digit')) return code.slice(5);
+  if (code.startsWith('Numpad')) return '숫자패드 ' + code.slice(6);
+  if (code.startsWith('Arrow')) return { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' }[code];
+  return code;
+}
+rebuildKeys();
 addEventListener('keydown', (e) => {
-  if (BLOCK_KEYS.includes(e.code) || (INPUT.locked && e.code !== 'Escape')) e.preventDefault();
-  if (!INPUT.keys[e.code]) INPUT.pressed[e.code] = true;
-  INPUT.keys[e.code] = true;
+  if (window.CHAT && CHAT.open) return; // 채팅 치는 중엔 게임 키를 받지 않아요
+  if (window.KEYWAIT) return;         // 키 설정에서 새 키를 기다리는 중
+  const c = mapKey(e.code);
+  if (BLOCK_KEYS.includes(e.code) || (c && BLOCK_KEYS.includes(c)) || (INPUT.locked && e.code !== 'Escape')) e.preventDefault();
+  if (!c) return;
+  if (!INPUT.keys[c]) INPUT.pressed[c] = true;
+  INPUT.keys[c] = true;
 });
-addEventListener('keyup', (e) => { INPUT.keys[e.code] = false; if (BLOCK_KEYS.includes(e.code)) e.preventDefault(); });
+addEventListener('keyup', (e) => { const c = mapKey(e.code); if (c) INPUT.keys[c] = false; if (BLOCK_KEYS.includes(e.code)) e.preventDefault(); });
+// 마우스 휠 클릭·옆 버튼도 키로 쓸 수 있어요
+addEventListener('mousedown', (e) => { if (!INPUT.locked || e.button < 1 || e.button === 2) return; const code = { 1: 'MouseMid', 3: 'Mouse4', 4: 'Mouse5' }[e.button]; const c = code && mapKey(code); if (c && c !== code) { if (!INPUT.keys[c]) INPUT.pressed[c] = true; INPUT.keys[c] = true; } });
+addEventListener('mouseup', (e) => { const code = { 1: 'MouseMid', 3: 'Mouse4', 4: 'Mouse5' }[e.button]; const c = code && mapKey(code); if (c && c !== code) INPUT.keys[c] = false; });
 addEventListener('blur', () => { INPUT.keys = {}; INPUT.lmb = INPUT.rmb = false; });
 const canvasEl = renderer.domElement;
 addEventListener('mousemove', (e) => { if (INPUT.locked) { INPUT.mdx += e.movementX; INPUT.mdy += e.movementY; } });
@@ -6466,12 +6518,14 @@ function setupMenus() {
   };
   addEventListener('keydown', (e) => {
     if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'text') return;
-    if (e.code === 'Backquote') { e.preventDefault(); if ($('loadout').style.display !== 'none') closeLoadout(); else openLoadout(); }
-    if (e.code === 'Tab') { e.preventDefault(); if (G.mode === 'range') { if ($('rangemenu').style.display !== 'none') closeRangeMenu(); else if (!G.menuOpen) openRangeMenu(); } else if (isPlaying()) HUD.showBoard(true); }
-    if (e.code === 'Escape') { if ($('loadout').style.display !== 'none') closeLoadout(true); else if ($('rangemenu').style.display !== 'none') { closeRangeMenu(true); window.onPointerUnlock(); } }
+    if ((window.CHAT && CHAT.open) || window.KEYWAIT) return;
+    const kc = mapKey(e.code) || (e.code === 'Escape' ? 'Escape' : '');
+    if (kc === 'Backquote') { e.preventDefault(); if ($('loadout').style.display !== 'none') closeLoadout(); else openLoadout(); }
+    if (kc === 'Tab') { e.preventDefault(); if (G.mode === 'range') { if ($('rangemenu').style.display !== 'none') closeRangeMenu(); else if (!G.menuOpen) openRangeMenu(); } else if (isPlaying()) HUD.showBoard(true); }
+    if (kc === 'Escape') { if ($('loadout').style.display !== 'none') closeLoadout(true); else if ($('rangemenu').style.display !== 'none') { closeRangeMenu(true); window.onPointerUnlock(); } }
   });
 }
-addEventListener('keyup', (e) => { if (e.code === 'Tab') HUD.showBoard(false); });
+addEventListener('keyup', (e) => { if (mapKey(e.code) === 'Tab') HUD.showBoard(false); });
 addEventListener('blur', () => HUD.showBoard(false));
 function resetKD() { for (const a of [PLAYER, BOT, ...Object.values(REMOTES), ...Object.values(NET.bots)]) { a.kills = a.deaths = a.heads = a.assists = 0; } }
 function giveAssist(a, victim) { // 어시스트 +1 (내가 받으면 화면에 표시)
@@ -6794,7 +6848,7 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 15; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 16; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 // 개인전 (1v1v1v1): 최대 4명, 한 사람이 한 팀(팀 번호 0~3). 2명 이상이면 시작할 수 있어요
@@ -6872,7 +6926,7 @@ function rawSend(to, msg) {
 // 논리적으로 보내기: to = '*' (모두) 또는 사람 id
 // 꼭 전달돼야 하는 메시지(맞힘·죽음·라운드 등)는 번호를 붙여 3번 보내고, 받는 쪽은 같은 번호를 한 번만 처리해요
 // (학교 와이파이용 중계 서버는 메시지가 가끔 사라질 수 있어서 '죽였는데 상대 화면에선 안 죽는' 일이 생겼어요)
-const NET_IMPORTANT = new Set(['hit', 'died', 'round', 'go', 'over', 'dealt', 'nade', 'boom', 'tolobby', 'mark']);
+const NET_IMPORTANT = new Set(['chat', 'hit', 'died', 'round', 'go', 'over', 'dealt', 'nade', 'boom', 'tolobby', 'mark']);
 NET.seq = 0; NET.dupe = new Set();
 function netPost(msg) {
   const to = msg.to;
@@ -7321,6 +7375,7 @@ function netRecv(m) {
       r.netVault = m.vt === undefined ? -1 : m.vt; r.netVaultOver = !!m.vo;
       break;
     }
+    case 'chat': { const r = REMOTES[from] || actorById(from); if (m.s === 'team' && (!r || r.team !== G.myTeam)) break; chatShow(m.s, m.n || (r && r.name) || '?', m.x, r && r.team !== G.myTeam ? 'en' : 'tm'); break; }
     case 'mark': { const r = REMOTES[from]; if (r && r.team === G.myTeam && m.p) placePing(new V3().fromArray(m.p), r.name, !!m.e); break; }
     case 'punch': { const r = REMOTES[from]; if (r) { r.punchT = 0.28; AU.punch(false, r.pos); } break; }
     case 'shot': {
@@ -8050,6 +8105,7 @@ html.touch body{overscroll-behavior:none}
     ['점수', 'left:118px;top:8px', 'board', 'sm'],
     ['총<br>고르기', 'left:172px;top:4px', 'loadout', ''],
     ['핑', 'right:128px;bottom:256px', 'F3', 'sm'],
+    ['채팅', 'left:226px;top:8px', 'chat', 'sm'],
     ['1', 'right:300px;bottom:236px', 'Digit1', 'sm'],
     ['2', 'right:352px;bottom:236px', 'Digit2', 'sm'],
     ['3', 'right:404px;bottom:236px', 'Digit3', 'sm'],
@@ -8062,6 +8118,7 @@ html.touch body{overscroll-behavior:none}
     if (act === 'fire') { INPUT.lmb = down; if (down) INPUT.lmbPressed = true; else INPUT.lmbReleased = true; }
     else if (act === 'aim') { INPUT.rmb = down; if (down) INPUT.rmbPressed = true; else INPUT.rmbReleased = true; }
     else if (act === 'next') { if (down) INPUT.wheel += 1; }
+    else if (act === 'chat') { if (down) chatOpen(); }
     else if (act === 'board') HUD.showBoard(down);
     else if (act === 'menu') { if (down) { INPUT.locked = false; INPUT.keys = {}; INPUT.lmb = INPUT.rmb = false; if (window.onPointerUnlock) window.onPointerUnlock(); } }
     else if (act === 'loadout') { if (down) { INPUT.keys = {}; INPUT.lmb = INPUT.rmb = false; openLoadout(); } }
@@ -8471,6 +8528,189 @@ setTimeout(() => {
   else applyNick(SOC.data.nick);
   socUI();
 }, 600);
+
+// ================= 채팅 · 친구 귓속말 · 설정 탭 · 키 설정 =================
+const CHAT = window.CHAT = { open: false, scope: 'all', log: [] };
+(() => {
+  const st = document.createElement('style');
+  st.textContent = `
+#chatbox{position:fixed;left:14px;bottom:150px;width:420px;max-width:60vw;z-index:8;font:600 13px system-ui,sans-serif;pointer-events:none}
+#chatlog div{color:#eee;text-shadow:0 1px 2px #000,0 0 4px #000;padding:1px 0;transition:opacity .6s}
+#chatlog div.old{opacity:0}
+#chatbox.open #chatlog div.old{opacity:1}
+#chatbox.open #chatlog{background:rgba(10,12,16,.55);border-radius:6px;padding:6px 8px;max-height:220px;overflow:auto}
+#chatlog b.all{color:#ddd}#chatlog b.team{color:#5aa9ff}#chatlog b.dm{color:#d58cff}#chatlog b.sys{color:#ffd24a}
+#chatlog span.me{color:#ffd24a}#chatlog span.tm{color:#8cc8ff}#chatlog span.en{color:#ff8a7a}
+#chatin{display:none;margin-top:6px;pointer-events:auto;align-items:center;background:rgba(10,12,16,.85);border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:4px 6px}
+#chatbox.open #chatin{display:flex}
+#chatin b{padding:2px 8px;border-radius:4px;margin-right:6px;font-size:12px;cursor:pointer;white-space:nowrap}
+#chatin b.all{background:#555;color:#fff}#chatin b.team{background:#2f6fb3;color:#fff}
+#chatin input{flex:1;background:none;border:0;color:#fff;font:600 13px system-ui;outline:none}
+#chatin small{color:#889;margin-left:6px;white-space:nowrap}
+#friends.side{z-index:60!important;background:none;backdrop-filter:none!important;pointer-events:none;justify-content:flex-end;align-items:stretch;padding:0}
+#friends.side .panel{pointer-events:auto;margin:0;height:100vh;max-height:100vh;border-radius:0;width:340px;max-width:340px;overflow:auto;box-sizing:border-box}
+#pause .panel,#start .panel{max-height:92vh;overflow:auto}
+#friends .dm{margin-top:10px;border-top:1px solid rgba(255,255,255,.12);padding-top:8px}
+#friends .dmlog{max-height:200px;overflow:auto;font-size:13px;background:rgba(0,0,0,.25);border-radius:6px;padding:6px 8px;margin:6px 0}
+#friends .dmlog div{padding:2px 0}#friends .dmlog .me{color:#ffd24a}#friends .dmlog .them{color:#d58cff}
+#friends .fr .nm{cursor:pointer}
+#friends .unread{display:inline-block;width:8px;height:8px;border-radius:50%;background:#d58cff;margin-left:4px}`;
+  document.head.appendChild(st);
+  const box = document.createElement('div'); box.id = 'chatbox';
+  box.innerHTML = '<div id="chatlog"></div><div id="chatin"><b id="chat-scope" class="all">전체</b><input id="chat-input" maxlength="120" autocomplete="off"><small>Enter 보내기 · Shift+Enter 전체/팀 · Esc 닫기</small></div>';
+  document.body.appendChild(box);
+  const inp = $('chat-input');
+  inp.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); chatScope(CHAT.scope === 'all' ? 'team' : 'all'); return; }
+    if (e.key === 'Enter') { e.preventDefault(); const v = inp.value.trim(); if (v) chatSend(v); chatClose(); return; }
+    if (e.key === 'Escape') { e.preventDefault(); chatClose(); }
+  });
+  inp.addEventListener('keyup', (e) => e.stopPropagation());
+  $('chat-scope').onclick = () => chatScope(CHAT.scope === 'all' ? 'team' : 'all');
+})();
+function chatScope(s) { CHAT.scope = s; const b = $('chat-scope'); b.className = s; b.textContent = s === 'all' ? '전체' : '팀'; }
+function chatOpen() {
+  if (CHAT.open) return;
+  CHAT.open = true; INPUT.keys = {}; INPUT.lmb = INPUT.rmb = false;
+  if (G.mode !== 'mp' || isFFA()) chatScope('all');
+  $('chatbox').classList.add('open'); const i = $('chat-input'); i.value = ''; setTimeout(() => i.focus(), 0);
+}
+function chatClose() { CHAT.open = false; $('chatbox').classList.remove('open'); $('chat-input').blur(); INPUT.keys = {}; }
+function chatSend(text) {
+  text = text.slice(0, 120);
+  const scope = CHAT.scope;
+  if (G.mode === 'mp' && NET.active) netSend({ t: 'chat', s: scope, x: text, n: NET.name });
+  chatShow(scope, NET.name || PLAYER.name, text, 'me');
+}
+function chatShow(scope, name, text, who) {
+  const el = $('chatlog'); if (!el) return;
+  const d = document.createElement('div');
+  const tag = { all: '전체', team: '팀', dm: '귓속말', sys: '알림' }[scope] || '전체';
+  d.innerHTML = `<b class="${scope}">[${tag}]</b> <span class="${who}">${esc(name)}</span>: ${esc(text)}`;
+  el.appendChild(d); while (el.children.length > 40) el.firstChild.remove();
+  el.scrollTop = el.scrollHeight;
+  setTimeout(() => d.classList.add('old'), 9000);
+}
+// 엔터로 채팅 열기 (게임 중)
+addEventListener('keydown', (e) => {
+  if (CHAT.open || window.KEYWAIT || e.repeat) return;
+  if (mapKey(e.code) === 'Enter' && isPlaying() && INPUT.locked && !G.menuOpen) { e.preventDefault(); chatOpen(); }
+});
+(function chatLoop() {
+  if (CHAT.open && !(isPlaying() && INPUT.locked)) chatClose();
+  requestAnimationFrame(chatLoop);
+})();
+
+// ---- 친구 귓속말 (친구 서버로, 게임 밖에서도) ----
+SOC.dms = {}; SOC.unread = new Set(); SOC.dmWith = null;
+try { SOC.dms = JSON.parse(localStorage.getItem('tg1v1_dms') || '{}'); } catch (e) {}
+const dmSave = () => { try { localStorage.setItem('tg1v1_dms', JSON.stringify(SOC.dms)); } catch (e) {} };
+function dmPush(friend, me, text) { const a = SOC.dms[friend] || (SOC.dms[friend] = []); a.push({ me, x: text, ts: Date.now() }); if (a.length > 60) a.splice(0, a.length - 60); dmSave(); }
+function dmSend(friend, text) {
+  text = String(text || '').trim().slice(0, 200); if (!text) return;
+  socPub('dm/' + nkey(friend), { from: SOC.data.nick, x: text, ts: Date.now() });
+  dmPush(friend, true, text); socUI();
+}
+// 친구 서버에서 받는 귓속말
+const _socMsg0 = socMsg;
+socMsg = function (t, m) {
+  if (t.startsWith('dm/') && m && m.from && m.x && SOC.data.nick && t === 'dm/' + nkey(SOC.data.nick)) {
+    const f = SOC.data.friends.find(x => nkey(x) === nkey(m.from)); if (!f) return; // 친구만 받아요
+    const k = f + m.ts; if (SOC.lastDm === k) return; SOC.lastDm = k;
+    dmPush(f, false, m.x);
+    if (SOC.dmWith !== f || $('friends').style.display === 'none') SOC.unread.add(f);
+    if (isPlaying() && INPUT.locked) chatShow('dm', f, m.x, 'tm');
+    else if (SOC.dmWith !== f || $('friends').style.display === 'none') socNote(`<b>${esc(f)}</b>: ${esc(m.x.slice(0, 60))}`, [['답장', () => { openFriends(); dmOpen(f); }]], 6);
+    socUI(); return;
+  }
+  _socMsg0(t, m);
+};
+const _socSub0 = socSubscribe;
+socSubscribe = function (c) { _socSub0(c); if (SOC.data.nick && SOC.data.reg) try { c.cl.subscribe(SOC.P + 'dm/' + nkey(SOC.data.nick), { qos: 1 }); } catch (e) {} };
+function dmOpen(f) { SOC.dmWith = f; SOC.unread.delete(f); socUI(); setTimeout(() => { const i = $('dm-input'); if (i) i.focus(); }, 30); }
+const _socUI0 = socUI;
+socUI = function () {
+  _socUI0();
+  const list = $('fr-list'); if (!list) return;
+  // 친구 이름 옆에 안 읽은 표시, 이름을 누르면 귓속말 창
+  list.querySelectorAll('.fr').forEach(row => {
+    const n = row.querySelector('[data-n]') && row.querySelector('[data-n]').dataset.n; if (!n) return;
+    const nm = row.querySelector('.nm'); nm.dataset.dm = n; nm.title = '눌러서 귓속말';
+    if (SOC.unread.has(n) && !nm.querySelector('.unread')) nm.insertAdjacentHTML('beforeend', '<span class="unread"></span>');
+    if (!row.querySelector('[data-act=dm]')) row.querySelector('[data-act=inv]').insertAdjacentHTML('beforebegin', `<button class="btn sub" data-act="dm" data-n="${esc(n)}">채팅</button>`);
+  });
+  let dm = $('fr-dm'); if (!dm) { dm = document.createElement('div'); dm.id = 'fr-dm'; dm.className = 'dm'; list.after(dm); }
+  const f = SOC.dmWith;
+  if (!f || !SOC.data.friends.includes(f)) { dm.innerHTML = ''; return; }
+  const msgs = SOC.dms[f] || [];
+  const keepVal = $('dm-input') ? $('dm-input').value : '';
+  dm.innerHTML = `<b>${esc(f)} 님과 채팅</b> <button class="btn sub" data-act="dmx" style="padding:2px 8px;font-size:11px">닫기</button>
+    <div class="dmlog" id="dm-log">${msgs.length ? msgs.map(x => `<div class="${x.me ? 'me' : 'them'}">${x.me ? '나' : esc(f)}: ${esc(x.x)}</div>`).join('') : '<div style="color:#889">아직 나눈 말이 없어요</div>'}</div>
+    <div class="addrow"><input id="dm-input" maxlength="200" placeholder="메시지 (Enter로 보내기)" autocomplete="off"><button class="btn" data-act="dmsend">보내기</button></div>`;
+  const i = $('dm-input'); i.value = keepVal;
+  i.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { dmSend(f, i.value); i.value = ''; setTimeout(() => $('dm-input') && $('dm-input').focus(), 0); } });
+  const lg = $('dm-log'); lg.scrollTop = lg.scrollHeight;
+  const b = $('fr-badge'); if (b) { const n = SOC.reqIn.size + SOC.unread.size; b.textContent = n; b.style.display = n ? '' : 'none'; }
+};
+$('friends').addEventListener('click', (e) => {
+  const t = e.target.closest('[data-act],[data-dm]'); if (!t) return;
+  if (t.dataset.dm && !t.dataset.act) { dmOpen(t.dataset.dm); return; }
+  if (t.dataset.act === 'dm') dmOpen(t.dataset.n);
+  else if (t.dataset.act === 'dmx') { SOC.dmWith = null; socUI(); }
+  else if (t.dataset.act === 'dmsend') { const i = $('dm-input'); dmSend(SOC.dmWith, i.value); i.value = ''; }
+});
+
+// ---- Esc (일시정지) 하면 발로란트처럼 오른쪽에 친구창 ----
+new MutationObserver(() => {
+  const paused = $('pause').style.display === 'flex', fr = $('friends');
+  if (paused && fr.style.display === 'none' && !IN_FRAME) { fr.classList.add('side'); fr.style.display = 'flex'; socUI(); }
+  else if (!paused && fr.classList.contains('side')) { fr.classList.remove('side'); fr.style.display = 'none'; }
+}).observe($('pause'), { attributes: true, attributeFilter: ['style'] });
+const _openFriends0 = openFriends;
+openFriends = function () { $('friends').classList.remove('side'); _openFriends0(); };
+
+// ---- 설정 탭 ----
+$('settings').querySelector('.stabs').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-tab]'); if (!b) return;
+  $('settings').querySelectorAll('.stabs button').forEach(x => x.classList.toggle('on', x === b));
+  $('settings').querySelectorAll('.spane').forEach(p => p.classList.toggle('on', p.dataset.pane === b.dataset.tab));
+});
+
+// ---- 키 설정 화면 ----
+function drawKeybinds() {
+  const k = SETTINGS.keys || {};
+  let h = '';
+  for (const [grp, acts] of KEY_ACTIONS) {
+    h += `<div class="kh">${grp}</div>`;
+    for (const [label, def] of acts) h += `<span>${label}</span><button class="kb" data-def="${def}">${keyLabel(k[def] || def)}</button>`;
+  }
+  h += '<span class="hint" style="grid-column:1/-1;color:#889;font-size:12px">버튼을 누르고 바꿀 키를 누르세요 (마우스 휠 클릭·옆 버튼도 돼요). Esc는 취소, Backspace는 키 없애기. 쏘기·조준(마우스 왼쪽·오른쪽)과 Esc는 바꿀 수 없어요.</span>';
+  h += '<button class="btn sub small kreset" id="kb-reset" type="button">모두 기본값으로</button>';
+  $('keybinds').innerHTML = h;
+}
+$('keybinds').addEventListener('click', (e) => {
+  if (e.target.id === 'kb-reset') { SETTINGS.keys = {}; saveSettings(); rebuildKeys(); drawKeybinds(); return; }
+  const b = e.target.closest('button.kb'); if (!b || window.KEYWAIT) return;
+  b.classList.add('wait'); b.textContent = '키를 누르세요…';
+  const def = b.dataset.def;
+  const done = (code) => {
+    window.KEYWAIT = null; removeEventListener('keydown', onKey, true); removeEventListener('mousedown', onMouse, true);
+    if (code !== undefined) {
+      const keys = SETTINGS.keys = SETTINGS.keys || {};
+      if (code) for (const d of KEY_DEFAULTS) if (d !== def && (keys[d] || d) === code) keys[d] = (keys[def] || def); // 겹치면 서로 바꿔요
+      keys[def] = code || '_none'; if (keys[def] === def) delete keys[def];
+      for (const d in keys) if (keys[d] === d) delete keys[d];
+      saveSettings(); rebuildKeys();
+    }
+    drawKeybinds();
+  };
+  const onKey = (ev) => { ev.preventDefault(); ev.stopPropagation(); if (ev.code === 'Escape') done(undefined); else if (ev.code === 'Backspace') done(''); else done(ev.code); };
+  const onMouse = (ev) => { const c = { 1: 'MouseMid', 3: 'Mouse4', 4: 'Mouse5' }[ev.button]; if (c) { ev.preventDefault(); ev.stopPropagation(); done(c); } };
+  window.KEYWAIT = def;
+  setTimeout(() => { addEventListener('keydown', onKey, true); addEventListener('mousedown', onMouse, true); }, 0);
+});
+drawKeybinds();
 
 // ================= 시작 =================
 applyQuality();

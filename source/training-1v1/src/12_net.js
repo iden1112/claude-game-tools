@@ -6,7 +6,7 @@ const NET = {
   lastRecv: 0, sendT: 0, myLoadoutKey: '', loKeep: 0,
   lobby: { size: 1, players: [] }, name: '', bots: {}, botN: 0, seen: {}, bus: null, mode: 'p2p',
 };
-const NET_VER = 15; // 게임 파일 버전 (다르면 같이 못 해요)
+const NET_VER = 16; // 게임 파일 버전 (다르면 같이 못 해요)
 let REMOTES = {}; // id → Actor
 const TEAM_NAME = ['블루', '레드'], TEAM_COLOR = ['#5aa9ff', '#ff6a5a'];
 // 개인전 (1v1v1v1): 최대 4명, 한 사람이 한 팀(팀 번호 0~3). 2명 이상이면 시작할 수 있어요
@@ -84,7 +84,7 @@ function rawSend(to, msg) {
 // 논리적으로 보내기: to = '*' (모두) 또는 사람 id
 // 꼭 전달돼야 하는 메시지(맞힘·죽음·라운드 등)는 번호를 붙여 3번 보내고, 받는 쪽은 같은 번호를 한 번만 처리해요
 // (학교 와이파이용 중계 서버는 메시지가 가끔 사라질 수 있어서 '죽였는데 상대 화면에선 안 죽는' 일이 생겼어요)
-const NET_IMPORTANT = new Set(['hit', 'died', 'round', 'go', 'over', 'dealt', 'nade', 'boom', 'tolobby', 'mark']);
+const NET_IMPORTANT = new Set(['chat', 'hit', 'died', 'round', 'go', 'over', 'dealt', 'nade', 'boom', 'tolobby', 'mark']);
 NET.seq = 0; NET.dupe = new Set();
 function netPost(msg) {
   const to = msg.to;
@@ -533,6 +533,7 @@ function netRecv(m) {
       r.netVault = m.vt === undefined ? -1 : m.vt; r.netVaultOver = !!m.vo;
       break;
     }
+    case 'chat': { const r = REMOTES[from] || actorById(from); if (m.s === 'team' && (!r || r.team !== G.myTeam)) break; chatShow(m.s, m.n || (r && r.name) || '?', m.x, r && r.team !== G.myTeam ? 'en' : 'tm'); break; }
     case 'mark': { const r = REMOTES[from]; if (r && r.team === G.myTeam && m.p) placePing(new V3().fromArray(m.p), r.name, !!m.e); break; }
     case 'punch': { const r = REMOTES[from]; if (r) { r.punchT = 0.28; AU.punch(false, r.pos); } break; }
     case 'shot': {

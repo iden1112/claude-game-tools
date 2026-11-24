@@ -118,7 +118,10 @@ h1 small{display:block;font-size:14px;color:#9aa4ad;letter-spacing:0;font-weight
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:18px}
 .keys{font-size:13px;line-height:1.85;color:#cfd6dc}
 .keys kbd{display:inline-block;min-width:22px;text-align:center;background:#2c3238;border:1px solid #444b52;border-bottom-width:2px;border-radius:3px;padding:0 5px;font-size:12px;color:#fff;font-family:inherit;margin-right:3px}
-#settings{font-size:13px;display:grid;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:center}
+#settings{font-size:13px}
+#settings .spane{display:none;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:center;min-height:120px}#settings .spane.on{display:grid}
+.stabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,.12);padding-bottom:8px}.stabs button{background:none;border:0;color:#9aa4ad;font:700 13px inherit;padding:6px 10px;border-radius:5px;cursor:pointer}.stabs button.on{background:#ffd24a;color:#111}
+#keybinds{grid-column:1/-1;display:grid;grid-template-columns:1fr auto;gap:5px 14px;align-items:center}#keybinds button.kb{min-width:92px;background:#2c3238;color:#fff;border:1px solid #444b52;border-bottom-width:2px;border-radius:4px;padding:4px 8px;font:700 12px inherit;cursor:pointer}#keybinds button.kb.wait{background:#ffd24a;color:#111}#keybinds .kh{grid-column:1/-1;color:#ffd24a;font-size:12px;margin-top:6px}#keybinds .kreset{grid-column:1/-1;justify-self:start;margin-top:8px}
 #settings select,#settings input[type=range]{width:100%;accent-color:#ffd24a}
 .xh-h{grid-column:1/-1;margin:8px 0 0;font-size:13px;color:#ffd24a}
 #xh-prev{grid-row:span 2;width:84px;height:62px;background:#55606a url() center/cover;border-radius:4px;position:relative;background:linear-gradient(135deg,#6b7b86,#3c464f)}
@@ -271,19 +274,29 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
   </div>
 </div>
 <div id="settings">
+  <div class="stabs"><button data-tab="game" class="on">게임</button><button data-tab="ctrl">마우스·조작</button><button data-tab="keys">키 설정</button><button data-tab="video">화면</button><button data-tab="sound">소리</button><button data-tab="xh">조준선</button></div>
+  <div class="spane on" data-pane="game">
   <label>봇 난이도</label><select id="set-diff"></select><span></span>
   <label>헬멧·조끼</label><select id="set-armor"><option value="0">없음</option><option value="1">1레벨</option><option value="2">2레벨</option><option value="3">3레벨</option></select><span></span>
+  </div>
+  <div class="spane" data-pane="ctrl">
   <label>마우스 감도</label><input type="range" id="set-sens" min="0.2" max="3" step="0.05"><span id="v-sens"></span>
   <label>조준 감도</label><input type="range" id="set-ads" min="0.2" max="2" step="0.05"><span id="v-ads"></span>
-  <label>시야각</label><input type="range" id="set-fov" min="60" max="95" step="1"><span id="v-fov"></span>
-  <label>음량</label><input type="range" id="set-vol" min="0" max="1" step="0.05"><span></span>
   <label>우클릭</label><select id="set-aim"><option value="pubg">배그식 (짧게: 조준 · 길게: 견착)</option><option value="toggle">누를 때마다 조준 켜기/끄기</option><option value="hold">누르는 동안 조준</option></select><span></span>
-  <label>앉기 (C)</label><select id="set-crouch"><option value="toggle">토글</option><option value="hold">누르는 동안</option></select><span></span>
-  <label>기울이기 (Q/E)</label><select id="set-lean"><option value="hold">누르는 동안</option><option value="toggle">토글</option></select><span></span>
+  <label>달리기 방식</label><select id="set-sprint"><option value="hold">누르는 동안</option><option value="toggle">토글</option></select><span></span>
+  <label>앉기 방식</label><select id="set-crouch"><option value="toggle">토글</option><option value="hold">누르는 동안</option></select><span></span>
+  <label>기울이기 방식</label><select id="set-lean"><option value="hold">누르는 동안</option><option value="toggle">토글</option></select><span></span>
+  </div>
+  <div class="spane" data-pane="keys"><div id="keybinds"></div></div>
+  <div class="spane" data-pane="video">
+  <label>시야각</label><input type="range" id="set-fov" min="60" max="95" step="1"><span id="v-fov"></span>
   <label>그래픽 품질</label><select id="set-quality"><option value="high">높음 (예쁘게)</option><option value="mid">보통</option><option value="low">낮음 (빠르게)</option></select><span></span>
-  <label>달리기 (Shift)</label><select id="set-sprint"><option value="hold">누르는 동안</option><option value="toggle">토글</option></select><span></span>
   <label>화면</label><button class="btn sub small" id="set-full" type="button">전체화면 켜기</button><span></span>
-  <h4 class="xh-h">조준선 (발로란트처럼 바꾸기)</h4>
+  </div>
+  <div class="spane" data-pane="sound">
+  <label>음량</label><input type="range" id="set-vol" min="0" max="1" step="0.05"><span></span>
+  </div>
+  <div class="spane" data-pane="xh">
   <label>모양</label><select id="xh-preset"><option value="pubg">배그 기본</option><option value="valo">발로란트 기본</option><option value="dot">점만</option><option value="tiny">작은 십자</option><option value="big">큰 십자</option><option value="custom">직접 만들기</option></select><div id="xh-prev"><div class="xh" id="xh-pv"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div></div>
   <label>색</label><div id="xh-colors"></div><span></span>
   <label>선 길이</label><input type="range" id="xh-len" min="0" max="20" step="1"><span id="v-xh-len"></span>
@@ -292,6 +305,7 @@ h3.sec{font-size:13px;color:#9aa4ad;margin-bottom:8px;letter-spacing:1px}
   <label>가운데 점</label><select id="xh-dot"><option value="0">없음</option><option value="2">작게</option><option value="4">크게</option></select><span></span>
   <label>테두리</label><select id="xh-out"><option value="1">켜기</option><option value="0">끄기</option></select><span></span>
   <label>쏘면 벌어짐</label><select id="xh-dyn"><option value="1">켜기 (배그처럼)</option><option value="0">끄기 (발로란트처럼 고정)</option></select><span></span>
+  </div>
 </div>
 <div id="pause" class="overlay" style="display:none"><div class="panel" style="max-width:520px">
   <h2 id="pause-title">일시정지</h2><p style="color:#9aa4ad;font-size:13px;margin-bottom:14px">화면을 누르거나 아래 버튼을 누르면 계속해요.</p>
