@@ -14,29 +14,42 @@ if (!SOC.data.id) SOC.data.id = Array.from(crypto.getRandomValues(new Uint8Array
 const socSave = () => { try { localStorage.setItem('tg1v1_social', JSON.stringify(SOC.data)); } catch (e) {} };
 socSave();
 const nkey = (n) => encodeURIComponent(String(n).trim().toLowerCase());
-const socPub = (topic, obj, retain = false) => { if (SOC.cl && SOC.ok) SOC.cl.publish(SOC.P + topic, obj === null ? '' : JSON.stringify(obj), { retain, qos: 1 }); };
+// 서버 두 곳에 동시에 붙어서 같은 내용을 양쪽에 올려요 (한쪽이 막혀도 다른 쪽으로 만나요)
+SOC.cls = [];
+const socLive = () => SOC.cls.filter(c => c.ok);
+const socPub = (topic, obj, retain = false) => { for (const c of socLive()) try { c.cl.publish(SOC.P + topic, obj === null ? '' : JSON.stringify(obj), { retain, qos: 1 }); } catch (e) {} };
+const socSub = (topic) => { for (const c of socLive()) try { c.cl.subscribe(SOC.P + topic, { qos: 1 }); } catch (e) {} };
+const socUnsub = (topic) => { for (const c of socLive()) try { c.cl.unsubscribe(SOC.P + topic); } catch (e) {} };
 
 // ---- 접속 ----
 function socConnect() {
-  if (SOC.cl || typeof mqtt === 'undefined') return;
-  const brokers = window.__socialBrokers || [{ url: 'wss://broker.emqx.io:8084/mqtt' }, { url: 'wss://broker.hivemq.com:8884/mqtt' }];
-  const B = brokers[SOC.tried % brokers.length]; SOC.tried++;
-  const me = SOC.data.nick ? nkey(SOC.data.nick) : null;
-  const opts = { clientId: 'tgs' + SOC.data.id.slice(0, 10) + Math.random().toString(16).slice(2, 6), connectTimeout: 7000, reconnectPeriod: 4000, keepalive: 30, clean: true, username: B.username, password: B.password };
-  if (me) opts.will = { topic: SOC.P + 'on/' + me, payload: JSON.stringify({ on: 0, ts: Date.now() }), retain: true, qos: 1 };
-  const cl = (window.__socialMqtt || mqtt).connect(B.url, opts); SOC.cl = cl;
-  const fail = setTimeout(() => { if (!SOC.ok) { try { cl.end(true); } catch (e) {} SOC.cl = null; if (SOC.tried < 4) socConnect(); else socUI(); } }, 9000);
-  cl.on('connect', () => { clearTimeout(fail); SOC.ok = true; socSubscribe(); socUI(); });
-  cl.on('close', () => { SOC.ok = false; socUI(); });
-  cl.on('message', (topic, payload) => socMsg(topic.slice(SOC.P.length), payload && payload.length ? (() => { try { return JSON.parse(payload.toString()); } catch (e) { return null; } })() : null));
-  cl.on('error', () => {});
+  if (SOC.cls.length || typeof mqtt === 'undefined') return;
+  const brokers = window.__socialBrokers || [{ name: 'EMQX', url: 'wss://broker.emqx.io:8084/mqtt' }, { name: 'HiveMQ', url: 'wss://broker.hivemq.com:8884/mqtt' }];
+  SOC.tried = 1;
+  for (const B of brokers) {
+    const c = { name: B.name || B.url, ok: false, cl: null }; SOC.cls.push(c);
+    const me = SOC.data.nick && SOC.data.reg ? nkey(SOC.data.nick) : null;
+    const opts = { clientId: 'tgs' + SOC.data.id.slice(0, 10) + Math.random().toString(16).slice(2, 6), connectTimeout: 8000, reconnectPeriod: 5000, keepalive: 30, clean: true, username: B.username, password: B.password };
+    if (me) opts.will = { topic: SOC.P + 'on/' + me, payload: JSON.stringify({ on: 0, ts: Date.now() }), retain: true, qos: 1 };
+    c.cl = (window.__socialMqtt || mqtt).connect(B.url, opts);
+    c.cl.on('connect', () => { c.ok = true; SOC.ok = true; socSubscribe(c); socUI(); });
+    c.cl.on('close', () => { c.ok = false; SOC.ok = socLive().length > 0; socUI(); });
+    c.cl.on('message', (topic, payload) => socMsg(topic.slice(SOC.P.length), payload && payload.length ? (() => { try { return JSON.parse(payload.toString()); } catch (e) { return null; } })() : null));
+    c.cl.on('error', () => {});
+  }
+  setTimeout(() => { SOC.tried = 4; socUI(); }, 9000);
 }
-function socSubscribe() {
-  if (!SOC.ok || !SOC.data.nick || !SOC.data.reg) return;
-  const me = nkey(SOC.data.nick);
-  SOC.cl.subscribe([SOC.P + 'req/' + me + '/+', SOC.P + 'acc/' + me + '/+', SOC.P + 'inv/' + me], { qos: 1 });
-  for (const f of SOC.data.friends) SOC.cl.subscribe(SOC.P + 'on/' + nkey(f), { qos: 1 });
-  socPub('on/' + me, { on: 1, ts: Date.now(), nick: SOC.data.nick }, true);
+function socReconnect() { for (const c of SOC.cls) try { c.cl.end(true); } catch (e) {} SOC.cls = []; SOC.ok = false; socConnect(); }
+function socSubscribe(c) {
+  if (!SOC.data.nick || !SOC.data.reg) return;
+  const me = nkey(SOC.data.nick), list = [c] ;
+  for (const x of list) {
+    try {
+      x.cl.subscribe([SOC.P + 'req/' + me + '/+', SOC.P + 'acc/' + me + '/+', SOC.P + 'inv/' + me].concat(SOC.data.friends.map(f => SOC.P + 'on/' + nkey(f))), { qos: 1 });
+      x.cl.publish(SOC.P + 'on/' + me, JSON.stringify({ on: 1, ts: Date.now(), nick: SOC.data.nick }), { retain: true, qos: 1 });
+      x.cl.publish(SOC.P + 'nick/' + me, JSON.stringify({ id: SOC.data.id, nick: SOC.data.nick, ts: Date.now() }), { retain: true, qos: 1 }); // 닉네임 기록도 양쪽 서버에 늘 다시 올려요
+    } catch (e) {}
+  }
 }
 setInterval(() => { if (SOC.ok && SOC.data.reg) socPub('on/' + nkey(SOC.data.nick), { on: 1, ts: Date.now(), nick: SOC.data.nick }, true); }, 60000);
 window.addEventListener('beforeunload', () => { if (SOC.ok && SOC.data.reg) socPub('on/' + nkey(SOC.data.nick), { on: 0, ts: Date.now() }, true); });
@@ -44,7 +57,7 @@ window.addEventListener('beforeunload', () => { if (SOC.ok && SOC.data.reg) socP
 // ---- 받은 메시지 ----
 function socMsg(t, m) {
   const parts = t.split('/'), kind = parts[0];
-  if (SOC.waits.has(t)) { SOC.waits.get(t)(m); SOC.waits.delete(t); }
+  if (SOC.waits.has(t) && m) { SOC.waits.get(t)(m); SOC.waits.delete(t); }
   if (!SOC.data.nick) return;
   const me = nkey(SOC.data.nick);
   if (kind === 'req' && parts[1] === me) { // 친구 요청이 왔어요
@@ -54,7 +67,8 @@ function socMsg(t, m) {
     SOC.reqIn.set(m.from, m.ts || Date.now()); socUI();
   } else if (kind === 'acc' && parts[1] === me && m && m.from) { // 내 요청을 받아줬어요
     socPub(t, null, true); SOC.sent.delete(nkey(m.from));
-    if (!SOC.data.friends.some(f => nkey(f) === nkey(m.from))) { SOC.data.friends.push(m.from); socSave(); SOC.cl.subscribe(SOC.P + 'on/' + nkey(m.from), { qos: 1 }); socNote(`<b>${esc(m.from)}</b> 님과 친구가 됐어요!`, [['방으로 초대', () => socInvite(m.from)]]); }
+    if (SOC.data.friends.some(f => nkey(f) === nkey(m.from))) { socUI(); return; }
+    if (!SOC.data.friends.some(f => nkey(f) === nkey(m.from))) { SOC.data.friends.push(m.from); socSave(); socSub('on/' + nkey(m.from)); socNote(`<b>${esc(m.from)}</b> 님과 친구가 됐어요!`, [['방으로 초대', () => socInvite(m.from)]]); }
     socUI();
   } else if (kind === 'on') {
     const f = SOC.data.friends.find(x => nkey(x) === parts[1]);
@@ -67,12 +81,12 @@ function socMsg(t, m) {
   }
 }
 // 남겨진(retained) 메시지 하나 읽기: 있으면 그 값, 없으면 null
-function socPeek(topic, ms = 1800) {
+function socPeek(topic, ms = 3500) {
   return new Promise((res) => {
     if (!SOC.ok) { res(undefined); return; }
-    let done = false; const fin = (v) => { if (done) return; done = true; try { SOC.cl.unsubscribe(SOC.P + topic); } catch (e) {} res(v); };
+    let done = false; const fin = (v) => { if (done) return; done = true; socUnsub(topic); res(v); };
     SOC.waits.set(topic, (m) => fin(m));
-    SOC.cl.subscribe(SOC.P + topic, { qos: 1 });
+    socSub(topic);
     setTimeout(() => { SOC.waits.delete(topic); fin(null); }, ms);
   });
 }
@@ -91,7 +105,7 @@ async function socClaimNick(nick) {
   socPub('nick/' + nkey(nick), { id: SOC.data.id, nick, ts: Date.now() }, true);
   if (old) { socPub('nick/' + nkey(old), null, true); socPub('on/' + nkey(old), null, true); }
   SOC.data.nick = nick; SOC.data.reg = true; socSave(); applyNick(nick);
-  try { SOC.cl.end(true); } catch (e) {} SOC.cl = null; SOC.ok = false; SOC.tried = 0; socConnect(); // 새 이름으로 다시 접속 (접속 끊김 알림 설정)
+  socReconnect(); // 새 이름으로 다시 접속 (접속 끊김 알림 설정)
   return '';
 }
 function applyNick(n) {
@@ -99,7 +113,7 @@ function applyNick(n) {
   for (const id of ['start-nick', 'mp-name']) if ($(id)) $(id).value = n;
 }
 // 서버에 못 붙었을 때 정한 닉네임은 다음 접속 때 등록
-setInterval(() => { if (SOC.ok && SOC.data.nick && !SOC.data.reg) socClaimNick(SOC.data.nick).then((e) => { if (e) { SOC.data.reg = false; openNick(e); } }); }, 5000);
+setInterval(() => { if (SOC.ok && SOC.data.nick && !SOC.data.reg && !SOC.claiming) { SOC.claiming = true; socClaimNick(SOC.data.nick).then((e) => { SOC.claiming = false; if (e) { SOC.data.nick = ''; socSave(); openNick(e); } }); } }, 4000);
 
 // ---- 친구 요청 / 수락 / 초대 ----
 async function socAddFriend(name) {
@@ -111,20 +125,20 @@ async function socAddFriend(name) {
   if (SOC.reqIn.has(name)) { socAccept(name); return ''; }
   const who = await socPeek('nick/' + nkey(name));
   if (who === undefined) return '서버에 연결되지 않았어요';
-  if (!who) return '그런 닉네임이 없어요 (친구가 먼저 게임에 들어와 닉네임을 정해야 해요)';
-  socPub('req/' + nkey(name) + '/' + nkey(SOC.data.nick), { from: SOC.data.nick, ts: Date.now() }, true);
+  socPub('req/' + nkey(name) + '/' + nkey(SOC.data.nick), { from: SOC.data.nick, ts: Date.now() }, true); // 못 찾아도 요청은 남겨 둬요
   SOC.sent.add(nkey(name)); socUI();
-  return 'ok:' + who.nick;
+  return who ? 'ok:' + who.nick + ' 님에게 친구 요청을 보냈어요. 친구가 받으면 목록에 나와요'
+    : 'ok:아직 "' + name + '" 닉네임을 서버에서 못 찾았어요. 그래도 요청은 남겨 뒀어요 — 친구가 새 버전을 열고 이 닉네임을 정하면 요청을 받아요 (글자가 똑같은지도 확인해 주세요)';
 }
 function socAccept(name) {
   socPub('acc/' + nkey(name) + '/' + nkey(SOC.data.nick), { from: SOC.data.nick, ts: Date.now() }, true);
   socPub('req/' + nkey(SOC.data.nick) + '/' + nkey(name), null, true);
   SOC.reqIn.delete(name);
-  if (!SOC.data.friends.some(f => nkey(f) === nkey(name))) { SOC.data.friends.push(name); socSave(); if (SOC.ok) SOC.cl.subscribe(SOC.P + 'on/' + nkey(name), { qos: 1 }); }
+  if (!SOC.data.friends.some(f => nkey(f) === nkey(name))) { SOC.data.friends.push(name); socSave(); socSub('on/' + nkey(name)); }
   socUI();
 }
 function socDecline(name) { socPub('req/' + nkey(SOC.data.nick) + '/' + nkey(name), null, true); SOC.reqIn.delete(name); socUI(); }
-function socRemove(name) { SOC.data.friends = SOC.data.friends.filter(f => f !== name); socSave(); try { SOC.cl.unsubscribe(SOC.P + 'on/' + nkey(name)); } catch (e) {} socUI(); }
+function socRemove(name) { SOC.data.friends = SOC.data.friends.filter(f => f !== name); socSave(); socUnsub('on/' + nkey(name)); socUI(); }
 // 초대: 내가 만든 방이 없으면 먼저 방을 만들어요
 function socInvite(name) {
   const send = () => { socPub('inv/' + nkey(name), { from: SOC.data.nick, code: NET.code, ts: Date.now() }); socNote(`<b>${esc(name)}</b> 님에게 초대를 보냈어요. 대기실에서 기다려요`, [], 4); };
@@ -183,11 +197,11 @@ function socJoinInvite(code) {
   $('fr-add').onclick = async () => {
     const v = $('fr-input').value; $('fr-msg').className = 'msg'; $('fr-msg').textContent = '찾는 중…';
     const r = await socAddFriend(v);
-    if (r.startsWith('ok:')) { $('fr-msg').className = 'msg ok'; $('fr-msg').textContent = `${r.slice(3)} 님에게 친구 요청을 보냈어요. 친구가 받으면 목록에 나와요`; $('fr-input').value = ''; }
+    if (r.startsWith('ok:')) { $('fr-msg').className = 'msg ok'; $('fr-msg').textContent = r.slice(3); $('fr-input').value = ''; }
     else if (r) { $('fr-msg').className = 'msg bad'; $('fr-msg').textContent = r; } else $('fr-msg').textContent = '';
   };
   $('nick-ok').onclick = async () => {
-    $('nick-msg').textContent = '확인하는 중…';
+    $('nick-msg').textContent = '확인하는 중… (3초쯤 걸려요)';
     const e = await socClaimNick($('nick-input').value);
     if (e) { $('nick-msg').textContent = e; return; }
     nm.style.display = 'none'; socUI();
@@ -219,7 +233,8 @@ function socNote(html, btns = [], sec = 8) {
 function socUI() {
   if (!$('fr-me')) return;
   $('fr-me').textContent = SOC.data.nick || '(아직 없음)';
-  $('fr-srv').textContent = SOC.ok ? (SOC.data.reg ? '친구 서버 연결됨' : '닉네임 등록 중…') : '친구 서버에 연결하는 중… (안 되면 학교·회사 와이파이에서 막혔을 수 있어요)';
+  const sv = SOC.cls.map(c => `${c.name} ${c.ok ? '✓' : '✗'}`).join(' · ');
+  $('fr-srv').textContent = SOC.ok ? `친구 서버 연결됨 (${sv}) · ${SOC.data.reg ? '내 닉네임 등록됨' : '내 닉네임 등록 중…'}` : SOC.tried >= 4 ? `친구 서버에 연결하지 못했어요 (${sv}). 학교·회사 와이파이나 VPN에서 막혔을 수 있어요` : '친구 서버에 연결하는 중…';
   let h = '';
   if (SOC.reqIn.size) { h += '<h4>받은 친구 요청</h4>'; for (const [n] of SOC.reqIn) h += `<div class="fr"><span class="nm">${esc(n)}</span><button class="btn" data-act="acc" data-n="${esc(n)}">받기</button><button class="btn sub" data-act="dec" data-n="${esc(n)}">거절</button></div>`; }
   $('fr-req').innerHTML = h;
@@ -232,7 +247,8 @@ function socUI() {
 setTimeout(() => {
   if (IN_FRAME) return; // 채팅 화면 안에서는 친구 기능이 막혀 있어요
   socConnect();
-  if (!SOC.data.nick || !SOC.data.reg) { const t = setInterval(() => { if (SOC.ok || SOC.tried >= 4) { clearInterval(t); if (!SOC.data.reg) openNick(); } }, 300); }
+  if (!SOC.data.nick && SETTINGS.nick && SETTINGS.nick.length >= 2) SOC.data.nick = SETTINGS.nick; // 전에 쓰던 닉네임은 그대로 (자동 등록)
+  if (!SOC.data.nick) { const t = setInterval(() => { if (SOC.ok || SOC.tried >= 4) { clearInterval(t); if (!SOC.data.nick) openNick(); } }, 300); }
   else applyNick(SOC.data.nick);
   socUI();
 }, 600);
