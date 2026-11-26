@@ -1059,7 +1059,7 @@ safe-buffer/index.js:
 */
 </script>
 <script>'use strict';
-const GAME_BUILD = 65; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
+const GAME_BUILD = 69; // 게임 버전 번호 (올릴 때마다 1씩 올려요)
 // ================= 기본 도구 =================
 const V3 = THREE.Vector3;
 const DEG = Math.PI / 180;
@@ -5469,9 +5469,9 @@ function playerInput(dt) {
 
 function updatePlayerCamera(dt) {
   const p = PLAYER;
-  const fpView = !CAM.tpp || p.adsT > 0.35 || (p.ads && p.mode === 'gun');
-  CAM.blend = damp(CAM.blend, fpView ? 0 : 1, fpView ? 22 : 10, dt);
-  if (p.dead) CAM.blend = damp(CAM.blend, 1, 4, dt);
+  // 관전 중이면 V로 고른 시점(1인칭/3인칭)을 따르고, 관전 대상이 없을 때만 내 시체를 3인칭으로 봐요
+  const fpView = CAM.spec ? !CAM.tpp : !p.dead && (!CAM.tpp || p.adsT > 0.35 || (p.ads && p.mode === 'gun'));
+  CAM.blend = damp(CAM.blend, fpView ? 0 : 1, fpView ? 22 : (p.dead ? 4 : 10), dt);
   if (!CAM.free) { CAM.fy = damp(CAM.fy, 0, 12, dt); CAM.fp = damp(CAM.fp, 0, 12, dt); }
   // 숨 참기 / 조준경 흔들림
   if (CAM.breathing) CAM.breath = Math.max(0, CAM.breath - dt); else CAM.breath = Math.min(5, CAM.breath + dt * 0.8);
@@ -5483,32 +5483,42 @@ function updatePlayerCamera(dt) {
   CAM.kickP = damp(CAM.kickP, 0, 14, dt);
   G.shake = Math.max(0, G.shake - dt * 1.5);
   const sh = G.shake * G.shake * 0.04;
-  // 눈 위치 (계단 오를 때 부드럽게)
-  const eye = p.eyePos;
-  if (CAM.eyeSmooth.distanceToSquared(eye) > 4) CAM.eyeSmooth.copy(eye);
-  CAM.eyeSmooth.x = eye.x; CAM.eyeSmooth.z = eye.z; CAM.eyeSmooth.y = damp(CAM.eyeSmooth.y, eye.y, 22, dt);
-  // 죽으면 살아있는 팀원 관전
+  // 죽으면 살아있는 팀원 관전 (눈 위치보다 먼저 정해야 관전 대상의 눈으로 가요)
   if (p.dead && G.mode === 'mp') {
     CAM.deadT = (CAM.deadT || 0) + dt;
     if (CAM.deadT > 2 && (!CAM.spec || CAM.spec.dead || CAM.spec.gone)) CAM.spec = ACTORS.find(r => r !== p && (isFFA() || r.team === G.myTeam) && !r.dead && !r.gone) || null;
+    // 관전 중 마우스 클릭으로 다른 사람 보기 (왼쪽: 다음 사람, 오른쪽: 이전 사람)
+    if (CAM.spec && (INPUT.lmbPressed || INPUT.rmbPressed)) {
+      const list = ACTORS.filter(r => r !== p && (isFFA() || r.team === G.myTeam) && !r.dead && !r.gone);
+      if (list.length > 1) {
+        const i = Math.max(0, list.indexOf(CAM.spec));
+        CAM.spec = list[(i + (INPUT.lmbPressed ? 1 : -1) + list.length) % list.length];
+        HUD.toast(`관전: ${CAM.spec.name}`);
+      } else HUD.toast('관전할 수 있는 사람이 한 명뿐이에요');
+    }
   } else { CAM.deadT = 0; CAM.spec = null; }
   const S = CAM.spec || p;
+  // 눈 위치 (계단 오를 때 부드럽게) — 관전 중이면 관전 대상의 눈
+  const eye = S.eyePos;
+  if (CAM.eyeFor !== S) { CAM.eyeFor = S; CAM.eyeSmooth.copy(eye); }
+  if (CAM.eyeSmooth.distanceToSquared(eye) > 4) CAM.eyeSmooth.copy(eye);
+  CAM.eyeSmooth.x = eye.x; CAM.eyeSmooth.z = eye.z; CAM.eyeSmooth.y = damp(CAM.eyeSmooth.y, eye.y, 22, dt);
   // 파쿠르: 시선이 아래로 숙였다가 올라오고 살짝 기울어짐
   const vu = p.vault ? Math.min(1, p.vault.t) : -1;
   CAM.vaultK = damp(CAM.vaultK || 0, vu >= 0 ? Math.sin(Math.PI * vu) : 0, 18, dt);
   const yaw = (CAM.spec ? S.yaw : p.yaw) + CAM.fy, pitch = (CAM.spec ? S.pitch : p.pitch) + CAM.fp + CAM.kickP + CAM.sway.y + rand(-sh, sh) - CAM.vaultK * 0.22;
-  CAM.roll = damp(CAM.roll, -p.lean * 0.16 * (1 - CAM.blend * 0.6) + (p.vault && p.vault.over ? 0.09 : -0.03) * CAM.vaultK, 12, dt);
+  CAM.roll = damp(CAM.roll, -S.lean * 0.16 * (1 - CAM.blend * 0.6) + (p.vault && p.vault.over ? 0.09 : -0.03) * CAM.vaultK, 12, dt);
   camera.rotation.set(pitch, yaw + CAM.sway.x + rand(-sh, sh), CAM.roll, 'YXZ');
   // 1인칭 위치
   const fpPos = _v1.copy(CAM.eyeSmooth);
   // 걸을 때 흔들림
-  const hsp = Math.hypot(p.vel.x, p.vel.z);
+  const hsp = Math.hypot(S.vel.x, S.vel.z);
   VM.bobPhase = (VM.bobPhase || 0) + dt * hsp * 1.9;
-  if (p.onGround) fpPos.y += Math.sin(VM.bobPhase * 2) * 0.012 * Math.min(1, hsp / 4) * (1 - p.adsT * 0.8);
+  if (S.onGround) fpPos.y += Math.sin(VM.bobPhase * 2) * 0.012 * Math.min(1, hsp / 4) * (1 - p.adsT * 0.8);
   // 3인칭 위치: 어깨 너머
   const piv = _v2.set(S.pos.x, S.pos.y + Math.max(S.stanceH + 0.28, S.dead ? 1.0 : 1.05), S.pos.z);
   const right = _v3.set(Math.cos(yaw), 0, -Math.sin(yaw));
-  piv.addScaledVector(right, p.lean * 0.3);
+  piv.addScaledVector(right, S.lean * 0.3);
   const back = _v4.set(0, 0, 1).applyEuler(camera.rotation);
   const sh_ = smooth01(p.shoulderT || 0);
   const dist = (p.dead ? 3.6 : p.stance === 'prone' ? 2.7 : 2.5) - sh_ * 1.0;
@@ -5530,6 +5540,10 @@ function updatePlayerCamera(dt) {
   camera.fov = damp(camera.fov, fov, 25, dt); camera.updateProjectionMatrix();
   // 3인칭에선 내 캐릭터 보이기
   p.soldier.setVisible(CAM.blend > 0.15);
+  // 관전 1인칭: 관전 대상의 몸이 화면을 가리지 않게 숨기고, 관전이 끝나면 다시 보이게
+  const hideSpec = CAM.spec && CAM.blend < 0.15 ? CAM.spec : null;
+  if (CAM.specHidden && CAM.specHidden !== hideSpec) { if (!CAM.specHidden.gone) CAM.specHidden.soldier.setVisible(true); CAM.specHidden = null; }
+  if (hideSpec) { hideSpec.soldier.setVisible(false); CAM.specHidden = hideSpec; }
   updateViewmodel(dt, hsp);
 }
 const smooth01 = (t) => t * t * (3 - 2 * t);
@@ -5836,6 +5850,7 @@ function botRoundStart(b = BOT) {
   // 처음 갈 곳 (봇 쪽 절반)
   const spots = WORLD.map.spots;
   const s = pick(spots); ai.goal = new V3(s[0] + rand(-1, 1), 0, s[1] + rand(-1, 1));
+  botMaybeUp(b, 0.3);
 }
 function botWeaponFor(dist, b = BOT) {
   let best = b.cur;
@@ -5887,6 +5902,59 @@ function findCover(fromPos, threat) {
     if (s < bs) { bs = s; best = new V3(cx, 0, cz); }
   }
   return best;
+}
+// ---- AI 계단: 맵의 계단(한 칸씩 쌓인 'stair' 상자)을 묶어서 아래 입구 · 맨 위 칸 · 올라가서 설 자리를 찾아요 ----
+function stairLinks() {
+  const M = WORLD.map; if (!M) return [];
+  if (M.stairLinks) return M.stairLinks;
+  const all = M.boxes || WORLD.boxes, st = all.filter(b => b.kind === 'stair'), n = st.length, par = st.map((_, i) => i);
+  const find = (i) => { while (par[i] !== i) i = par[i] = par[par[i]]; return i; };
+  const ov = (a0, a1, b0, b1) => Math.min(a1, b1) - Math.max(a0, b0);
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    const a = st[i], b = st[j]; if (Math.abs(a.max.y - b.max.y) > 0.6) continue;
+    const ox = ov(a.min.x, a.max.x, b.min.x, b.max.x), oz = ov(a.min.z, a.max.z, b.min.z, b.max.z);
+    if ((ox > 0.3 && Math.abs(oz) < 0.06) || (oz > 0.3 && Math.abs(ox) < 0.06)) par[find(i)] = find(j);
+  }
+  const groups = {}; st.forEach((b, i) => (groups[find(i)] = groups[find(i)] || []).push(b));
+  const cen = (b) => new V3((b.min.x + b.max.x) / 2, 0, (b.min.z + b.max.z) / 2);
+  // (x,z)에 높이 y 근처로 설 수 있는 바닥이 있고, 머리 위가 비었나
+  const standAt = (x, z, y) => {
+    let floor = false;
+    for (const b of all) {
+      if (x + 0.3 <= b.min.x || x - 0.3 >= b.max.x || z + 0.3 <= b.min.z || z - 0.3 >= b.max.z) continue;
+      if (Math.abs(b.max.y - y) < 0.4) floor = true;
+      else if (b.max.y > y + 0.4 && b.min.y < y + 1.7) return false;
+    }
+    return floor;
+  };
+  const out = [];
+  for (const k in groups) {
+    const g = groups[k]; if (g.length < 3) continue;
+    g.sort((a, b) => a.max.y - b.max.y);
+    const lo = g[0], hi = g[g.length - 1], cb = cen(lo), ct = cen(hi), dir = ct.clone().sub(cb);
+    if (dir.length() < 0.5) continue; dir.normalize();
+    const topH = hi.max.y; let exit = null, perch = null;
+    for (const d of [0.8, 1.1, 0.6]) { const q = ct.clone().addScaledVector(dir, d); if (standAt(q.x, q.z, topH)) { exit = q; break; } }
+    if (!exit) continue;
+    for (const d of [2.2, 1.6]) { const q = exit.clone().addScaledVector(dir, d); if (standAt(q.x, q.z, topH)) { perch = q; break; } }
+    out.push({ bottom: cb.clone().addScaledVector(dir, -1.0), top: ct, exit, perch: perch || exit, topH });
+  }
+  return (M.stairLinks = out);
+}
+// 가끔 계단 위(지붕·발판)를 갈 곳으로 골라요
+function botMaybeUp(b, chance) {
+  const ai = b.ai; ai.up = null; ai.upPhase = null;
+  const L = stairLinks(); if (!L.length || Math.random() > chance) return;
+  const near = L.slice().sort((p, q) => p.bottom.distanceTo(b.pos) - q.bottom.distanceTo(b.pos)).slice(0, 3);
+  const c = pick(near); if (c.bottom.distanceTo(b.pos) > 60) return;
+  ai.up = c; ai.upPhase = 'approach'; ai.upClock = 0; ai.goal = c.bottom.clone(); ai.path = null; ai.repathT = 0;
+}
+function botSteer(b, wp) {
+  const dx = wp.x - b.pos.x, dz = wp.z - b.pos.z, dl = Math.hypot(dx, dz);
+  if (dl < 0.05) { b.wish.set(0, 0, 0); return; }
+  const wx = dx / dl, wz = dz / dl, right = _v2.set(Math.cos(b.yaw), 0, -Math.sin(b.yaw)), fwd = _v3.set(-Math.sin(b.yaw), 0, -Math.cos(b.yaw));
+  b.wish.set(wx * right.x + wz * right.z, 0, -(wx * fwd.x + wz * fwd.z)); b.sprint = false;
+  if (b.stance === 'prone') b.setStance('stand');
 }
 function botGoTo(goal, b = BOT) {
   const ai = b.ai;
@@ -6076,6 +6144,7 @@ function botUpdate(dt, b = BOT) {
           if (ai.flip) guess.z = -guess.z;
           { const WB = WORLD.map.bounds; guess.x = clamp(guess.x, WB.minX + 2, WB.maxX - 2); guess.z = clamp(guess.z, WB.minZ + 2, WB.maxZ - 2); }
           ai.goal = guess;
+          botMaybeUp(b, 0.35);
         }
       }
       moveTo = ai.goal;
@@ -6098,6 +6167,35 @@ function botUpdate(dt, b = BOT) {
       } else if (!ai.see) b.wish.set(0, 0, 0);
     } else if (!ai.see) b.wish.set(0, 0, 0);
   } else if (!ai.see) b.wish.set(0, 0, 0);
+  // ---- 계단 올라가기 · 위에서 지키기 · 내려오기 ----
+  if (ai.up) {
+    const L = ai.up, hd = (q) => Math.hypot(q.x - b.pos.x, q.z - b.pos.z), high = b.pos.y > L.topH - 0.45;
+    ai.upClock = (ai.upClock || 0) + dt;
+    if (ai.upPhase === 'approach') {
+      if (known && !ai.see) ai.up = null; // 적을 쫓아야 하면 그만
+      else if (hd(L.bottom) < 1.3) { ai.upPhase = 'climb'; ai.upClock = 0; }
+      else if (ai.upClock > 25) ai.up = null; // 너무 오래 걸리면 포기
+    }
+    if (ai.up && ai.upPhase === 'climb') {
+      const tgt = !high ? L.top : hd(L.exit) > 0.6 && hd(L.perch) > hd(L.exit) ? L.exit : L.perch;
+      botSteer(b, tgt); ai.path = [tgt]; ai.pathI = 0;
+      // 위에서 더 못 가면(난간·물건) 그 자리에서 지켜요
+      if (high) { ai.upStall = (ai.upStall || 0) + dt; if (!ai.upLast || hd(ai.upLast) > 0.3) { ai.upLast = b.pos.clone(); ai.upStall = 0; } } else { ai.upStall = 0; ai.upLast = null; }
+      if (high && (hd(L.perch) < 0.7 || (ai.upStall > 0.8 && hd(L.top) > 0.7))) { ai.upPhase = 'hold'; ai.upT = rand(8, 18); b.wish.set(0, 0, 0); }
+      else if (ai.upClock > 8) { ai.upPhase = 'down'; ai.upClock = 0; ai.upDown2 = false; }
+    } else if (ai.up && ai.upPhase === 'hold') {
+      ai.upT -= dt; b.wish.set(0, 0, 0); ai.path = null;
+      if (ai.see && Math.random() < 0.01) b.setStance(b.stance === 'crouch' ? 'stand' : 'crouch');
+      if (b.pos.y < L.topH - 1) ai.up = null; // 떨어졌어요
+      else if (ai.upT <= 0 || (known && !ai.see && ai.mode === 'push' && G.time - ai.lastSeenT > 2.5) || (lowHP && !ai.see)) { ai.upPhase = 'down'; ai.upClock = 0; ai.upDown2 = false; }
+    }
+    if (ai.up && ai.upPhase === 'down') {
+      if (!high || hd(L.top) < 0.6) ai.upDown2 = true; // 맨 위 칸에 닿으면 그다음은 아래 입구만 보고 내려가요 (목표가 왔다 갔다 하지 않게)
+      const tgt = !ai.upDown2 ? (hd(L.exit) > 0.8 && hd(L.top) > hd(L.exit) ? L.exit : L.top) : L.bottom;
+      botSteer(b, tgt); ai.path = [tgt]; ai.pathI = 0;
+      if ((!high && b.pos.y < 0.35 && hd(L.bottom) < 1.0) || ai.upClock > 9) { ai.up = null; ai.path = null; ai.repathT = 0; ai.holdT = 0; }
+    }
+  }
   if (b.reloadT > 0 || b.ads) b.sprint = false;
   // 끼임 확인
   ai.stuckT += dt;
@@ -6160,7 +6258,7 @@ const HUD = {
     UI('sc-p', 'textContent', G.score[me] || 0); UI('sc-b', 'textContent', ffa ? (top >= 0 ? G.score[top] || 0 : 0) : G.score[1 - me]);
     { // 핑 (멀티): 내 컴퓨터 ↔ 방장(방장은 가장 느린 친구) 왕복 시간
       const show = mp && NET.rtt && performance.now() - (NET.rttAt || 0) < 5000, ms = show ? Math.round(NET.rtt) : 0;
-      UI('ping', 'textContent', show ? `핑 ${ms}ms${NET.bus && NET.mode === 'relay' ? ' · 중계' : ''}` : '');
+      UI('ping', 'textContent', show ? `핑 ${ms}ms${NET.bus && NET.mode === 'relay' ? ' · 중계' : NET.bus && NET.mode === 'srv' ? ' · 서버' : ''}` : '');
       UI('ping', 'className', ms > 180 ? 'bad' : ms > 90 ? 'mid' : '');
     }
     if (ffa) { let n = 0; for (const a of ACTORS) if (!a.dead && !a.gone && a.team !== undefined) n++; UI('sc-alive', 'textContent', `남은 사람 ${n}`); }
@@ -6170,7 +6268,7 @@ const HUD = {
     } else UI('sc-alive', 'textContent', '');
     this.nameTags(mp);
     UI('spec', 'style.display', CAM.spec ? 'block' : 'none');
-    if (CAM.spec) UI('spec', 'textContent', `관전 중: ${CAM.spec.name}`);
+    if (CAM.spec) UI('spec', 'textContent', `관전 중: ${CAM.spec.name} · ${CAM.tpp ? '3인칭' : '1인칭'} · 클릭: 다른 사람 · V: 시점`);
     UI('sc-round', 'textContent', `라운드 ${G.round}`);
     const tl = G.state === 'pre' ? Math.ceil(G.preT) : Math.max(0, Math.ceil(G.roundT));
     UI('sc-time', 'textContent', G.state === 'pre' ? `시작까지 ${tl}` : `${Math.floor(tl / 60)}:${String(tl % 60).padStart(2, '0')}`);
@@ -7143,6 +7241,8 @@ const RELAY_BROKERS = [
   { url: 'wss://public.cloud.shiftr.io', username: 'public', password: 'public' },
   { url: 'wss://test.mosquitto.org:8081/mqtt' },
 ];
+// 일반 방(방 만들기) 서버: 우리 Render 사이트가 방 중계도 해요. 무료라 한동안 안 쓰면 잠들어서 처음엔 깨우는 데 최대 1분 걸려요
+const ROOM_SERVER = window.__roomServer || 'wss://training-1v1.onrender.com';
 window.__myServer = window.__myServer || 'wss://tg1v1-relay.jangiden091112-d5a.workers.dev'; // 우리 전용 서버 (Cloudflare 무료)
 // 내 전용 서버 (Cloudflare Workers): 「내 서버 주소」 칸에 넣거나 게임 파일에 들어 있어요
 function myServerUrl() {
@@ -7210,10 +7310,10 @@ function busWS(B, topic, onOpen, onFail) {
   const open = () => {
     if (closed) return;
     try { ws = new WebSocket(B.ws + '/room/' + topic); } catch (e) { if (!opened) onFail('주소 오류'); return; }
-    const t = setTimeout(() => { if (ws.readyState !== 1) { try { ws.close(); } catch (e) {} } }, 8000);
+    const t = setTimeout(() => { if (ws.readyState !== 1) { try { ws.close(); } catch (e) {} } }, B.slow && !opened ? 25000 : 8000);
     ws.onopen = () => { clearTimeout(t); tries = 0; if (!opened) { opened = true; onOpen(bus); } };
     ws.onmessage = (e) => { try { busRecv(JSON.parse(e.data)); } catch (er) {} };
-    ws.onclose = () => { clearTimeout(t); if (closed) return; if (!opened && ++tries >= 2) { onFail('접속 실패'); return; } setTimeout(open, 1500); };
+    ws.onclose = () => { clearTimeout(t); if (closed) return; if (!opened && ++tries >= (B.slow ? 4 : 2)) { onFail('접속 실패'); return; } if (!opened && B.slow) B.waking && B.waking(tries); setTimeout(open, 1500); };
     ws.onerror = () => {};
   };
   open();
@@ -7221,8 +7321,8 @@ function busWS(B, topic, onOpen, onFail) {
 }
 // 여러 중계 서버에 한꺼번에 접속해요. 보낼 때는 접속된 서버 모두에, 받을 때는 겹친 것 버리기.
 // → 방장 집 와이파이와 친구 학교 와이파이에서 되는 서버가 달라도, 하나만 겹치면 같이 할 수 있어요
-function busMulti(code, onOpen, onFail) {
-  const list = relayList(), live = [], all = [];
+function busMulti(code, onOpen, onFail, servers) {
+  const list = servers || relayList(), live = [], all = [];
   let opened = false, failed = 0;
   const multi = {
     post: (msg) => { msg._n = NET.id + '.' + (++busN) + '.' + (Date.now() % 100000); const s = JSON.stringify(msg); for (const b of live) b.raw(s); },
@@ -7230,7 +7330,7 @@ function busMulti(code, onOpen, onFail) {
     servers: live,
   };
   list.forEach((B, i) => {
-    const b = busRelay(code, i, (bus) => {
+    const b = (servers ? busWS.bind(null, B, 'tg1v1/v' + NET_VER + '/' + code) : busRelay.bind(null, code, i))((bus) => {
       live.push(bus); NET.relayN = live.length;
       if (!opened) { opened = true; onOpen(multi); }
     }, () => { if (++failed >= list.length && !opened) onFail(); });
@@ -7298,6 +7398,18 @@ function netHost(mode) {
       NET.pendingBus = null; NET.bus = bus; startLobby(code);
       netStatus('학교 와이파이용 방이 만들어졌어요! 친구들에게 위 코드를 알려 주세요', 'ok');
     }, () => { if (NET.id === 'h' && NET.mode === 'relay' && !NET.bus) netStatus('중계 서버에 하나도 접속하지 못했어요. 이 와이파이에서 막혀 있어요. 아래 「연결 검사」를 눌러 결과를 알려 주거나, 휴대폰 핫스팟으로 해 보세요', 'bad'); });
+    return;
+  }
+  if (mode === 'p2p' && !window.__forceP2P) { // 일반 방: 우리 서버(Render)로 만들어요 (코드는 S로 시작)
+    NET.mode = 'srv';
+    netStatus('방 서버에 접속하는 중… (서버가 자고 있으면 깨우는 데 최대 1분 걸려요)');
+    const code = 'S' + makeCode().slice(0, 5);
+    NET.pendingBus = busMulti(code, (bus) => {
+      if (NET.id !== 'h' || NET.mode !== 'srv') { bus.close(); return; }
+      NET.pendingBus = null; NET.bus = bus; startLobby(code);
+      netStatus('방이 만들어졌어요! 친구들에게 위 코드를 알려 주세요', 'ok');
+    }, () => { if (NET.id === 'h' && NET.mode === 'srv' && !NET.bus) netStatus('방 서버에 접속하지 못했어요. 잠시 뒤 다시 만들거나 「학교 와이파이용 방 만들기」로 만들어 주세요', 'bad'); },
+    [{ ws: ROOM_SERVER, slow: true, waking: (n) => netStatus(`방 서버를 깨우는 중… (${n}번째 시도, 최대 1분)`) }]);
     return;
   }
   // 직접 연결 (PeerJS)
@@ -7417,6 +7529,15 @@ function netJoin(code) {
     return;
   }
   if (onlineBlocked()) return;
+  if (code.startsWith('S')) {
+    netStatus('방 서버에 접속하는 중… (서버가 자고 있으면 최대 1분)');
+    NET.pendingBus = busMulti(code, (bus) => {
+      if (NET.code !== code || NET.host) { bus.close(); return; }
+      NET.pendingBus = null; NET.bus = bus; hello(); netStatus(`방 ${esc(code)} 찾는 중…`);
+    }, () => { if (NET.code === code && !NET.bus) netStatus('방 서버에 접속하지 못했어요. 잠시 뒤 다시 참가를 눌러 주세요', 'bad'); },
+    [{ ws: ROOM_SERVER, slow: true, waking: (n) => netStatus(`방 서버를 깨우는 중… (${n}번째 시도, 최대 1분)`) }]);
+    return;
+  }
   if (code.startsWith('R')) {
     netStatus('학교 와이파이용 중계 서버에 접속하는 중…');
     NET.pendingBus = busMulti(code, (bus) => {
@@ -7500,7 +7621,7 @@ function renderLobby() {
     col += '</div>';
     const ok2 = L.players.length >= 2;
     box.innerHTML = `<div class="attrow"><span>경기 방식</span>${sizeBtns}</div><div class="attrow"><span>맵</span>${mapBtns}</div><div class="attrow"><span>헬멧·조끼</span>${armBtns}</div><div class="teams">${col}</div>`
-      + (host ? `<div class="row" style="margin:12px 0 0"><button class="btn" id="mp-startgame">게임 시작</button><button class="btn sub" id="mp-fillbots">빈자리 모두 AI로 채우기</button><span class="hint">${ok2 ? '사람이 부족해도 그대로 시작할 수 있어요 (빈자리는 비워 둬도 돼요)' : '혼자여도 시작할 수 있어요 · 상대가 없으면 AI 한 명이 들어와요'}</span></div>`
+      + (host ? `<div class="row" style="margin:12px 0 0"><button class="btn" id="mp-startgame">게임 시작</button><button class="btn sub" id="mp-fillbots">빈자리 모두 AI로 채우기</button><span class="hint">${ok2 ? '사람이 부족해도 그대로 시작할 수 있어요 (빈자리는 비워 둬도 돼요)' : '혼자여도 시작할 수 있어요 · AI는 자동으로 들어오지 않아요 (원하면 AI 추가 버튼)'}</span></div>`
         : `<div class="hint" style="margin-top:10px">방장이 게임을 시작하면 바로 들어가요</div>`);
     return;
   }
@@ -7509,7 +7630,7 @@ function renderLobby() {
   const maps = MAP_LIST[L.size] || [], cur = L.map && maps.includes(L.map) ? L.map : 'random';
   const mapBtns = [`<button class="${cur === 'random' ? 'on' : ''}" data-map="random" ${host ? '' : 'disabled'}>랜덤</button>`].concat(maps.map(id => `<button class="${cur === id ? 'on' : ''}" data-map="${id}" ${host ? '' : 'disabled'}>${MAP_DEFS[id].name}</button>`)).join('');
   box.innerHTML = `<div class="attrow"><span>경기 방식</span>${sizeBtns}</div><div class="attrow"><span>맵</span>${mapBtns}</div><div class="attrow"><span>헬멧·조끼</span>${armBtns}</div><div class="teams">${col(0)}${col(1)}</div>`
-    + (host ? `<div class="row" style="margin:12px 0 0"><button class="btn" id="mp-startgame">게임 시작</button><button class="btn sub" id="mp-fillbots">빈자리 모두 AI로 채우기</button><span class="hint">${ok ? '팀원이 적은 쪽도 그대로 시작할 수 있어요' : '혼자여도 시작할 수 있어요 · 비어 있는 팀에는 AI 한 명이 들어와요'}</span></div>`
+    + (host ? `<div class="row" style="margin:12px 0 0"><button class="btn" id="mp-startgame">게임 시작</button><button class="btn sub" id="mp-fillbots">빈자리 모두 AI로 채우기</button><span class="hint">${ok ? '팀원이 적은 쪽도 그대로 시작할 수 있어요' : '혼자여도 시작할 수 있어요 · AI는 자동으로 들어오지 않아요 (원하면 AI 추가 버튼)'}</span></div>`
       : `<div class="hint" style="margin-top:10px">방장이 게임을 시작하면 바로 들어가요</div>`);
 }
 
@@ -7533,11 +7654,8 @@ function myLoadoutMsg() { return { t: 'lo', list: PLAYER.weapons.map(w => ({ id:
 // ---------- 라운드 (방장이 정함) ----------
 function netStartGame() {
   const L = NET.lobby;
-  // 사람이 없어도 시작: 상대가 없으면 AI를 넣어서 바로 시작해요
-  if (NET.host) {
-    if (L.ffa) { if (L.players.length < 2) addBot(0); }
-    else for (const t of [0, 1]) if (!L.players.some(p => p.team === t)) addBot(t);
-  }
+  // 사람이 없어도 시작: AI를 자동으로 넣지 않아요. 상대가 없으면 혼자 돌아다니며 연습하는 판이 돼요
+  NET.solo = netSolo();
   const maps = L.ffa ? ffaMaps() : MAP_LIST[L.size] || ['arena'], rnd = L.ffa ? MAP_LIST.ffa : maps; // 개인전 랜덤은 전용 맵에서
   NET.matchMap = L.map && maps.includes(L.map) ? L.map : rnd[(Math.random() * rnd.length) | 0];
   NET.active = true; G.mode = 'mp';
@@ -7588,9 +7706,18 @@ function applyRound(m) {
 // 한 팀이 모두 쓰러졌는지 (방장)
 function teamAlive(team) { let n = 0; for (const a of ACTORS) if (a.team === team && !a.dead && !a.gone) n++; return n; }
 function teamHealth(team) { let h = 0; for (const a of ACTORS) if (a.team === team && !a.dead && !a.gone) h += a.health; return h; }
+// 상대가 한 명도 없는 판인지 (개인전: 사람 1명, 팀전: 한쪽 팀이 비었음)
+function netSolo() {
+  const L = NET.lobby; if (!L) return false;
+  return L.ffa ? new Set(L.players.map(p => p.team)).size < 2 : !(L.players.some(p => p.team === 0) && L.players.some(p => p.team === 1));
+}
 function netCheckRoundEnd() {
   if (!NET.host || G.state !== 'live') return;
   let winner;
+  if (NET.solo) { // 상대 없는 판: 다 쓰러졌을 때만 라운드를 다시 시작해요 (점수 없음)
+    for (const a of ACTORS) if (!a.dead && !a.gone && a.team !== undefined) return;
+    const m = { t: 'rend', winner: -1, score: G.score, why: 'kill' }; netSend(m); GAME.showRoundEnd(m); return;
+  }
   if (isFFA()) { // 개인전: 한 명만 남으면 끝
     const alive = new Set(); for (const a of ACTORS) if (!a.dead && !a.gone && a.team !== undefined) alive.add(a.team);
     if (alive.size > 1) return;
@@ -7606,7 +7733,8 @@ function netCheckRoundEnd() {
 }
 function netTimeUp() {
   let winner;
-  if (isFFA()) { // 개인전 시간 끝: 체력이 가장 많은 사람
+  if (NET.solo) winner = -1;
+  else if (isFFA()) { // 개인전 시간 끝: 체력이 가장 많은 사람
     let best = -1, bh = 0, tie = false;
     for (const a of ACTORS) if (!a.dead && !a.gone && a.team !== undefined) { if (a.health > bh + 0.5) { best = a.team; bh = a.health; tie = false; } else if (Math.abs(a.health - bh) <= 0.5) tie = true; }
     winner = tie ? -1 : best;
@@ -7734,7 +7862,7 @@ function netUpdate(dt) {
   NET.sendT -= dt;
   if (NET.sendT <= 0) {
     NET.sendT = NET.bus ? 1 / 20 : 1 / 24;
-    const senders = [[PLAYER, NET.id]], batch = NET.bus && NET.mode === 'relay' ? [] : null;
+    const senders = [[PLAYER, NET.id]], batch = NET.bus && (NET.mode === 'relay' || NET.mode === 'srv' || NET.code && /^[RS]/.test(NET.code)) ? [] : null;
     if (NET.host) for (const id in NET.bots) senders.push([NET.bots[id], id]);
     for (const [p, sid] of senders) {
     netSend({
@@ -8340,11 +8468,19 @@ function defFFA(id, name, W, theme, build) {
   const X = W / 2 - 4.5;
   MAP_DEFS[id].ffaSpawns = [[-X, -X], [X, X], [X, -X], [-X, X]]; // 대각선 반대편부터
 }
+// 시작 자리 엄폐물: 모서리 시작 자리 앞에 ㄱ자 벽 두 개(옆 모서리 시선 막기) + 가운데 쪽 대각선에 큰 물건 하나(맞은편 시선 막기)
+// 벽 두 개 사이 대각선으로 나갈 길이 있어요. Q로 놓아서 네 모서리 모두 똑같아요.
+function ffaCover(W, mat, h, diag) {
+  const X = W / 2 - 4.5, near = -X + 3.3, side = -X - 0.6;
+  Q(wallL, side, near, 0, 3.6, h, true, mat); Q(wallL, near, side, 0, 3.6, h, false, mat);
+  if (diag) diag(-X + 8, -X + 8);
+}
 defFFA('f_plaza', '사거리 광장', 64, 'base', mapBuilder(501, 64, 64, MAT.asphalt, 'concrete', 'city', (hw) => {
   C(fountain, 0, 0, 0);
   Q(house, 0, -16, 0, 9, 7, 3.4, MAT.brick, { door: ['f', 'b'], win: ['l', 'r'], roof: true, stairs: 'l' });
   Q(carF, -8, -6, 0, true, 1); Q(jersey, 8, -8, 0, 4, true); Q(crates, 13, -21, 0); Q(barrels, -13, -24, 0);
   Q(sandbag, 21, -11, 0, 3, false); Q(stall, -6, -27, 0, 2);
+  ffaCover(64, MAT.concrete, 1.9, (x, z) => Q(carF, x, z, 0, false, 2));
 }));
 defFFA('f_ruins', '무너진 신전', 64, 'dusk', mapBuilder(502, 64, 64, M2.dirt, 'rock', null, (hw) => {
   C(well, 0, 0, 0);
@@ -8352,6 +8488,7 @@ defFFA('f_ruins', '무너진 신전', 64, 'dusk', mapBuilder(502, 64, 64, M2.dir
   Q(broken, 0, -14, 0, 8, true, M2.stone); Q(arch, 13, -13, 0, 5, 4.5, true);
   Q(rock, -10, -21, 0, 3.2, 1.8); Q(wallL, 19, -4, 0, 6, 2.2, false, M2.stone); Q(pillar, -19, -15, 0, 1.1, 3.6);
   Q(rock, 8, -25, 0, 2.6, 1.4); Q(broken, -12, -6, 0, 5, false, M2.stone); Q(wallL, 6, -20, 0, 4, 1.6, true, M2.stone);
+  ffaCover(64, M2.stone, 2.0, (x, z) => Q(rock, x, z, 0, 3.2, 2.0));
 }));
 defFFA('f_snow', '눈 덮인 숲속 오두막', 64, 'snow', mapBuilder(503, 64, 64, M2.snow, 'rockSnow', 'snowpines', (hw) => {
   C(house, 0, 0, 0, 7, 7, 3, M2.log, { door: ['f', 'b', 'l', 'r'], win: [], roof: false, pitched: true, pitchMat: M2.snowCap });
@@ -8359,11 +8496,32 @@ defFFA('f_snow', '눈 덮인 숲속 오두막', 64, 'snow', mapBuilder(503, 64, 
   Q(rock, 3, -21, 0, 3, 1.6, 0, true); Q(logs, -13, -8, 0, 4, false); Q(tent, 17, -6, 0);
   Q(rock, -17, -21, 0, 2.6, 2.0, 0, true); Q(logs, 6, -9, 0, 3, true);
   Q(rock, 13, -6, 0, 2.4, 1.5, 0, true); Q(logs, -5, -24, 0, 4, true); Q(pine, 21, -14, 0, 0.9, true);
+  ffaCover(64, M2.log, 1.9, (x, z) => Q(pine, x, z, 0, 1.2, true));
 }));
 defFFA('f_yard', '컨테이너 야적장', 66, 'gray', mapBuilder(504, 66, 66, MAT.concrete, 'fence', 'cranes', (hw) => {
   C(cont, 0, 0, 0, true, true, 0); C(cont, 0, 0, 0, false, true, 1, 2.6);
   Q(cont, 0, -15, 0, true, true, 2); Q(cont, -13, -12, 0, false, false, 3); Q(crates, 10, -9, 0);
   Q(scaf, 19, -16, 0, 3, 3, 4, 'z-'); Q(barrels, -6, -24, 0); Q(cont, 22, -3, 0, false, true, 4); Q(jersey, -19, -3, 0, 4, false);
+  ffaCover(66, MAT.concrete, 1.9, (x, z) => Q(crates, x, z, 0));
+}));
+defFFA('f_market', '사막 시장', 64, 'desert', mapBuilder(505, 64, 64, M2.sand, 'plaster', 'palms', (hw) => {
+  C(well, 0, 0, 0);
+  Q(stall, 0, -9, 0, 1); Q(house, 9, -16, 0, 6, 5, 3.2, M2.plaster, { door: ['f', 'l'], win: ['r'], roof: true, stairs: 'b' });
+  Q(wallL, -8, -14, 0, 6, 2, true, M2.plaster); Q(crates, -3, -20, 0); Q(barrels, 16, -4, 0); Q(palm, -12, -4, 0, 1);
+  Q(arch, 0, -24, 0, 4, 4.2, true, M2.plaster); Q(sandbag, -15, -24, 0, 3, true);
+  ffaCover(64, M2.plaster, 1.9, (x, z) => Q(crates, x, z, 0));
+}));
+defFFA('f_forest', '숲 속 공터', 64, 'forest', mapBuilder(506, 64, 64, M2.grass, 'rock', 'pines', (hw) => {
+  C(platform, 0, 0, 0, 6, 6, 1.6, M2.plank, ['z-', 'z+', 'x-', 'x+'], true);
+  Q(tree, -7, -11, 0, 1.3); Q(rock, 6, -13, 0, 3, 1.7); Q(logs, -12, -18, 0, 4, true); Q(tent, 13, -20, 0);
+  Q(hay, 0, -19, 0, 2); Q(palis, -18, -6, 0, 6, false, 2.4); Q(pine, 19, -9, 0, 1.3); Q(rock, -3, -26, 0, 2.5, 1.4);
+  ffaCover(64, M2.log, 1.9, (x, z) => Q(rock, x, z, 0, 3.2, 2.0));
+}));
+defFFA('f_factory', '공장 단지', 64, 'gray', mapBuilder(507, 64, 64, MAT.concrete, 'concrete', 'cranes', (hw) => {
+  C(tankV, 0, 0, 0, 2.4, 7);
+  Q(pipe, 0, -10, 0, 10, 3, true); Q(tankV, -12, -12, 0, 1.6, 5); Q(house, 8, -17, 0, 6, 5, 3, MAT.concrete, { door: ['l', 'b'], win: ['f'], roof: true, stairs: 'r' });
+  Q(jersey, 6, -11, 0, 4, true); Q(crates, 14, -8, 0); Q(barrels, -4, -18, 0); Q(sandbag, -9, -25, 0, 3, true);
+  ffaCover(64, MAT.concrete, 1.9, (x, z) => Q(crates, x, z, 0));
 }));
 
 // ================= 폰(터치) 조작 =================
@@ -8598,7 +8756,7 @@ function stopPlayerInput() {
 // 서버 없이 공개 MQTT 서버의 '남겨두기(retained)' 메시지로 닉네임·친구 요청을 저장해요.
 // 닉네임 주인 = 이 기기에 저장된 비밀 번호(id). 같은 닉네임은 다른 기기가 못 써요.
 const SOC = {
-  P: 'tg1v1s/v1/', ok: false, tried: 0,
+  P: 'tg1v1s/v2/', ok: false, tried: 0, // v2: 닉네임은 로그인한 회원만 서버에 등록 (v1은 예전 버전 자료)
   data: { id: '', nick: '', reg: false, friends: [] }, // friends: [{ id, nick }] — 친구는 '기기 번호(id)'로 기억해요 (이름을 바꿔도 같은 친구)
   reqIn: new Map(),     // 받은 친구 요청: id → { nick, ts }
   sent: new Set(),
@@ -8607,8 +8765,45 @@ const SOC = {
 };
 try { Object.assign(SOC.data, JSON.parse(localStorage.getItem('tg1v1_social') || '{}')); } catch (e) {}
 if (!SOC.data.id) SOC.data.id = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join('');
+if (SOC.data.v !== 2) { SOC.data.reg = false; SOC.data.v = 2; } // v2로 바뀌면 로그인 후 다시 등록해요
+function authUid() { return window.__authUid || ''; } // 로그인한 회원의 Firebase uid (비회원은 '')
 SOC.data.friends = (SOC.data.friends || []).map(f => typeof f === 'string' ? { id: '', nick: f } : f); // 예전 저장(이름만) 바꾸기
-const socSave = () => { try { localStorage.setItem('tg1v1_social', JSON.stringify(SOC.data)); } catch (e) {} };
+const socSave = () => { try { localStorage.setItem('tg1v1_social', JSON.stringify(SOC.data)); } catch (e) {} if (typeof socAcctPush === 'function') socAcctPush(); };
+// ---- 회원 계정: 로그인하면 내 번호(id)가 계정 번호가 돼요 → 어느 컴퓨터에서 들어와도 친구들이 같은 사람으로 알아요 ----
+// 계정의 닉네임·친구 목록은 서버(acct/계정)에 남겨 두고, 다른 컴퓨터에서 로그인하면 불러와요
+let acctT = 0;
+// 서버에 못 보냈으면(연결 중·재연결 중) 표시해 두었다가 다시 연결되면 꼭 보내요 → 다른 컴퓨터에서 옛 닉네임이 나오지 않게
+function socAcctPush(now) {
+  const uid = authUid(); if (!uid || SOC.data.acct !== uid) return;
+  clearTimeout(acctT);
+  const send = () => {
+    if (!SOC.acctReady || !SOC.ok || !socLive().length) { SOC.acctDirty = true; return; } // 서버의 계정 정보를 다 불러오기 전엔 덮어쓰지 않아요
+    SOC.acctDirty = false;
+    socPub('acct/' + uid, { nick: SOC.data.nick, nickTs: SOC.data.nickTs || 0, friends: SOC.data.friends.filter(f => f.id).map(f => ({ id: f.id, nick: f.nick })), ts: Date.now() }, true);
+  };
+  if (now) send(); else { SOC.acctDirty = true; acctT = setTimeout(send, 800); }
+}
+function socAccount(uid) {
+  SOC.acctReady = false;
+  SOC.acctP = (async () => {
+    if (!SOC.data.devId) SOC.data.devId = /^a/.test(SOC.data.id) && SOC.data.acct ? Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join('') : SOC.data.id;
+    if (!uid) { if (SOC.data.id !== SOC.data.devId) { SOC.data.id = SOC.data.devId; SOC.data.reg = false; socSave(); socReconnect(); } return; } // 로그아웃: 기기 번호로
+    const aid = 'a' + uid;
+    if (SOC.data.id !== aid) {
+      if (SOC.data.acct && SOC.data.acct !== uid) { SOC.data.friends = []; SOC.data.nick = ''; SOC.data.nickTs = 0; SOC.data.oldIds = []; } // 다른 계정: 이 기기에 남은 남의 친구 목록은 안 써요
+      else SOC.data.oldIds = [...new Set([...(SOC.data.oldIds || []), SOC.data.id])].filter(x => x !== aid).slice(-5); // 예전 번호 → 친구들한테 '이 번호로 옮겼어요' 알려요
+      SOC.data.id = aid; SOC.data.acct = uid; SOC.data.reg = false; socSave(); socReconnect();
+    }
+    for (let i = 0; i < 40 && !SOC.ok; i++) await new Promise(r => setTimeout(r, 200));
+    const a = await socPeek('acct/' + uid, 4000);
+    if (a) {
+      if (a.nick && (!SOC.data.nick || (a.nickTs || 0) > (SOC.data.nickTs || 0))) { SOC.data.nick = a.nick; SOC.data.nickTs = a.nickTs || 0; applyNick(a.nick); } // 다른 컴퓨터에서 바꾼 닉네임
+      for (const f of a.friends || []) { const o = friendById(f.id); if (!o) SOC.data.friends.push({ id: f.id, nick: f.nick }); }
+    }
+    SOC.acctReady = true; socSave(); socAcctPush(true); socReconnect(); socUI();
+  })();
+  return SOC.acctP;
+}
 socSave();
 const nkey = (n) => encodeURIComponent(String(n).trim().toLowerCase());
 const friendById = (id) => SOC.data.friends.find(f => f.id === id);
@@ -8640,14 +8835,16 @@ function socConnect() {
 function socReconnect() { for (const c of SOC.cls) try { c.cl.end(true); } catch (e) {} SOC.cls = []; SOC.ok = false; socConnect(); }
 function friendTopics(f) { return f.id ? ['on/' + f.id, 'u/' + f.id] : ['nick/' + nkey(f.nick)]; } // id 모르는 예전 친구는 이름으로 id 찾기
 function socSubscribe(c) {
-  if (!SOC.data.nick || !SOC.data.reg) return;
+  if (!SOC.data.nick || !SOC.data.reg || !authUid()) return; // 회원만 서버에 닉네임을 올려요
   const me = SOC.data.id;
   try {
     const t = ['req/' + nkey(SOC.data.nick) + '/+', 'acc/' + me + '/+', 'inv/' + me, 'dm/' + me].concat(...SOC.data.friends.map(friendTopics));
     c.cl.subscribe(t.map(x => SOC.P + x), { qos: 1 });
     c.cl.publish(SOC.P + 'on/' + me, JSON.stringify({ on: 1, ts: Date.now() }), { retain: true, qos: 1 });
     c.cl.publish(SOC.P + 'u/' + me, JSON.stringify({ nick: SOC.data.nick, ts: Date.now() }), { retain: true, qos: 1 }); // 내 지금 이름 (친구들이 이걸 보고 이름을 바꿔요)
-    c.cl.publish(SOC.P + 'nick/' + nkey(SOC.data.nick), JSON.stringify({ id: me, nick: SOC.data.nick, ts: Date.now() }), { retain: true, qos: 1 });
+    if (SOC.acctDirty && SOC.acctReady) setTimeout(() => socAcctPush(true), 300); // 못 보낸 계정 정보(닉네임·친구) 보내기
+    for (const o of SOC.data.oldIds || []) c.cl.publish(SOC.P + 'u/' + o, JSON.stringify({ nick: SOC.data.nick, moved: me, ts: Date.now() }), { retain: true, qos: 1 }); // 예전 번호로 날 아는 친구 → 새 번호로
+    c.cl.publish(SOC.P + 'nick/' + nkey(SOC.data.nick), JSON.stringify({ id: me, uid: authUid(), nick: SOC.data.nick, ts: Date.now() }), { retain: true, qos: 1 });
   } catch (e) {}
 }
 setInterval(() => { if (SOC.ok && SOC.data.reg) socPub('on/' + SOC.data.id, { on: 1, ts: Date.now() }, true); }, 60000);
@@ -8679,7 +8876,12 @@ function socMsg(t, m) {
     socUI();
   } else if (kind === 'u' && m && m.nick) { // 친구가 이름을 바꿨어요
     const f = friendById(parts[1]);
-    if (f && f.nick !== m.nick) { f.nick = m.nick; socSave(); socUI(); }
+    if (f && m.moved && m.moved !== f.id && m.moved !== me) { // 친구가 로그인해서 계정 번호로 옮겼어요
+      const dup = friendById(m.moved);
+      for (const x of friendTopics(f)) socUnsub(x);
+      if (dup) SOC.data.friends = SOC.data.friends.filter(x => x !== f); else { f.id = m.moved; for (const x of friendTopics(f)) socSub(x); }
+      (dup || f).nick = m.nick; socSave(); socUI();
+    } else if (f && f.nick !== m.nick) { f.nick = m.nick; socSave(); socUI(); }
   } else if (kind === 'nick' && m && m.id) { // 예전 친구(이름만 저장)의 id 알아내기
     const f = SOC.data.friends.find(x => !x.id && nkey(x.nick) === parts[1]);
     if (f) { f.id = m.id; socSave(); socUnsub(t); for (const x of friendTopics(f)) socSub(x); socUI(); }
@@ -8708,27 +8910,32 @@ async function socClaimNick(nick) {
   nick = String(nick || '').trim().slice(0, 12);
   if (nick.length < 2) return '두 글자 이상으로 정해 주세요';
   if (/[\/#+]/.test(nick)) return '/ # + 는 쓸 수 없어요';
-  if (!SOC.ok) { SOC.data.nick = nick; SOC.data.reg = false; socSave(); applyNick(nick); return ''; }
+  if (SOC.acctP) await SOC.acctP; // 계정 번호로 바뀌는 중이면 기다려요
+  const uid = authUid();
+  for (let i = 0; i < 30 && uid && !SOC.ok; i++) await new Promise(r => setTimeout(r, 200)); // 회원이면 서버 연결을 잠깐 기다려요
+  if (!SOC.ok || !uid) { SOC.data.nick = nick; SOC.data.nickTs = Date.now(); SOC.data.reg = false; socSave(); applyNick(nick); return ''; } // 비회원: 이 기기에만 저장
   const cur = await socPeek('nick/' + nkey(nick));
-  if (cur && cur.id && cur.id !== SOC.data.id) return '이미 누가 쓰는 닉네임이에요';
+  if (cur && cur.uid && cur.uid !== uid) return '이미 누가 쓰는 닉네임이에요'; // 닉네임 주인 = 회원 계정
   const old = SOC.data.nick && SOC.data.reg && nkey(SOC.data.nick) !== nkey(nick) ? SOC.data.nick : null;
-  socPub('nick/' + nkey(nick), { id: SOC.data.id, nick, ts: Date.now() }, true);
+  socPub('nick/' + nkey(nick), { id: SOC.data.id, uid, nick, ts: Date.now() }, true);
   socPub('u/' + SOC.data.id, { nick, ts: Date.now() }, true); // 친구들 화면의 내 이름도 바뀌어요
   if (old) socPub('nick/' + nkey(old), null, true);
-  SOC.data.nick = nick; SOC.data.reg = true; socSave(); applyNick(nick);
-  socReconnect();
+  SOC.data.nick = nick; SOC.data.nickTs = Date.now(); SOC.data.reg = true; socSave(); applyNick(nick);
+  socAcctPush(true); // 계정(다른 컴퓨터용)에도 바로 새 닉네임
+  setTimeout(socReconnect, 600); // 바뀐 이름이 서버에 다 간 다음에 다시 연결 (바로 끊으면 안 갈 수 있어요)
   return '';
 }
 function applyNick(n) {
   SETTINGS.nick = n; saveSettings(); NET.name = n; PLAYER.name = n;
   for (const id of ['start-nick', 'mp-name']) if ($(id)) $(id).value = n;
 }
-setInterval(() => { if (SOC.ok && SOC.data.nick && !SOC.data.reg && !SOC.claiming) { SOC.claiming = true; socClaimNick(SOC.data.nick).then((e) => { SOC.claiming = false; if (e) { SOC.data.nick = ''; socSave(); openNick(e); } }); } }, 4000);
+setInterval(() => { if (SOC.ok && authUid() && SOC.data.nick && !SOC.data.reg && !SOC.claiming) { SOC.claiming = true; socClaimNick(SOC.data.nick).then((e) => { SOC.claiming = false; if (e) { SOC.data.nick = ''; socSave(); openNick(e); } }); } }, 4000);
 
 // ---- 친구 요청 / 수락 / 초대 ----
 async function socAddFriend(name) {
   name = String(name || '').trim();
   if (!name) return '친구 닉네임을 입력하세요';
+  if (!authUid()) return '친구 기능은 로그인한 회원만 쓸 수 있어요 (시작 화면에서 로그인)';
   if (!SOC.data.reg) return '먼저 내 닉네임을 등록해야 해요 (서버 연결 중)';
   if (nkey(name) === nkey(SOC.data.nick)) return '나 자신은 친구로 추가할 수 없어요';
   if (SOC.data.friends.some(f => nkey(f.nick) === nkey(name))) return '이미 친구예요';
@@ -8844,7 +9051,7 @@ function socUI() {
   if (!$('fr-me')) return;
   $('fr-me').textContent = SOC.data.nick || '(아직 없음)';
   const sv = SOC.cls.map(c => `${c.name} ${c.ok ? '✓' : '✗'}`).join(' · ');
-  $('fr-srv').textContent = SOC.ok ? `친구 서버 연결됨 (${sv}) · ${SOC.data.reg ? '내 닉네임 등록됨' : '내 닉네임 등록 중…'}` : SOC.tried >= 4 ? `친구 서버에 연결하지 못했어요 (${sv}). 학교·회사 와이파이나 VPN에서 막혔을 수 있어요` : '친구 서버에 연결하는 중…';
+  $('fr-srv').textContent = !authUid() ? '친구 기능은 로그인한 회원만 쓸 수 있어요. 시작 화면에서 로그인해 주세요' : SOC.ok ? `친구 서버 연결됨 (${sv}) · ${SOC.data.reg ? '내 닉네임 등록됨' : '내 닉네임 등록 중…'}` : SOC.tried >= 4 ? `친구 서버에 연결하지 못했어요 (${sv}). 학교·회사 와이파이나 VPN에서 막혔을 수 있어요` : '친구 서버에 연결하는 중…';
   let h = '';
   if (SOC.reqIn.size) { h += '<h4>받은 친구 요청</h4>'; for (const [id, r] of SOC.reqIn) h += `<div class="fr"><span class="nm">${esc(r.nick)}</span><button class="btn" data-act="acc" data-n="${id}">받기</button><button class="btn sub" data-act="dec" data-n="${id}">거절</button></div>`; }
   $('fr-req').innerHTML = h;
@@ -8859,7 +9066,7 @@ setTimeout(() => {
   if (IN_FRAME) return; // 채팅 화면 안에서는 친구 기능이 막혀 있어요
   socConnect();
   if (!SOC.data.nick && SETTINGS.nick && SETTINGS.nick.length >= 2) SOC.data.nick = SETTINGS.nick; // 전에 쓰던 닉네임은 그대로 (자동 등록)
-  if (!SOC.data.nick) { const t = setInterval(() => { if (SOC.ok || SOC.tried >= 4) { clearInterval(t); if (!SOC.data.nick) openNick(); } }, 300); }
+  if (!SOC.data.nick) { const t = setInterval(() => { if (SOC.ok || SOC.tried >= 4) { clearInterval(t); if (!SOC.data.nick) (window.AUTH_OPEN || openNick)(); } }, 300); }
   else applyNick(SOC.data.nick);
   socUI();
 }, 600);
@@ -9262,17 +9469,121 @@ HUD.init(); setupMenus(); setupLoadoutUI(); setupRangeMenu(); setupMP();
 frame();
 $('verlabel').textContent = 'v' + GAME_BUILD;
 // 새 버전 알림: 웹사이트에 더 새 게임이 있으면 시작 화면에 알려줘요
-const GAME_SITE = 'https://iden1112.github.io/claude-game-tools/';
+const GAME_SITE = 'https://training-1v1.onrender.com/';
 (function checkUpdate() {
-  if (location.hostname.endsWith('github.io')) return; // 웹사이트로 열었으면 늘 최신
+  if (location.protocol.startsWith('http')) return; // 웹사이트로 열었으면 늘 최신
   try {
     fetch(GAME_SITE + 'version.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(j => {
       if (!j || !(j.build > GAME_BUILD)) return;
       const b = document.createElement('div'); b.id = 'updbar';
-      b.innerHTML = `새 버전이 나왔어요 (${j.note || ''}) · <a href="${GAME_SITE}games/shooting/training-1v1/" target="_blank" rel="noopener">웹사이트에서 최신 게임 열기</a>`;
+      b.innerHTML = `새 버전이 나왔어요 (${j.note || ''}) · <a href="${GAME_SITE}" target="_blank" rel="noopener">웹사이트에서 최신 게임 열기</a>`;
       $('start').querySelector('.panel').prepend(b);
     }).catch(() => {});
   } catch (e) {}
+})();
+// ---- 로그인 (Firebase Authentication · 선택 사항) ----
+// Firebase 콘솔 > 프로젝트 설정 > 내 앱(웹)의 firebaseConfig 값을 넣어요. (공개돼도 괜찮은 값이에요)
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyAEteEk9bAfkdydGeumWpSPmALXRaMDt7g',
+  authDomain: 'training-1v1.firebaseapp.com',
+  projectId: 'training-1v1',
+  storageBucket: 'training-1v1.firebasestorage.app',
+  messagingSenderId: '1063877479749',
+  appId: '1:1063877479749:web:de2b9a870a7b913926c22c',
+};
+const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+const AUTH = { user: null, ready: false };
+(function setupAuth() {
+  if (!FIREBASE_CONFIG || !location.protocol.startsWith('http')) return; // 설정 전이거나 파일로 열면 로그인 숨김
+  const st = document.createElement('style');
+  st.textContent = `
+#authrow{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:13px;color:#9aa4ad}
+#authrow b{color:#fff}#authrow .btn{padding:6px 14px;font-size:13px}
+#authmodal .panel{max-width:380px}
+#authmodal input{width:100%;box-sizing:border-box;margin-top:8px;background:#22272c;border:1px solid #3a4047;color:#fff;padding:9px 12px;border-radius:4px;font-size:15px;font-family:inherit}
+#authmodal .gbtn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#222;margin-top:14px}
+#authmodal .or{display:flex;align-items:center;gap:10px;margin:16px 0 4px;color:#777;font-size:12px}
+#authmodal .or::before,#authmodal .or::after{content:"";flex:1;height:1px;background:#3a4047}
+#authmodal .msg{min-height:18px;margin-top:8px;font-size:13px;color:#ff8a7a}#authmodal .msg.ok{color:#8be28b}
+#authmodal .row{margin:12px 0 0}#authmodal a{color:#9aa4ad;font-size:12px;cursor:pointer}`;
+  document.head.appendChild(st);
+  const row = document.createElement('div'); row.id = 'authrow';
+  $('start-nick').closest('.nickrow').after(row);
+  const md = document.createElement('div'); md.id = 'authmodal'; md.className = 'overlay'; md.style.display = 'none'; md.style.zIndex = '50';
+  md.innerHTML = `<div class="panel"><h2 id="au-title">로그인</h2><p class="hint">로그인하지 않아도 게임은 할 수 있어요.</p>
+    <div id="au-nickbox" style="margin-top:12px"><label style="font-size:13px;color:#ffd24a;font-weight:700">닉네임</label>
+      <input id="au-nick" maxlength="12" placeholder="2~12글자 (비우면 계정 이름)" autocomplete="off">
+      <div class="hint" style="margin-top:4px">로그인하면 닉네임이 내 계정에 등록돼서 친구가 찾을 수 있어요. 로그인 없이 시작하면 이 기기에만 저장돼요.</div></div>
+    <div id="au-authbox">
+    <button class="btn gbtn" id="au-google"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>구글로 로그인</button>
+    <div class="or">또는 이메일</div>
+    <input id="au-email" type="email" placeholder="이메일" autocomplete="email">
+    <input id="au-pw" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="current-password">
+    </div>
+    <div class="msg" id="au-msg"></div>
+    <div class="row"><button class="btn" id="au-login">로그인</button><button class="btn sub" id="au-signup">회원가입</button><button class="btn" id="au-guest">로그인 없이 시작</button><button class="btn sub" id="au-close">닫기</button></div>
+    <div id="au-resetrow" style="margin-top:10px"><a id="au-reset">비밀번호를 잊었어요</a></div></div>`;
+  document.body.appendChild(md);
+  for (const id of ['au-email', 'au-pw']) $(id).addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') $('au-login').click(); });
+  $('au-nick').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') $(AUTH.user ? 'au-guest' : 'au-email').focus(); });
+  const msg = (t, ok) => { $('au-msg').textContent = t || ''; $('au-msg').className = 'msg' + (ok ? ' ok' : ''); };
+  const needNick = () => !(SOC.data && SOC.data.nick);
+  const show = (id, on) => { $(id).style.display = on ? '' : 'none'; };
+  // 창 모양: 닉네임이 없으면 닉네임 칸을 같이 보여 주고, 이미 로그인했으면 로그인 버튼은 숨겨요
+  const layout = () => {
+    const nn = needNick(), li = !!AUTH.user;
+    show('au-nickbox', nn); show('au-authbox', !li); show('au-login', !li); show('au-signup', !li); show('au-resetrow', !li);
+    show('au-guest', nn); $('au-guest').textContent = li ? '닉네임 정하기' : '로그인 없이 시작';
+    $('au-title').textContent = nn ? (li ? '닉네임 정하기' : '시작하기') : '로그인';
+    $('au-close').textContent = nn ? '나중에' : '닫기';
+  };
+  const claim = (fallback) => {
+    const v = $('au-nick').value.trim() || String(fallback || '').slice(0, 12);
+    $('au-nick').value = v; msg('닉네임 확인 중… (3초쯤 걸려요)', true);
+    return socClaimNick(v).then((e) => { if (e) { msg(e); layout(); $('au-nick').focus(); } else { close(); socUI(); } });
+  };
+  // 로그인 전에 닉네임 글자 수부터 확인 (비워 두면 계정 이름을 써요)
+  const nickOk = () => { const v = $('au-nick').value.trim(); if (needNick() && v && v.length < 2) { msg('닉네임은 두 글자 이상으로 정해 주세요'); $('au-nick').focus(); return false; } return true; };
+  const afterAuth = async (cred) => { const u = (cred && cred.user) || AUTH.user; if (u && window.__authUid !== u.uid) { window.__authUid = u.uid; socAccount(u.uid); } if (SOC.acctP) { msg('계정 정보를 불러오는 중…', true); await SOC.acctP; } if (!needNick() && !$('au-nick').value.trim()) { close(); socUI(); return; } if (!needNick()) { close(); socUI(); return; } AUTH.user = u; return claim(u && (u.displayName || (u.email || '').split('@')[0])); };
+  const ERR = {
+    'auth/invalid-credential': '이메일 또는 비밀번호가 맞지 않아요', 'auth/wrong-password': '이메일 또는 비밀번호가 맞지 않아요',
+    'auth/user-not-found': '가입된 이메일이 아니에요', 'auth/email-already-in-use': '이미 가입된 이메일이에요. 로그인을 눌러 주세요',
+    'auth/weak-password': '비밀번호는 6자 이상이어야 해요', 'auth/invalid-email': '이메일 형식이 맞지 않아요',
+    'auth/missing-password': '비밀번호를 입력하세요', 'auth/too-many-requests': '시도가 너무 많아요. 잠시 뒤에 다시 해 주세요',
+    'auth/popup-blocked': '팝업이 막혔어요. 브라우저에서 팝업을 허용해 주세요', 'auth/network-request-failed': '인터넷 연결을 확인해 주세요',
+    'auth/unauthorized-domain': '이 주소는 Firebase 승인된 도메인에 등록되지 않았어요', 'auth/operation-not-allowed': 'Firebase에서 이 로그인 방법이 꺼져 있어요',
+  };
+  const fail = (e) => { if (e && (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request')) { msg(''); return; } msg(ERR[e && e.code] || ('로그인하지 못했어요 (' + ((e && e.code) || e) + ')')); };
+  const open = () => { md.style.display = 'flex'; msg(''); if (needNick()) $('au-nick').value = SETTINGS.nick || ''; layout(); setTimeout(() => $(needNick() ? 'au-nick' : 'au-email').focus(), 50); };
+  window.AUTH_OPEN = open; // 처음 접속할 때 닉네임 창 대신 이 창을 열어요
+  $('au-guest').onclick = () => { if (!$('au-nick').value.trim()) { msg('닉네임을 입력하세요'); $('au-nick').focus(); return; } claim(''); };
+  const close = () => { md.style.display = 'none'; $('au-pw').value = ''; };
+  const render = () => {
+    const u = AUTH.user;
+    if (!AUTH.ready) { row.innerHTML = '<span>로그인 확인 중…</span>'; return; }
+    if (!u) { row.innerHTML = '<span>로그인하면 계정이 기억돼요</span><button class="btn sub" id="au-open">로그인 / 회원가입</button>'; $('au-open').onclick = open; return; }
+    row.innerHTML = `<span>로그인됨: <b></b></span><button class="btn sub" id="au-out">로그아웃</button>`;
+    row.querySelector('b').textContent = u.displayName || u.email || '사용자';
+    $('au-out').onclick = () => firebase.auth().signOut();
+  };
+  render();
+  const load = (f) => new Promise((ok, no) => { const s = document.createElement('script'); s.src = FIREBASE_SDK + f; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+  load('firebase-app-compat.js').then(() => load('firebase-auth-compat.js')).then(() => {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    const auth = firebase.auth(); auth.languageCode = 'ko';
+    auth.onAuthStateChanged((u) => {
+      AUTH.user = u; AUTH.ready = true; window.__authUid = u ? u.uid : '';
+      socAccount(u ? u.uid : ''); // 로그인하면 계정 번호·친구 목록으로
+      if (!u && SOC.data.reg) { SOC.data.reg = false; socSave(); socReconnect(); } // 로그아웃하면 서버 등록 멈춤
+      render(); socUI(); if (md.style.display !== 'none') layout();
+    });
+    $('au-google').onclick = () => { if (!nickOk()) return; msg('구글 창에서 로그인해 주세요…', true); auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).then(afterAuth, fail); };
+    const creds = () => [$('au-email').value.trim(), $('au-pw').value];
+    $('au-login').onclick = () => { if (!nickOk()) return; msg('로그인 중…', true); auth.signInWithEmailAndPassword(...creds()).then(afterAuth, fail); };
+    $('au-signup').onclick = () => { if (!nickOk()) return; msg('가입하는 중…', true); auth.createUserWithEmailAndPassword(...creds()).then(afterAuth, fail); };
+    $('au-reset').onclick = () => { const em = $('au-email').value.trim(); if (!em) { msg('위에 이메일을 먼저 입력하세요'); return; } auth.sendPasswordResetEmail(em).then(() => msg('비밀번호 재설정 메일을 보냈어요', true), fail); };
+    $('au-close').onclick = close;
+  }).catch(() => { AUTH.ready = true; row.innerHTML = '<span>로그인 서버에 연결하지 못했어요</span>'; });
 })();
 window.__game = { step(n, dt = 1 / 60) { for (let i = 0; i < n; i++) { simStep(dt); updateFX(dt); fx.update(dt, camera); updatePlayerCamera(dt); INPUT.consume(); } }, G, PLAYER: () => PLAYER, BOT: () => BOT, REMOTES: () => REMOTES, netStartGame, GAME, CAM, INPUT, NET, RANGE, openLoadout, closeLoadout, camera, enterRange, netHost, netJoin };
 </script>
